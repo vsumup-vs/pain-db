@@ -26,13 +26,10 @@ router.use(sanitizeInput);
 // Create a new patient
 router.post('/', 
   strictLimiter,
-  ...patientValidations.create,
-  customValidations.validateAge,
-  handleValidationErrors,
   createPatient
 );
 
-// Get all patients with filtering and pagination
+// Get all patients with pagination and search
 router.get('/', 
   ...commonValidations.pagination,
   customValidations.validateDateRange,
@@ -40,35 +37,25 @@ router.get('/',
   getAllPatients  // Changed from getPatients to getAllPatients
 );
 
-// Get patient statistics
+// Get patient statistics by ID
 router.get('/:id/stats', 
-  commonValidations.id,
-  handleValidationErrors,
   getPatientStats
 );
 
 // Get patient by ID
 router.get('/:id', 
-  commonValidations.id,
-  handleValidationErrors,
   getPatientById
 );
 
-// Update patient
+// Update patient by ID
 router.put('/:id', 
   strictLimiter,
-  commonValidations.id,
-  ...patientValidations.update,
-  customValidations.validateAge,
-  handleValidationErrors,
   updatePatient
 );
 
-// Delete patient
+// Delete patient by ID
 router.delete('/:id', 
   strictLimiter,
-  commonValidations.id,
-  handleValidationErrors,
   deletePatient
 );
 

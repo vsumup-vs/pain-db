@@ -19,18 +19,18 @@ const {
 } = require('../controllers/observationController');
 
 // Base routes with validation
-router.post('/', observationValidations.create, customValidations.validateMetricValue, handleValidationErrors, createObservation);
+router.post('/', createObservation);
 router.get('/', commonValidations.pagination, commonValidations.dateRange, handleValidationErrors, getAllObservations);
 router.get('/stats', getObservationStats);
 router.post('/bulk', observationValidations.bulk, handleValidationErrors, bulkCreateObservations);
-router.get('/:id', commonValidations.id, handleValidationErrors, getObservationById);
-router.put('/:id', commonValidations.id, observationValidations.update, customValidations.validateMetricValue, handleValidationErrors, updateObservation);
-router.delete('/:id', commonValidations.id, handleValidationErrors, deleteObservation);
+router.get('/:id', getObservationById);
+router.put('/:id', updateObservation);
+router.delete('/:id', deleteObservation);
 
 // Patient-specific routes
-router.get('/patient/:patientId/history', commonValidations.id, commonValidations.pagination, commonValidations.dateRange, handleValidationErrors, getPatientObservationHistory);
+router.get('/patient/:patientId/history', commonValidations.pagination, commonValidations.dateRange, handleValidationErrors, getPatientObservationHistory);
 
 // Enrollment-specific routes
-router.get('/enrollment/:enrollmentId', commonValidations.id, commonValidations.pagination, commonValidations.dateRange, handleValidationErrors, getObservationsByEnrollment);
+router.get('/enrollment/:enrollmentId', getObservationsByEnrollment);
 
 module.exports = router;

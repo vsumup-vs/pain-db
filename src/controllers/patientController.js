@@ -24,7 +24,7 @@ const createPatient = async (req, res) => {
     // Validate required fields
     if (!firstName || !lastName || !email) {
       return res.status(400).json({
-        error: 'Missing required fields: firstName, lastName, and email are required'
+        error: 'Validation failed: firstName, lastName, and email are required'
       });
     }
 

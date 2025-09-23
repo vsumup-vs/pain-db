@@ -22,9 +22,9 @@ router.post('/', clinicianValidations.create, handleValidationErrors, createClin
 router.get('/', commonValidations.pagination, handleValidationErrors, getAllClinicians);
 router.get('/stats', getOverallClinicianStats);
 router.get('/specialization/:specialization', getCliniciansBySpecialization);
-router.get('/:id', commonValidations.id, handleValidationErrors, getClinicianById);
-router.get('/:id/stats', commonValidations.id, handleValidationErrors, getClinicianStats);
-router.put('/:id', commonValidations.id, clinicianValidations.update, handleValidationErrors, updateClinician);
-router.delete('/:id', commonValidations.id, handleValidationErrors, deleteClinician);
+router.get('/:id', getClinicianById);
+router.get('/:id/stats', getClinicianStats);
+router.put('/:id', clinicianValidations.update, handleValidationErrors, updateClinician);
+router.delete('/:id', deleteClinician);
 
 module.exports = router;

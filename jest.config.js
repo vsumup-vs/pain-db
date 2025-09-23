@@ -12,5 +12,6 @@ module.exports = {
   testTimeout: 15000,
   clearMocks: true,
   forceExit: true,
-  detectOpenHandles: true
+  detectOpenHandles: true,
+  maxWorkers: 1 // Run tests sequentially to prevent database interference
 };

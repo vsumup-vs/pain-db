@@ -6,6 +6,8 @@ const prisma = global.prisma || new PrismaClient();
 // Create a new clinician
 const createClinician = async (req, res) => {
   try {
+    console.log('Creating clinician with data:', req.body);
+    
     const {
       npi,
       firstName,
@@ -20,19 +22,13 @@ const createClinician = async (req, res) => {
       credentials
     } = req.body;
 
-    // Validate required fields
-    if (!firstName || !lastName || !email || !specialization || !licenseNumber) {
-      return res.status(400).json({
-        error: 'Missing required fields: firstName, lastName, email, specialization, and licenseNumber are required'
-      });
-    }
-
     // Check if email already exists
     const existingEmail = await prisma.clinician.findUnique({
       where: { email }
     });
 
     if (existingEmail) {
+      console.log('Email already exists:', email);
       return res.status(409).json({
         error: 'Clinician with this email already exists'
       });
@@ -44,6 +40,7 @@ const createClinician = async (req, res) => {
     });
 
     if (existingLicense) {
+      console.log('License number already exists:', licenseNumber);
       return res.status(409).json({
         error: 'Clinician with this license number already exists'
       });
@@ -65,7 +62,11 @@ const createClinician = async (req, res) => {
       }
     });
 
-    res.status(201).json(clinician);
+    console.log('Clinician created successfully:', clinician.id);
+    res.status(201).json({
+      message: 'Clinician created successfully',
+      data: clinician
+    });
   } catch (error) {
     console.error('Error creating clinician:', error);
     res.status(500).json({
@@ -88,8 +89,27 @@ const getAllClinicians = async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
+    // Validate pagination parameters
+    const errors = [];
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    
+    if (isNaN(pageNum) || pageNum < 1) {
+      errors.push('Page must be a positive integer');
+    }
+    
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      errors.push('Limit must be a positive integer between 1 and 100');
+    }
+    
+    if (errors.length > 0) {
+      return res.status(400).json({
+        errors: errors
+      });
+    }
+
+    const skip = (pageNum - 1) * limitNum;
+    const take = limitNum;
 
     // Build where clause for filtering
     const where = {};
@@ -126,10 +146,10 @@ const getAllClinicians = async (req, res) => {
     res.json({
       data: clinicians,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / parseInt(limit))
+        totalPages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -190,6 +210,14 @@ const getClinicianById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        error: 'Invalid clinician ID format'
+      });
+    }
+
     const clinician = await prisma.clinician.findUnique({
       where: { id },
       include: {
@@ -239,6 +267,14 @@ const updateClinician = async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        error: 'Invalid clinician ID format'
+      });
+    }
+
     // Remove fields that shouldn't be updated
     delete updateData.id;
     delete updateData.createdAt;
@@ -262,21 +298,8 @@ const updateClinician = async (req, res) => {
       });
 
       if (emailExists) {
-        return res.status(409).json({
-          error: 'Email already exists for another clinician'
-        });
-      }
-    }
-
-    // Check for license number uniqueness if being updated
-    if (updateData.licenseNumber && updateData.licenseNumber !== existingClinician.licenseNumber) {
-      const licenseExists = await prisma.clinician.findUnique({
-        where: { licenseNumber: updateData.licenseNumber }
-      });
-
-      if (licenseExists) {
-        return res.status(409).json({
-          error: 'License number already exists for another clinician'
+        return res.status(400).json({
+          error: 'Email already exists'
         });
       }
     }
@@ -287,8 +310,8 @@ const updateClinician = async (req, res) => {
     });
 
     res.json({
-      message: 'Clinician updated successfully',
-      data: updatedClinician
+      data: updatedClinician,
+      message: 'Clinician updated successfully'
     });
   } catch (error) {
     console.error('Error updating clinician:', error);
@@ -302,6 +325,14 @@ const updateClinician = async (req, res) => {
 const deleteClinician = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({
+        error: 'Invalid clinician ID format'
+      });
+    }
 
     // Check if clinician exists
     const existingClinician = await prisma.clinician.findUnique({
@@ -319,7 +350,7 @@ const deleteClinician = async (req, res) => {
 
     // Check if clinician has active enrollments
     const activeEnrollments = existingClinician.enrollments.filter(
-      enrollment => enrollment.status === 'ACTIVE'
+      enrollment => enrollment.status === 'active'
     );
 
     if (activeEnrollments.length > 0) {
@@ -331,10 +362,10 @@ const deleteClinician = async (req, res) => {
 
     // Use transaction to handle deletion
     await prisma.$transaction(async (tx) => {
-      // Update enrollments to remove clinician reference
+      // Update enrollments to ended status
       await tx.enrollment.updateMany({
         where: { clinicianId: id },
-        data: { status: 'INACTIVE' }
+        data: { status: 'ended' }
       });
 
       // Delete the clinician

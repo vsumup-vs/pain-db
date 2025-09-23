@@ -118,12 +118,14 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Pain-DB API Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📖 API info: http://localhost:${PORT}/api`);
-});
+// Start server only if this file is run directly (not imported)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Pain-DB API Server running on port ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`📖 API info: http://localhost:${PORT}/api`);
+  });
+}
 
 // Export for testing
 module.exports = { app, prisma };
