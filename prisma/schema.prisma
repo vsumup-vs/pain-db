@@ -1,0 +1,357 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/* ========== Enums ========== */
+enum ValueType {
+  numeric      // ← lowercase
+  ordinal
+  categorical
+  boolean
+  text
+  date
+}
+
+enum Severity {
+  low
+  medium
+  high
+  critical
+}
+
+enum SourceType {
+  patient
+  device
+  staff
+}
+
+enum EnrollmentStatus {
+  active
+  paused
+  ended
+}
+
+enum AlertStatus {
+  open
+  ack
+  closed
+}
+
+enum CPTCode {
+  CPT_98975
+  CPT_98976
+  CPT_98977
+  CPT_98980
+  CPT_98981
+  CPT_99457
+  CPT_99458
+}
+
+/* ========== Core Identities ========== */
+model Patient {
+  id              String       @id @default(uuid()) @db.Uuid
+  mrn             String?      @unique
+  firstName       String?
+  lastName        String?
+  email           String?      @unique
+  phone           String?
+  dateOfBirth     DateTime?
+  gender          String?
+  address         Json?
+  emergencyContact Json?
+  medicalHistory  Json?
+  allergies       Json?
+  medications     Json?
+  insuranceInfo   Json?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  enrollments     Enrollment[]
+  observations    Observation[]
+  timelogs        TimeLog[]
+  messages        Message[]
+
+  @@map("patients")
+}
+
+model Clinician {
+  id              String    @id @default(uuid()) @db.Uuid
+  npi             String?   @unique
+  firstName       String?
+  lastName        String?
+  email           String?   @unique
+  phone           String?
+  specialization  String?
+  licenseNumber   String?   @map("license_number")
+  department      String?
+  address         Json?
+  emergencyContact Json?    @map("emergency_contact")
+  credentials     Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  enrollments     Enrollment[]
+  timelogs        TimeLog[]
+
+  @@map("clinicians")
+}
+
+/* ========== Configuration ========== */
+model MetricDefinition {
+  id                String    @id @default(uuid()) @db.Uuid
+  key               String
+  displayName       String    @map("display_name")
+  valueType         ValueType @map("value_type")
+  unit              String?
+  scaleMin          Decimal?  @map("scale_min") @db.Decimal(10,4)
+  scaleMax          Decimal?  @map("scale_max") @db.Decimal(10,4)
+  decimalPrecision  Int?      @map("decimal_precision")
+  requiredDefault   Boolean   @default(false) @map("required_default")
+  defaultFrequency  String?   @map("default_frequency")
+  coding            Json?
+  options           Json?
+  validation        Json?
+  localeOverrides   Json?     @map("locale_overrides")
+  version           Int       @default(1)
+  activeFrom        DateTime  @default(now()) @map("active_from")
+  activeTo          DateTime? @map("active_to")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @map("updated_at")
+
+  templateItems     AssessmentTemplateItem[]
+  observations      Observation[]
+
+  @@unique([key, version])
+  @@index([key])
+  @@index([activeTo])
+  @@map("metric_definitions")
+}
+
+model AssessmentTemplate {
+  id          String                      @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  version     Int                         @default(1)
+  createdAt   DateTime                    @default(now()) @map("created_at")
+  updatedAt   DateTime                    @default(now()) @map("updated_at")
+
+  items       AssessmentTemplateItem[]
+  presets     ConditionPresetTemplate[]
+  observations Observation[]
+
+  @@unique([name, version])
+  @@map("assessment_templates")
+}
+
+model AssessmentTemplateItem {
+  id                   String            @id @default(uuid()) @db.Uuid
+  templateId           String            @map("template_id") @db.Uuid
+  metricDefinitionId   String            @map("metric_definition_id") @db.Uuid
+  required             Boolean           @default(false)
+  displayOrder         Int               @default(0) @map("display_order")
+  helpText             String?           @map("help_text")
+  defaultValue         String?           @map("default_value")
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  template             AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  metricDefinition     MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
+
+  @@unique([templateId, metricDefinitionId])
+  @@index([templateId, displayOrder])
+  @@map("assessment_template_items")
+}
+
+/* ========== Presets & Diagnoses ========== */
+model ConditionPreset {
+  id                String                        @id @default(uuid()) @db.Uuid
+  name              String
+  defaultProtocolId String?                       @map("default_protocol_id")
+  createdAt         DateTime                      @default(now()) @map("created_at")
+
+  diagnoses         ConditionPresetDiagnosis[]
+  templates         ConditionPresetTemplate[]
+  alertRules        ConditionPresetAlertRule[]
+  enrollments       Enrollment[]
+
+  @@map("condition_presets")
+}
+
+model ConditionPresetDiagnosis {
+  id        String          @id @default(uuid()) @db.Uuid
+  presetId  String          @map("preset_id") @db.Uuid
+  icd10     String
+  snomed    String?
+  label     String?
+
+  preset    ConditionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+
+  @@unique([presetId, icd10])
+  @@map("condition_preset_diagnoses")
+}
+
+model ConditionPresetTemplate {
+  id         String            @id @default(uuid()) @db.Uuid
+  presetId   String            @map("preset_id") @db.Uuid
+  templateId String            @map("template_id") @db.Uuid
+
+  preset     ConditionPreset   @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  template   AssessmentTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([presetId, templateId])
+  @@map("condition_preset_templates")
+}
+
+/* ========== Alert Rules & Attachments ========== */
+model AlertRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  severity  Severity
+  window    String
+  expression Json
+  dedupeKey String?  @map("dedupe_key")
+  cooldown  String?
+  actions   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  presetLinks ConditionPresetAlertRule[]
+  alerts      Alert[]
+
+  @@map("alert_rules")
+}
+
+model ConditionPresetAlertRule {
+  id       String        @id @default(uuid()) @db.Uuid
+  presetId String        @map("preset_id") @db.Uuid
+  ruleId   String        @map("rule_id") @db.Uuid
+
+  preset   ConditionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  rule     AlertRule       @relation(fields: [ruleId], references: [id])
+
+  @@unique([presetId, ruleId])
+  @@map("condition_preset_alert_rules")
+}
+
+/* ========== Enrollment (RTM linkage) ========== */
+model Enrollment {
+  id             String            @id @default(uuid()) @db.Uuid
+  patientId      String            @map("patient_id") @db.Uuid
+  presetId       String            @map("preset_id") @db.Uuid
+  diagnosisCode  String            @map("diagnosis_code")
+  clinicianId    String?           @map("clinician_id") @db.Uuid
+  startDate      DateTime          @map("start_date")
+  endDate        DateTime?         @map("end_date")
+  status         EnrollmentStatus  @default(active)
+  consentAt      DateTime?         @map("consent_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @default(now()) @map("updated_at")
+
+  patient        Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  preset         ConditionPreset   @relation(fields: [presetId], references: [id])
+  clinician      Clinician?        @relation(fields: [clinicianId], references: [id])
+  observations   Observation[]
+  alerts         Alert[]
+  timelogs       TimeLog[]
+  messages       Message[]
+
+  @@index([patientId, status])
+  @@index([diagnosisCode])
+  @@index([startDate])
+  @@index([presetId])
+  @@map("enrollments")
+}
+
+/* ========== Observations (normalized values) ========== */
+model Observation {
+  id                        String           @id @default(uuid()) @db.Uuid
+  patientId                 String           @map("patient_id") @db.Uuid
+  enrollmentId              String           @map("enrollment_id") @db.Uuid
+  templateId                String?          @map("template_id") @db.Uuid
+  metricKey                 String           @map("metric_key")
+  metricDefinitionId        String           @map("metric_definition_id") @db.Uuid
+  metricDefinitionVersion   Int              @default(1) @map("metric_definition_version")
+  recordedAt                DateTime         @map("recorded_at")
+  source                    SourceType       @default(patient)
+
+  // One of the following should be set by app logic; Prisma cannot enforce CHECK constraint
+  valueNumeric              Decimal?         @map("value_numeric") @db.Decimal(14,4)
+  valueText                 String?          @map("value_text")
+  valueCode                 String?          @map("value_code")
+
+  unit                      String?
+  context                   Json?
+  raw                       Json?
+  createdAt                 DateTime         @default(now()) @map("created_at")
+
+  patient                   Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  enrollment                Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  template                  AssessmentTemplate? @relation(fields: [templateId], references: [id])
+  metricDefinition          MetricDefinition @relation(fields: [metricDefinitionId], references: [id])
+
+  @@index([enrollmentId, recordedAt])
+  @@index([metricKey, recordedAt(sort: Desc)])
+  @@index([metricDefinitionId])
+  @@index([valueCode])
+  @@map("observations")
+}
+
+/* ========== Alerts & Time Logs ========== */
+model Alert {
+  id            String      @id @default(uuid()) @db.Uuid
+  ruleId        String      @map("rule_id") @db.Uuid
+  enrollmentId  String      @map("enrollment_id") @db.Uuid
+  triggeredAt   DateTime    @default(now()) @map("triggered_at")
+  facts         Json?
+  status        AlertStatus @default(open)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  rule          AlertRule   @relation(fields: [ruleId], references: [id])
+  enrollment    Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId, triggeredAt(sort: Desc)])
+  @@index([status, triggeredAt(sort: Desc)])
+  @@map("alerts")
+}
+
+model TimeLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  patientId     String   @map("patient_id") @db.Uuid
+  enrollmentId  String   @map("enrollment_id") @db.Uuid
+  cptCode       CPTCode  @map("cpt_code")
+  minutes       Int
+  startedAt     DateTime @map("started_at")
+  endedAt       DateTime @map("ended_at")
+  actorId       String?  @map("actor_id") @db.Uuid
+  activityRef   String?  @map("activity_ref")
+  audit         Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  patient       Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  actor         Clinician? @relation(fields: [actorId], references: [id])
+
+  @@index([enrollmentId, startedAt])
+  @@index([cptCode, startedAt])
+  @@map("timelogs")
+}
+
+model Message {
+  id            String     @id @default(uuid()) @db.Uuid
+  enrollmentId  String     @map("enrollment_id") @db.Uuid
+  patientId     String     @map("patient_id") @db.Uuid
+  senderType    String     @map("sender_type")
+  body          String
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  patient       Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}

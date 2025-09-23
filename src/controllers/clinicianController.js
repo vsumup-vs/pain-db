@@ -1,0 +1,488 @@
+const { PrismaClient } = require('../../generated/prisma');
+
+// Use global prisma client in test environment, otherwise create new instance
+const prisma = global.prisma || new PrismaClient();
+
+// Create a new clinician
+const createClinician = async (req, res) => {
+  try {
+    const {
+      npi,
+      firstName,
+      lastName,
+      email,
+      phone,
+      specialization,
+      licenseNumber,
+      department,
+      address,
+      emergencyContact,
+      credentials
+    } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !email || !specialization || !licenseNumber) {
+      return res.status(400).json({
+        error: 'Missing required fields: firstName, lastName, email, specialization, and licenseNumber are required'
+      });
+    }
+
+    // Check if email already exists
+    const existingEmail = await prisma.clinician.findUnique({
+      where: { email }
+    });
+
+    if (existingEmail) {
+      return res.status(409).json({
+        error: 'Clinician with this email already exists'
+      });
+    }
+
+    // Check if license number already exists
+    const existingLicense = await prisma.clinician.findFirst({
+      where: { licenseNumber }
+    });
+
+    if (existingLicense) {
+      return res.status(409).json({
+        error: 'Clinician with this license number already exists'
+      });
+    }
+
+    const clinician = await prisma.clinician.create({
+      data: {
+        npi,
+        firstName,
+        lastName,
+        email,
+        phone,
+        specialization,
+        licenseNumber,
+        department,
+        address,
+        emergencyContact,
+        credentials
+      }
+    });
+
+    res.status(201).json(clinician);
+  } catch (error) {
+    console.error('Error creating clinician:', error);
+    res.status(500).json({
+      error: 'Internal server error while creating clinician'
+    });
+  }
+};
+
+// Get all clinicians with pagination and filtering
+const getAllClinicians = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      specialization,
+      department,
+      role,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Build where clause for filtering
+    const where = {};
+    
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { specialization: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (specialization) {
+      where.specialization = { contains: specialization, mode: 'insensitive' };
+    }
+    
+    if (department) {
+      where.department = { contains: department, mode: 'insensitive' };
+    }
+    
+    const [clinicians, total] = await Promise.all([
+      prisma.clinician.findMany({
+        where,
+        skip,
+        take,
+        orderBy: {
+          [sortBy]: sortOrder
+        }
+      }),
+      prisma.clinician.count({ where })
+    ]);
+
+    res.json({
+      data: clinicians,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching clinicians:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching clinicians'
+    });
+  }
+};
+
+// Get overall clinician statistics
+const getOverallClinicianStats = async (req, res) => {
+  try {
+    const [total, specializationStats, departmentStats] = await Promise.all([
+      prisma.clinician.count(),
+      prisma.clinician.groupBy({
+        by: ['specialization'],
+        _count: true
+      }),
+      prisma.clinician.groupBy({
+        by: ['department'],
+        _count: true,
+        where: {
+          department: {
+            not: null
+          }
+        }
+      })
+    ]);
+
+    const bySpecialization = specializationStats.reduce((acc, stat) => {
+      acc[stat.specialization] = stat._count;
+      return acc;
+    }, {});
+
+    const byDepartment = departmentStats.reduce((acc, stat) => {
+      acc[stat.department] = stat._count;
+      return acc;
+    }, {});
+
+    res.json({
+      data: {
+        total,
+        bySpecialization,
+        byDepartment
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching overall clinician stats:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching clinician statistics'
+    });
+  }
+};
+
+// Get a single clinician by ID
+const getClinicianById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const clinician = await prisma.clinician.findUnique({
+      where: { id },
+      include: {
+        enrollments: {
+          include: {
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                dateOfBirth: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        _count: {
+          select: {
+            enrollments: true
+          }
+        }
+      }
+    });
+
+    if (!clinician) {
+      return res.status(404).json({
+        error: 'Clinician not found'
+      });
+    }
+
+    res.json({
+      data: clinician
+    });
+  } catch (error) {
+    console.error('Error fetching clinician:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching clinician'
+    });
+  }
+};
+
+// Update a clinician
+const updateClinician = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // Remove fields that shouldn't be updated
+    delete updateData.id;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+
+    // Check if clinician exists
+    const existingClinician = await prisma.clinician.findUnique({
+      where: { id }
+    });
+
+    if (!existingClinician) {
+      return res.status(404).json({
+        error: 'Clinician not found'
+      });
+    }
+
+    // Check for email uniqueness if email is being updated
+    if (updateData.email && updateData.email !== existingClinician.email) {
+      const emailExists = await prisma.clinician.findUnique({
+        where: { email: updateData.email }
+      });
+
+      if (emailExists) {
+        return res.status(409).json({
+          error: 'Email already exists for another clinician'
+        });
+      }
+    }
+
+    // Check for license number uniqueness if being updated
+    if (updateData.licenseNumber && updateData.licenseNumber !== existingClinician.licenseNumber) {
+      const licenseExists = await prisma.clinician.findUnique({
+        where: { licenseNumber: updateData.licenseNumber }
+      });
+
+      if (licenseExists) {
+        return res.status(409).json({
+          error: 'License number already exists for another clinician'
+        });
+      }
+    }
+
+    const updatedClinician = await prisma.clinician.update({
+      where: { id },
+      data: updateData
+    });
+
+    res.json({
+      message: 'Clinician updated successfully',
+      data: updatedClinician
+    });
+  } catch (error) {
+    console.error('Error updating clinician:', error);
+    res.status(500).json({
+      error: 'Internal server error while updating clinician'
+    });
+  }
+};
+
+// Delete a clinician
+const deleteClinician = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if clinician exists
+    const existingClinician = await prisma.clinician.findUnique({
+      where: { id },
+      include: {
+        enrollments: true
+      }
+    });
+
+    if (!existingClinician) {
+      return res.status(404).json({
+        error: 'Clinician not found'
+      });
+    }
+
+    // Check if clinician has active enrollments
+    const activeEnrollments = existingClinician.enrollments.filter(
+      enrollment => enrollment.status === 'ACTIVE'
+    );
+
+    if (activeEnrollments.length > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete clinician with active enrollments. Please transfer or deactivate enrollments first.',
+        activeEnrollments: activeEnrollments.length
+      });
+    }
+
+    // Use transaction to handle deletion
+    await prisma.$transaction(async (tx) => {
+      // Update enrollments to remove clinician reference
+      await tx.enrollment.updateMany({
+        where: { clinicianId: id },
+        data: { status: 'INACTIVE' }
+      });
+
+      // Delete the clinician
+      await tx.clinician.delete({
+        where: { id }
+      });
+    });
+
+    res.json({
+      message: 'Clinician deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting clinician:', error);
+    res.status(500).json({
+      error: 'Internal server error while deleting clinician'
+    });
+  }
+};
+
+// Get clinician statistics and workload
+const getClinicianStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const clinician = await prisma.clinician.findUnique({
+      where: { id }
+    });
+
+    if (!clinician) {
+      return res.status(404).json({
+        error: 'Clinician not found'
+      });
+    }
+
+    const [totalPatients, activeEnrollments, totalObservations, recentAlerts] = await Promise.all([
+      prisma.enrollment.count({
+        where: { clinicianId: id }
+      }),
+      prisma.enrollment.count({
+        where: {
+          clinicianId: id,
+          status: 'ACTIVE'
+        }
+      }),
+      prisma.observation.count({
+        where: {
+          patient: {
+            enrollments: {
+              some: {
+                clinicianId: id,
+                status: 'ACTIVE'
+              }
+            }
+          }
+        }
+      }),
+      prisma.alert.count({
+        where: {
+          patient: {
+            enrollments: {
+              some: {
+                clinicianId: id,
+                status: 'ACTIVE'
+              }
+            }
+          },
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+          }
+        }
+      })
+    ]);
+
+    // Get patient distribution by enrollment status
+    const enrollmentStats = await prisma.enrollment.groupBy({
+      by: ['status'],
+      where: { clinicianId: id },
+      _count: true
+    });
+
+    res.json({
+      data: {
+        clinicianId: id,
+        workload: {
+          totalPatients,
+          activeEnrollments,
+          totalObservations,
+          recentAlerts
+        },
+        enrollmentDistribution: enrollmentStats.reduce((acc, stat) => {
+          acc[stat.status] = stat._count;
+          return acc;
+        }, {})
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching clinician stats:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching clinician statistics'
+    });
+  }
+};
+
+// Get clinicians by specialization
+const getCliniciansBySpecialization = async (req, res) => {
+  try {
+    const { specialization } = req.params;
+
+    const clinicians = await prisma.clinician.findMany({
+      where: {
+        specialization: {
+          contains: specialization,
+          mode: 'insensitive'
+        }
+      },
+      include: {
+        _count: {
+          select: {
+            enrollments: {
+              where: { status: 'active' }
+            }
+          }
+        }
+      },
+      orderBy: {
+        lastName: 'asc'
+      }
+    });
+
+    res.json({
+      data: clinicians,
+      count: clinicians.length
+    });
+  } catch (error) {
+    console.error('Error fetching clinicians by specialization:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching clinicians'
+    });
+  }
+};
+
+module.exports = {
+  createClinician,
+  getAllClinicians,
+  getClinicianById,
+  updateClinician,
+  deleteClinician,
+  getClinicianStats,
+  getOverallClinicianStats,
+  getCliniciansBySpecialization
+};
