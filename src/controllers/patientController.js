@@ -429,13 +429,48 @@ const getPatientStats = async (req, res) => {
   }
 };
 
+// Get general patient statistics (for dashboard)
+const getGeneralPatientStats = async (req, res) => {
+  try {
+    const [totalPatients, totalObservations, recentPatients] = await Promise.all([
+      prisma.patient.count(),
+      prisma.observation.count(),
+      prisma.patient.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          createdAt: true
+        }
+      })
+    ]);
+
+    res.json({
+      data: {
+        total: totalPatients,
+        totalObservations,
+        recent: recentPatients
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching general patient stats:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching patient statistics'
+    });
+  }
+};
+
 module.exports = {
   createPatient,
   getAllPatients,
   getPatientById,
   updatePatient,
   deletePatient,
-  getPatientStats
+  getPatientStats,
+  getGeneralPatientStats
 };
 
 

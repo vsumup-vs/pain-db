@@ -135,35 +135,47 @@ const enrollmentValidations = {
 // Metric Definition validation rules
 const metricDefinitionValidations = {
   create: [
-    body('name').notEmpty().trim().isLength({ min: 1, max: 100 })
+    body('displayName').notEmpty().trim().isLength({ min: 1, max: 100 })
       .withMessage('Name is required and must be 1-100 characters'),
     body('description').optional().trim().isLength({ max: 500 })
       .withMessage('Description must be less than 500 characters'),
-    body('unit').notEmpty().trim().isLength({ min: 1, max: 20 })
-      .withMessage('Unit is required and must be 1-20 characters'),
-    body('dataType').isIn(['INTEGER', 'DECIMAL', 'TEXT', 'BOOLEAN'])
-      .withMessage('Data type must be INTEGER, DECIMAL, TEXT, or BOOLEAN'),
-    body('minValue').optional().isNumeric().withMessage('Min value must be a number'),
-    body('maxValue').optional().isNumeric().withMessage('Max value must be a number'),
-    body('category').optional().trim().isLength({ max: 50 })
-      .withMessage('Category must be less than 50 characters'),
-    body('isActive').optional().isBoolean().withMessage('Is active must be a boolean')
+    body('unit').optional().trim().isLength({ max: 20 })
+      .withMessage('Unit must be less than 20 characters'),
+    body('valueType').isIn(['numeric', 'text', 'categorical', 'ordinal', 'boolean'])
+      .withMessage('Value type must be numeric, text, categorical, ordinal, or boolean'),
+    body('scaleMin').optional().isNumeric().withMessage('Min value must be a number'),
+    body('scaleMax').optional().isNumeric().withMessage('Max value must be a number'),
+    body('decimalPrecision').optional().isInt({ min: 0, max: 10 })
+      .withMessage('Decimal precision must be between 0 and 10'),
+    body('requiredDefault').optional().isBoolean().withMessage('Required default must be a boolean'),
+    body('defaultFrequency').optional().trim().isLength({ max: 50 })
+      .withMessage('Default frequency must be less than 50 characters'),
+    body('coding').optional().isObject().withMessage('Coding must be an object'),
+    body('options').optional().isArray().withMessage('Options must be an array'),
+    body('validation').optional().isObject().withMessage('Validation must be an object'),
+    body('localeOverrides').optional().isObject().withMessage('Locale overrides must be an object')
   ],
   
   update: [
-    body('name').optional().trim().isLength({ min: 1, max: 100 })
+    body('displayName').optional().trim().isLength({ min: 1, max: 100 })
       .withMessage('Name must be 1-100 characters'),
     body('description').optional().trim().isLength({ max: 500 })
       .withMessage('Description must be less than 500 characters'),
-    body('unit').optional().trim().isLength({ min: 1, max: 20 })
-      .withMessage('Unit must be 1-20 characters'),
-    body('dataType').optional().isIn(['INTEGER', 'DECIMAL', 'TEXT', 'BOOLEAN'])
-      .withMessage('Data type must be INTEGER, DECIMAL, TEXT, or BOOLEAN'),
-    body('minValue').optional().isNumeric().withMessage('Min value must be a number'),
-    body('maxValue').optional().isNumeric().withMessage('Max value must be a number'),
-    body('category').optional().trim().isLength({ max: 50 })
-      .withMessage('Category must be less than 50 characters'),
-    body('isActive').optional().isBoolean().withMessage('Is active must be a boolean')
+    body('unit').optional().trim().isLength({ max: 20 })
+      .withMessage('Unit must be less than 20 characters'),
+    body('valueType').optional().isIn(['numeric', 'text', 'categorical', 'ordinal', 'boolean'])
+      .withMessage('Value type must be numeric, text, categorical, ordinal, or boolean'),
+    body('scaleMin').optional().isNumeric().withMessage('Min value must be a number'),
+    body('scaleMax').optional().isNumeric().withMessage('Max value must be a number'),
+    body('decimalPrecision').optional().isInt({ min: 0, max: 10 })
+      .withMessage('Decimal precision must be between 0 and 10'),
+    body('requiredDefault').optional().isBoolean().withMessage('Required default must be a boolean'),
+    body('defaultFrequency').optional().trim().isLength({ max: 50 })
+      .withMessage('Default frequency must be less than 50 characters'),
+    body('coding').optional().isObject().withMessage('Coding must be an object'),
+    body('options').optional().isArray().withMessage('Options must be an array'),
+    body('validation').optional().isObject().withMessage('Validation must be an object'),
+    body('localeOverrides').optional().isObject().withMessage('Locale overrides must be an object')
   ]
 };
 

@@ -1,11 +1,13 @@
 {
-  "name": "pain-db",
+  "name": "pain-db-platform",
   "version": "1.0.0",
-  "description": "",
+  "description": "Pain Management Platform UI",
   "main": "index.js",
   "scripts": {
     "seed": "node seed.js",
     "dev": "nodemon index.js",
+    "dev:ui": "cd frontend && npm run dev",
+    "build:ui": "cd frontend && npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

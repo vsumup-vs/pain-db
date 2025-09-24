@@ -39,10 +39,19 @@ const createMetricDefinition = async (req, res) => {
       });
     }
 
+    // Validate categorical/ordinal metrics require options
+    if ((valueType === 'categorical' || valueType === 'ordinal') && (!options || !Array.isArray(options) || options.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Categorical and ordinal metrics require options array'
+      });
+    }
+
     const metricDefinition = await prisma.metricDefinition.create({
       data: {
         key,
         displayName,
+        description,  // Add this missing field
         valueType,
         unit,
         scaleMin: valueType === 'numeric' ? scaleMin : null,

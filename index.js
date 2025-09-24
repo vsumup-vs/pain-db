@@ -27,6 +27,7 @@ const enrollmentRoutes = require('./src/routes/enrollmentRoutes');
 const metricDefinitionRoutes = require('./src/routes/metricDefinitionRoutes');
 const observationRoutes = require('./src/routes/observationRoutes');
 const alertRoutes = require('./src/routes/alertRoutes');
+const assessmentTemplateRoutes = require('./src/routes/assessmentTemplateRoutes');
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -48,16 +49,18 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Routes
+// API info endpoint
 app.get('/api', (req, res) => {
   res.json({
-    message: 'Pain-DB API Server',
+    name: 'Pain Management Database API',
     version: '1.0.0',
+    description: 'REST API for pain management healthcare applications',
     endpoints: {
-      health: '/health',
       patients: '/api/patients',
       clinicians: '/api/clinicians',
       enrollments: '/api/enrollments',
+      metricDefinitions: '/api/metric-definitions',
+      assessmentTemplates: '/api/assessment-templates',
       observations: '/api/observations',
       alerts: '/api/alerts'
     }
@@ -65,11 +68,11 @@ app.get('/api', (req, res) => {
 });
 
 // Use routes
-// Routes
 app.use('/api/patients', patientRoutes);
 app.use('/api/clinicians', clinicianRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/metric-definitions', metricDefinitionRoutes);
+app.use('/api/assessment-templates', assessmentTemplateRoutes);
 app.use('/api/observations', observationRoutes);
 app.use('/api/alerts', alertRoutes);
 

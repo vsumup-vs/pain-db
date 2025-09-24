@@ -6,7 +6,8 @@ const {
   getPatientById,
   updatePatient,
   deletePatient,
-  getPatientStats
+  getPatientStats,
+  getGeneralPatientStats
 } = require('../controllers/patientController');
 
 const {
@@ -35,6 +36,11 @@ router.get('/',
   customValidations.validateDateRange,
   handleValidationErrors,
   getAllPatients  // Changed from getPatients to getAllPatients
+);
+
+// Get general patient statistics (for dashboard)
+router.get('/stats', 
+  getGeneralPatientStats
 );
 
 // Get patient statistics by ID

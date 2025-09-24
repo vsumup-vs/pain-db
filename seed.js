@@ -10,19 +10,55 @@ async function main() {
     prisma.patient.create({
       data: {
         id: '550e8400-e29b-41d4-a716-446655440001',
-        mrn: 'MRN001234'
+        mrn: 'MRN001234',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@example.com',
+        phone: '+1-555-0123',
+        dateOfBirth: new Date('1985-03-15'),
+        gender: 'MALE',
+        address: '123 Main St, Anytown, USA',
+        emergencyContact: 'Jane Doe - +1-555-0124',
+        medicalHistory: 'Hypertension, Diabetes Type 2',
+        allergies: 'Penicillin',
+        medications: 'Metformin 500mg, Lisinopril 10mg',
+        insuranceInfo: 'Blue Cross Blue Shield - Policy #12345'
       }
     }),
     prisma.patient.create({
       data: {
         id: '550e8400-e29b-41d4-a716-446655440002',
-        mrn: 'MRN001235'
+        mrn: 'MRN001235',
+        firstName: 'Sarah',
+        lastName: 'Johnson',
+        email: 'sarah.johnson@example.com',
+        phone: '+1-555-0125',
+        dateOfBirth: new Date('1992-07-22'),
+        gender: 'FEMALE',
+        address: '456 Oak Ave, Somewhere, USA',
+        emergencyContact: 'Mike Johnson - +1-555-0126',
+        medicalHistory: 'Asthma',
+        allergies: 'Shellfish',
+        medications: 'Albuterol inhaler',
+        insuranceInfo: 'Aetna - Policy #67890'
       }
     }),
     prisma.patient.create({
       data: {
         id: '550e8400-e29b-41d4-a716-446655440003',
-        mrn: 'MRN001236'
+        mrn: 'MRN001236',
+        firstName: 'Michael',
+        lastName: 'Brown',
+        email: 'michael.brown@example.com',
+        phone: '+1-555-0127',
+        dateOfBirth: new Date('1978-11-08'),
+        gender: 'MALE',
+        address: '789 Pine St, Elsewhere, USA',
+        emergencyContact: 'Lisa Brown - +1-555-0128',
+        medicalHistory: 'Chronic back pain, Arthritis',
+        allergies: 'None known',
+        medications: 'Ibuprofen 400mg, Gabapentin 300mg',
+        insuranceInfo: 'United Healthcare - Policy #11111'
       }
     })
   ]);
@@ -33,13 +69,27 @@ async function main() {
     prisma.clinician.create({
       data: {
         id: '660e8400-e29b-41d4-a716-446655440001',
-        npi: '1234567890'
+        npi: '1234567890',
+        firstName: 'Dr. Alice',
+        lastName: 'Smith',
+        email: 'alice.smith@hospital.com',
+        phone: '+1-555-0200',
+        specialization: 'Pain Management',
+        licenseNumber: 'MD123456',
+        department: 'Anesthesiology'
       }
     }),
     prisma.clinician.create({
       data: {
         id: '660e8400-e29b-41d4-a716-446655440002',
-        npi: '1234567891'
+        npi: '1234567891',
+        firstName: 'Dr. Robert',
+        lastName: 'Johnson',
+        email: 'robert.johnson@hospital.com',
+        phone: '+1-555-0201',
+        specialization: 'Orthopedics',
+        licenseNumber: 'MD123457',
+        department: 'Orthopedic Surgery'
       }
     })
   ]);

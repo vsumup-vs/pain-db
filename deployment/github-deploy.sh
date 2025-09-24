@@ -9,7 +9,7 @@ set -e
 APP_NAME="pain-db"
 APP_DIR="/var/www/pain-db"
 DOMAIN="painmanagement.vsumup-health.com"
-GITHUB_REPO="yourusername/pain-db"  # Update with your GitHub username
+GITHUB_REPO="vsumup-vs/pain-db"  # Updated with your GitHub repository
 
 # Colors for output
 RED='\033[0;31m'

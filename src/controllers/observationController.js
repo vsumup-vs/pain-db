@@ -218,14 +218,28 @@ const getAllObservations = async (req, res) => {
 
     // Build filter conditions
     const where = {};
-    if (patientId) where.patientId = patientId; // Remove parseInt()
-    if (metricDefinitionId) where.metricDefinitionId = metricDefinitionId; // Remove parseInt()
+    if (patientId) where.patientId = patientId;
+    if (metricDefinitionId) where.metricDefinitionId = metricDefinitionId;
     if (recordedBy) where.recordedBy = recordedBy;
     
-    if (startDate || endDate) {
+    // Fix date filtering to handle empty strings properly
+    const validStartDate = startDate && startDate.trim() !== '';
+    const validEndDate = endDate && endDate.trim() !== '';
+    
+    if (validStartDate || validEndDate) {
       where.recordedAt = {};
-      if (startDate) where.recordedAt.gte = new Date(startDate);
-      if (endDate) where.recordedAt.lte = new Date(endDate);
+      if (validStartDate) {
+        const parsedStartDate = new Date(startDate);
+        if (!isNaN(parsedStartDate.getTime())) {
+          where.recordedAt.gte = parsedStartDate;
+        }
+      }
+      if (validEndDate) {
+        const parsedEndDate = new Date(endDate);
+        if (!isNaN(parsedEndDate.getTime())) {
+          where.recordedAt.lte = parsedEndDate;
+        }
+      }
     }
 
     const [observations, total] = await Promise.all([

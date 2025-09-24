@@ -375,21 +375,26 @@ const getAlertStats = async (req, res) => {
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
 
-    // Add date filter to where clause
-    where.createdAt = {
-      gte: startDate
-    };
+    // Add date filter to where clause for recent stats
+    const recentWhere = { ...where, createdAt: { gte: startDate } };
 
-    const [totalAlerts, statusStats, severityStats] = await Promise.all([
+    const [totalAlerts, activeAlerts, statusStats, severityStats] = await Promise.all([
       prisma.alert.count({ where }),
+      // Count active/open alerts
+      prisma.alert.count({ 
+        where: { 
+          ...where,
+          status: 'open' 
+        } 
+      }),
       prisma.alert.groupBy({
         by: ['status'],
-        where,
+        where: recentWhere,
         _count: { status: true }
       }),
       // Get severity stats through the rule relation
       prisma.alert.findMany({
-        where,
+        where: recentWhere,
         include: {
           rule: {
             select: { severity: true }
@@ -400,22 +405,23 @@ const getAlertStats = async (req, res) => {
 
     // Process severity stats manually since we need to go through the relation
     const severityBreakdown = severityStats.reduce((acc, alert) => {
-      const severity = alert.rule.severity;
+      const severity = alert.rule?.severity || 'unknown';
       acc[severity] = (acc[severity] || 0) + 1;
       return acc;
     }, {});
 
-    const stats = {
-      total: totalAlerts,
-      statusBreakdown: statusStats.reduce((acc, stat) => {
-        acc[stat.status] = stat._count.status;
-        return acc;
-      }, {}),
-      severityBreakdown,
-      timeframe
-    };
-
-    res.json(stats);
+    res.json({
+      data: {
+        total: totalAlerts,
+        active: activeAlerts,
+        statusBreakdown: statusStats.reduce((acc, stat) => {
+          acc[stat.status] = stat._count.status;
+          return acc;
+        }, {}),
+        severityBreakdown,
+        timeframe
+      }
+    });
   } catch (error) {
     console.error('Error fetching alert stats:', error);
     res.status(500).json({ error: 'Internal server error' });
