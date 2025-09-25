@@ -39,6 +39,7 @@ apiClient.interceptors.response.use(
 export const api = {
   // Patients
   getPatients: (params) => apiClient.get('/patients', { params }),
+  getRecentPatients: (params) => apiClient.get('/patients/recent', { params }),
   getPatient: (id) => apiClient.get(`/patients/${id}`),
   createPatient: (data) => apiClient.post('/patients', data),
   updatePatient: (id, data) => apiClient.put(`/patients/${id}`, data),
@@ -52,13 +53,17 @@ export const api = {
   updateClinician: (id, data) => apiClient.put(`/clinicians/${id}`, data),
   deleteClinician: (id) => apiClient.delete(`/clinicians/${id}`),
   getCliniciansStats: () => apiClient.get('/clinicians/stats'),
+  getSpecializations: () => apiClient.get('/clinicians/specializations'),
 
   // Metric Definitions
-  getMetricDefinitions: (params) => apiClient.get('/metric-definitions', { params }),
+  getMetricDefinitions: (params = {}) => apiClient.get('/metric-definitions', { 
+    params: { limit: 100, ...params } 
+  }),
   getMetricDefinition: (id) => apiClient.get(`/metric-definitions/${id}`),
   createMetricDefinition: (data) => apiClient.post('/metric-definitions', data),
   updateMetricDefinition: (id, data) => apiClient.put(`/metric-definitions/${id}`, data),
   deleteMetricDefinition: (id) => apiClient.delete(`/metric-definitions/${id}`),
+  getMetricDefinitionsStats: () => apiClient.get('/metric-definitions/stats'),
 
   // Assessment Templates
   getAssessmentTemplates: (params) => apiClient.get('/assessment-templates', { params }),
@@ -77,6 +82,7 @@ export const api = {
 
   // Alerts
   getAlerts: (params) => apiClient.get('/alerts', { params }),
+  getRecentAlerts: (params) => apiClient.get('/alerts/recent', { params }),
   getAlert: (id) => apiClient.get(`/alerts/${id}`),
   createAlert: (data) => apiClient.post('/alerts', data),
   updateAlert: (id, data) => apiClient.put(`/alerts/${id}`, data),
@@ -87,9 +93,18 @@ export const api = {
   getEnrollments: (params) => apiClient.get('/enrollments', { params }),
   getEnrollment: (id) => apiClient.get(`/enrollments/${id}`),
   createEnrollment: (data) => apiClient.post('/enrollments', data),
+  createBulkEnrollments: (enrollmentData) => apiClient.post('/enrollments/bulk-create', { enrollments: enrollmentData }),
   updateEnrollment: (id, data) => apiClient.put(`/enrollments/${id}`, data),
   deleteEnrollment: (id) => apiClient.delete(`/enrollments/${id}`),
   getEnrollmentsStats: () => apiClient.get('/enrollments/stats'),
+
+  // Condition Presets
+  getConditionPresets: (params) => apiClient.get('/condition-presets', { params }),
+  getConditionPreset: (id) => apiClient.get(`/condition-presets/${id}`),
+  createConditionPreset: (data) => apiClient.post('/condition-presets', data),
+  updateConditionPreset: (id, data) => apiClient.put(`/condition-presets/${id}`, data),
+  deleteConditionPreset: (id) => apiClient.delete(`/condition-presets/${id}`),
+  getConditionPresetsStats: () => apiClient.get('/condition-presets/stats')
 }
 
 export default api

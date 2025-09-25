@@ -7,7 +7,8 @@ const {
   updatePatient,
   deletePatient,
   getPatientStats,
-  getGeneralPatientStats
+  getGeneralPatientStats,
+  getRecentPatients
 } = require('../controllers/patientController');
 
 const {
@@ -43,6 +44,11 @@ router.get('/stats',
   getGeneralPatientStats
 );
 
+// Get recent patients (optimized for dashboard)
+router.get('/recent', 
+  getRecentPatients
+);
+
 // Get patient statistics by ID
 router.get('/:id/stats', 
   getPatientStats
@@ -53,13 +59,13 @@ router.get('/:id',
   getPatientById
 );
 
-// Update patient by ID
+// Update patient
 router.put('/:id', 
   strictLimiter,
   updatePatient
 );
 
-// Delete patient by ID
+// Delete patient
 router.delete('/:id', 
   strictLimiter,
   deletePatient

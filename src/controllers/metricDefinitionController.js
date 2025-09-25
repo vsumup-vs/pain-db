@@ -191,11 +191,29 @@ const getMetricDefinitionById = async (req, res) => {
 const updateMetricDefinition = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const requestData = req.body;
+
+    // Filter only valid fields that exist in the MetricDefinition schema
+    const validFields = [
+      'key', 'displayName', 'valueType', 'unit', 'scaleMin', 'scaleMax',
+      'decimalPrecision', 'requiredDefault', 'defaultFrequency', 'coding',
+      'options', 'validation', 'localeOverrides', 'version', 'activeFrom', 'activeTo'
+    ];
+
+    const updateData = {};
+    validFields.forEach(field => {
+      if (requestData[field] !== undefined) {
+        updateData[field] = requestData[field];
+      }
+    });
+
+    // Handle empty strings for nullable fields
+    if (updateData.unit === '') updateData.unit = null;
+    if (updateData.defaultFrequency === '') updateData.defaultFrequency = null;
 
     // Check if metric definition exists
     const existingMetric = await prisma.metricDefinition.findUnique({
-      where: { id }  // Remove parseInt(id)
+      where: { id }
     });
 
     if (!existingMetric) {
@@ -206,7 +224,7 @@ const updateMetricDefinition = async (req, res) => {
     }
 
     // Validate data type specific requirements if being updated
-    if (updateData.valueType === 'numeric' &&   // Fix: change from 'NUMERIC' to 'numeric'
+    if (updateData.valueType === 'numeric' &&
         (updateData.scaleMin === undefined || updateData.scaleMax === undefined)) {
       return res.status(400).json({
         success: false,
@@ -214,7 +232,7 @@ const updateMetricDefinition = async (req, res) => {
       });
     }
 
-    if (updateData.valueType === 'categorical' &&   // Fix: change from 'CATEGORICAL' to 'categorical'
+    if (updateData.valueType === 'categorical' &&
         (!updateData.options || updateData.options.length === 0)) {
       return res.status(400).json({
         success: false,
@@ -223,7 +241,7 @@ const updateMetricDefinition = async (req, res) => {
     }
 
     const updatedMetricDefinition = await prisma.metricDefinition.update({
-      where: { id },  // Remove parseInt(id)
+      where: { id },
       data: updateData
     });
 

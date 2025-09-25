@@ -163,18 +163,15 @@ const getAllClinicians = async (req, res) => {
 // Get overall clinician statistics
 const getOverallClinicianStats = async (req, res) => {
   try {
-    const [total, activeCount, specializationStats, departmentStats] = await Promise.all([
+    // Use raw SQL for the most expensive query (active count)
+    const [activeCountResult, total, bySpecialization, byDepartment] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT COUNT(DISTINCT c.id) as active_count
+        FROM "clinicians" c
+        INNER JOIN "enrollments" e ON c.id = e."clinician_id"
+        WHERE e.status = 'active'
+      `,
       prisma.clinician.count(),
-      // Count clinicians who have active enrollments
-      prisma.clinician.count({
-        where: {
-          enrollments: {
-            some: {
-              status: 'active'
-            }
-          }
-        }
-      }),
       prisma.clinician.groupBy({
         by: ['specialization'],
         _count: true
@@ -190,12 +187,14 @@ const getOverallClinicianStats = async (req, res) => {
       })
     ]);
 
-    const bySpecialization = specializationStats.reduce((acc, stat) => {
+    const active = Number(activeCountResult[0].active_count);
+
+    const specializationMap = bySpecialization.reduce((acc, stat) => {
       acc[stat.specialization] = stat._count;
       return acc;
     }, {});
 
-    const byDepartment = departmentStats.reduce((acc, stat) => {
+    const departmentMap = byDepartment.reduce((acc, stat) => {
       acc[stat.department] = stat._count;
       return acc;
     }, {});
@@ -203,9 +202,9 @@ const getOverallClinicianStats = async (req, res) => {
     res.json({
       data: {
         total,
-        active: activeCount,
-        bySpecialization,
-        byDepartment
+        active,
+        bySpecialization: specializationMap,
+        byDepartment: departmentMap
       }
     });
   } catch (error) {

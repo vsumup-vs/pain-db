@@ -105,6 +105,25 @@ export default function Patients() {
     }
   }
 
+  const formatAddress = (address) => {
+    if (!address) return ''
+    
+    // If address is already a string, return it
+    if (typeof address === 'string') return address
+    
+    // If address is an object, format it properly
+    if (typeof address === 'object') {
+      const parts = []
+      if (address.street) parts.push(address.street)
+      if (address.city) parts.push(address.city)
+      if (address.state) parts.push(address.state)
+      if (address.zipCode) parts.push(address.zipCode)
+      return parts.join(', ')
+    }
+    
+    return ''
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -238,7 +257,7 @@ export default function Patients() {
                     {patient.address && (
                       <div className="flex items-start space-x-3 text-gray-600">
                         <MapPinIcon className="h-4 w-4 text-gray-400 mt-0.5" />
-                        <span className="text-sm">{patient.address}</span>
+                        <span className="text-sm">{formatAddress(patient.address)}</span>
                       </div>
                     )}
                   </div>

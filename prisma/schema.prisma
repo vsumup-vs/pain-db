@@ -73,13 +73,16 @@ model Patient {
   emergencyContact Json?
   medicalHistory  Json?
   allergies       Json?
-  medications     Json?
+  medications     Json?        // Keep for backward compatibility
   insuranceInfo   Json?
   createdAt       DateTime     @default(now()) @map("created_at")
   enrollments     Enrollment[]
   observations    Observation[]
   timelogs        TimeLog[]
   messages        Message[]
+  // New medication relationships
+  patientMedications PatientMedication[]
+  medicationAdherence MedicationAdherence[]
 
   @@map("patients")
 }
@@ -100,6 +103,8 @@ model Clinician {
   createdAt       DateTime  @default(now()) @map("created_at")
   enrollments     Enrollment[]
   timelogs        TimeLog[]
+  // New medication relationship
+  prescriptions   PatientMedication[]
 
   @@map("clinicians")
 }
@@ -354,4 +359,87 @@ model Message {
   patient       Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+/* ========== Medication Management ========== */
+model Drug {
+  id                String    @id @default(uuid()) @db.Uuid
+  name              String    // Generic name (e.g., "Ibuprofen")
+  brandName         String?   // Brand name (e.g., "Advil")
+  activeIngredient  String    // Active ingredient
+  drugClass         String    // Drug classification (e.g., "NSAID", "Opioid")
+  fdaApproved       Boolean   @default(true)
+  controlledSubstance String? // DEA schedule if applicable (I, II, III, IV, V)
+  dosageForm        String    // tablet, capsule, liquid, injection, etc.
+  strength          String    // e.g., "200mg", "5mg/ml"
+  manufacturer      String?
+  ndc               String?   // National Drug Code
+  description       String?
+  sideEffects       Json?     // Array of common side effects
+  contraindications Json?     // Array of contraindications
+  interactions      Json?     // Array of drug interactions
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @map("updated_at")
+
+  prescriptions     PatientMedication[]
+
+  @@unique([name, strength, dosageForm])
+  @@index([drugClass])
+  @@index([name])
+  @@map("drugs")
+}
+
+model PatientMedication {
+  id                String    @id @default(uuid()) @db.Uuid
+  patientId         String    @map("patient_id") @db.Uuid
+  drugId            String    @map("drug_id") @db.Uuid
+  prescribedBy      String?   @map("prescribed_by") @db.Uuid // Clinician ID
+  dosage            String    // e.g., "200mg"
+  frequency         String    // e.g., "twice daily", "every 8 hours"
+  route             String    // oral, topical, injection, etc.
+  instructions      String?   // Special instructions
+  startDate         DateTime  @map("start_date")
+  endDate           DateTime? @map("end_date")
+  isActive          Boolean   @default(true) @map("is_active")
+  isPRN             Boolean   @default(false) @map("is_prn") // "as needed"
+  maxDailyDose      String?   @map("max_daily_dose")
+  refillsRemaining  Int?      @map("refills_remaining")
+  pharmacyInfo      Json?     @map("pharmacy_info")
+  notes             String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @map("updated_at")
+
+  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  drug              Drug      @relation(fields: [drugId], references: [id])
+  prescriber        Clinician? @relation(fields: [prescribedBy], references: [id])
+  adherenceRecords  MedicationAdherence[]
+
+  @@index([patientId, isActive])
+  @@index([drugId])
+  @@index([startDate])
+  @@map("patient_medications")
+}
+
+model MedicationAdherence {
+  id                    String            @id @default(uuid()) @db.Uuid
+  patientMedicationId   String            @map("patient_medication_id") @db.Uuid
+  patientId             String            @map("patient_id") @db.Uuid
+  scheduledDate         DateTime          @map("scheduled_date")
+  takenAt               DateTime?         @map("taken_at")
+  dosageTaken           String?           @map("dosage_taken")
+  wasTaken              Boolean           @default(false) @map("was_taken")
+  wasSkipped            Boolean           @default(false) @map("was_skipped")
+  skipReason            String?           @map("skip_reason")
+  sideEffectsReported   Json?             @map("side_effects_reported")
+  notes                 String?
+  reportedBy            String            @default("patient") @map("reported_by") // patient, caregiver, clinician
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  patientMedication     PatientMedication @relation(fields: [patientMedicationId], references: [id], onDelete: Cascade)
+  patient               Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, scheduledDate])
+  @@index([patientMedicationId, scheduledDate])
+  @@index([wasTaken, scheduledDate])
+  @@map("medication_adherence")
 }

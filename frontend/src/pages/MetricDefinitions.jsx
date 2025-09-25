@@ -511,6 +511,11 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
   const handleSubmit = (e) => {
     e.preventDefault()
     
+    // Only allow submission if we're on the final step
+    if (currentStep !== totalSteps) {
+      return
+    }
+    
     // Process options for categorical/ordinal types
     let processedOptions = null
     if ((formData.valueType === 'categorical' || formData.valueType === 'ordinal') && formData.options.trim()) {
@@ -523,6 +528,17 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
     }
     
     onSubmit(submitData)
+  }
+
+  // Handle form submission prevention for Enter key
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && currentStep !== totalSteps) {
+      e.preventDefault()
+      // If we're not on the last step and Enter is pressed, go to next step if valid
+      if (isStepValid(currentStep)) {
+        nextStep()
+      }
+    }
   }
 
   const nextStep = () => {
@@ -596,7 +612,7 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
         {/* Step 1: Basic Information */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -887,7 +903,12 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
             {currentStep < totalSteps ? (
               <button
                 type="button"
-                onClick={nextStep}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Next button clicked. Current step:', currentStep)
+                  nextStep()
+                }}
                 disabled={!isStepValid(currentStep)}
                 className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >

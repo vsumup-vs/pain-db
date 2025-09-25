@@ -622,8 +622,204 @@ const getEnrollmentStats = async (req, res) => {
   }
 };
 
+// Add this new function before the module.exports
+const createBulkEnrollments = async (req, res) => {
+  try {
+    const { enrollments } = req.body;
+
+    if (!enrollments || !Array.isArray(enrollments)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid request: enrollments array is required'
+      });
+    }
+
+    const results = {
+      success: true,
+      created: {
+        enrollments: 0,
+        patients: 0,
+        clinicians: 0
+      },
+      found: {
+        patients: 0,
+        clinicians: 0,
+        carePrograms: 0
+      },
+      data: [],
+      warnings: [],
+      errors: []
+    };
+
+    for (const enrollmentData of enrollments) {
+      try {
+        const { enrollment, patient, clinician, careProgram } = enrollmentData;
+
+        // Handle patient creation/finding
+        let patientRecord;
+        if (patient.action === 'create_or_find') {
+          // Try to find existing patient first
+          patientRecord = await prisma.patient.findFirst({
+            where: {
+              OR: [
+                { email: patient.identifiers.email },
+                { mrn: patient.identifiers.mrn }
+              ].filter(Boolean)
+            }
+          });
+
+          if (patientRecord) {
+            results.found.patients++;
+          } else {
+            // Create new patient
+            patientRecord = await prisma.patient.create({
+              data: {
+                firstName: patient.data.firstName,
+                lastName: patient.data.lastName,
+                email: patient.data.email,
+                phone: patient.data.phone,
+                dateOfBirth: patient.data.dateOfBirth ? new Date(patient.data.dateOfBirth) : null,
+                gender: patient.data.gender,
+                address: patient.data.address,
+                emergencyContact: patient.data.emergencyContact,
+                medicalHistory: patient.data.medicalHistory,
+                insuranceInfo: patient.data.insuranceInfo,
+                mrn: patient.data.mrn
+              }
+            });
+            results.created.patients++;
+          }
+        }
+
+        // Handle clinician creation/finding
+        let clinicianRecord;
+        if (clinician.action === 'find_or_create') {
+          // Try to find existing clinician first
+          clinicianRecord = await prisma.clinician.findFirst({
+            where: {
+              OR: [
+                { email: clinician.identifiers.email },
+                { npi: clinician.identifiers.npi }
+              ].filter(Boolean)
+            }
+          });
+
+          if (clinicianRecord) {
+            results.found.clinicians++;
+          } else {
+            // Create new clinician
+            clinicianRecord = await prisma.clinician.create({
+              data: {
+                firstName: clinician.data.firstName,
+                lastName: clinician.data.lastName,
+                email: clinician.data.email,
+                phone: clinician.data.phone,
+                npi: clinician.data.npi,
+                specialization: clinician.data.specialization,
+                licenseNumber: clinician.data.licenseNumber,
+                department: clinician.data.department,
+                credentials: clinician.data.credentials
+              }
+            });
+            results.created.clinicians++;
+          }
+        }
+
+        // Handle care program finding
+        let presetRecord;
+        if (careProgram.action === 'find_by_name') {
+          presetRecord = await prisma.conditionPreset.findFirst({
+            where: { name: careProgram.identifier }
+          });
+
+          if (presetRecord) {
+            results.found.carePrograms++;
+          } else {
+            results.warnings.push(`Care program "${careProgram.identifier}" not found`);
+            continue; // Skip this enrollment
+          }
+        }
+
+        // Check if active enrollment already exists
+        const existingEnrollment = await prisma.enrollment.findFirst({
+          where: {
+            patientId: patientRecord.id,
+            clinicianId: clinicianRecord.id,
+            status: 'active'
+          }
+        });
+
+        if (existingEnrollment) {
+          results.warnings.push(`Active enrollment already exists for patient ${patientRecord.email} and clinician ${clinicianRecord.email}`);
+          continue;
+        }
+
+        // Create enrollment
+        const newEnrollment = await prisma.enrollment.create({
+          data: {
+            patientId: patientRecord.id,
+            clinicianId: clinicianRecord.id,
+            presetId: presetRecord.id,
+            diagnosisCode: enrollment.diagnosisCode,
+            startDate: enrollment.startDate ? new Date(enrollment.startDate) : new Date(),
+            endDate: enrollment.endDate ? new Date(enrollment.endDate) : null,
+            status: 'active',
+            notes: enrollment.notes
+          },
+          include: {
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            },
+            clinician: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            },
+            preset: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        });
+
+        results.created.enrollments++;
+        results.data.push({
+          enrollmentId: newEnrollment.id,
+          patientId: patientRecord.id,
+          clinicianId: clinicianRecord.id,
+          presetId: presetRecord.id
+        });
+
+      } catch (error) {
+        console.error('Error processing enrollment:', error);
+        results.errors.push(`Failed to process enrollment: ${error.message}`);
+      }
+    }
+
+    res.status(201).json(results);
+
+  } catch (error) {
+    console.error('Error creating bulk enrollments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while creating bulk enrollments'
+    });
+  }
+};
+
 module.exports = {
   createEnrollment,
+  createBulkEnrollments,
   getAllEnrollments,
   getEnrollmentById,
   updateEnrollment,

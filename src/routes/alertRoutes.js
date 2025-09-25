@@ -12,7 +12,8 @@ const {
   updateAlert,
   deleteAlert,
   evaluateAlerts,
-  getAlertStats
+  getAlertStats,
+  getRecentAlerts
 } = require('../controllers/alertController');
 
 // Create a new alert with validation
@@ -23,6 +24,9 @@ router.get('/', commonValidations.pagination, commonValidations.dateRange, handl
 
 // Get alert statistics
 router.get('/stats', getAlertStats);
+
+// Get recent alerts (optimized for dashboard)
+router.get('/recent', getRecentAlerts);
 
 // Evaluate alert rules
 router.post('/evaluate', evaluateAlerts);

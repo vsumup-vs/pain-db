@@ -101,15 +101,15 @@ export default function Dashboard() {
     queryFn: () => api.getAlertsStats(),
   })
 
-  // Fetch recent data
+  // Fetch recent data using optimized endpoints
   const { data: recentPatientsResponse, isLoading: recentPatientsLoading } = useQuery({
     queryKey: ['recent-patients'],
-    queryFn: () => api.getPatients({ limit: 5, sort: 'createdAt:desc' }),
+    queryFn: () => api.getRecentPatients({ limit: 5 }),
   })
 
   const { data: recentAlertsResponse, isLoading: recentAlertsLoading } = useQuery({
     queryKey: ['recent-alerts'],
-    queryFn: () => api.getAlerts({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' }),
+    queryFn: () => api.getRecentAlerts({ limit: 5 }),
   })
 
   // Extract data from responses

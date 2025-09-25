@@ -7,6 +7,7 @@ const {
 } = require('../middleware/validation');
 const {
   createEnrollment,
+  createBulkEnrollments,
   getAllEnrollments,
   getEnrollmentById,
   updateEnrollment,
@@ -18,6 +19,7 @@ const {
 
 // Enrollment CRUD routes with validation
 router.post('/', createEnrollment);
+router.post('/bulk-create', createBulkEnrollments);
 router.get('/', getAllEnrollments);
 router.get('/stats', getEnrollmentStats);
 router.get('/:id', getEnrollmentById);

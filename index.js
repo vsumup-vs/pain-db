@@ -28,6 +28,11 @@ const metricDefinitionRoutes = require('./src/routes/metricDefinitionRoutes');
 const observationRoutes = require('./src/routes/observationRoutes');
 const alertRoutes = require('./src/routes/alertRoutes');
 const assessmentTemplateRoutes = require('./src/routes/assessmentTemplateRoutes');
+const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
+
+// Import new routes
+const drugRoutes = require('./src/routes/drugRoutes');
+const patientMedicationRoutes = require('./src/routes/patientMedicationRoutes');
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -62,7 +67,8 @@ app.get('/api', (req, res) => {
       metricDefinitions: '/api/metric-definitions',
       assessmentTemplates: '/api/assessment-templates',
       observations: '/api/observations',
-      alerts: '/api/alerts'
+      alerts: '/api/alerts',
+      conditionPresets: '/api/condition-presets'
     }
   });
 });
@@ -75,6 +81,11 @@ app.use('/api/metric-definitions', metricDefinitionRoutes);
 app.use('/api/assessment-templates', assessmentTemplateRoutes);
 app.use('/api/observations', observationRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/condition-presets', conditionPresetRoutes);
+
+// Add new routes
+app.use('/api/drugs', drugRoutes);
+app.use('/api/patient-medications', patientMedicationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

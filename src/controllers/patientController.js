@@ -432,33 +432,51 @@ const getPatientStats = async (req, res) => {
 // Get general patient statistics (for dashboard)
 const getGeneralPatientStats = async (req, res) => {
   try {
-    const [totalPatients, totalObservations, recentPatients] = await Promise.all([
+    // Simplified - only return counts, not recent patients (use separate endpoint for that)
+    const [totalPatients, totalObservations] = await Promise.all([
       prisma.patient.count(),
-      prisma.observation.count(),
-      prisma.patient.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          createdAt: true
-        }
-      })
+      prisma.observation.count()
     ]);
 
     res.json({
       data: {
         total: totalPatients,
-        totalObservations,
-        recent: recentPatients
+        totalObservations
       }
     });
   } catch (error) {
     console.error('Error fetching general patient stats:', error);
     res.status(500).json({
       error: 'Internal server error while fetching patient statistics'
+    });
+  }
+};
+
+// Optimized version for dashboard - no heavy includes
+const getRecentPatients = async (req, res) => {
+  try {
+    const { limit = 5 } = req.query;
+    
+    const patients = await prisma.patient.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+      select: {
+        id: true,
+        mrn: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        createdAt: true
+      }
+    });
+
+    res.json({
+      data: patients
+    });
+  } catch (error) {
+    console.error('Error fetching recent patients:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching recent patients'
     });
   }
 };
@@ -470,7 +488,8 @@ module.exports = {
   updatePatient,
   deletePatient,
   getPatientStats,
-  getGeneralPatientStats
+  getGeneralPatientStats,
+  getRecentPatients
 };
 
 

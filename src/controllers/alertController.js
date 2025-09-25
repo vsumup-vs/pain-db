@@ -378,7 +378,7 @@ const getAlertStats = async (req, res) => {
     // Add date filter to where clause for recent stats
     const recentWhere = { ...where, createdAt: { gte: startDate } };
 
-    const [totalAlerts, activeAlerts, statusStats, severityStats] = await Promise.all([
+    const [totalAlerts, activeAlerts, statusStats] = await Promise.all([
       prisma.alert.count({ where }),
       // Count active/open alerts
       prisma.alert.count({ 
@@ -391,22 +391,22 @@ const getAlertStats = async (req, res) => {
         by: ['status'],
         where: recentWhere,
         _count: { status: true }
-      }),
-      // Get severity stats through the rule relation
-      prisma.alert.findMany({
-        where: recentWhere,
-        include: {
-          rule: {
-            select: { severity: true }
-          }
-        }
       })
     ]);
 
-    // Process severity stats manually since we need to go through the relation
-    const severityBreakdown = severityStats.reduce((acc, alert) => {
-      const severity = alert.rule?.severity || 'unknown';
-      acc[severity] = (acc[severity] || 0) + 1;
+    // Get severity stats using raw SQL for better performance
+    const severityStats = await prisma.$queryRaw`
+      SELECT ar.severity, COUNT(*) as count
+      FROM "alerts" a
+      INNER JOIN "alert_rules" ar ON a."rule_id" = ar.id
+      WHERE a."created_at" >= ${startDate}
+      ${enrollmentId ? prisma.$queryRaw`AND a."enrollment_id" = ${enrollmentId}` : prisma.$queryRaw``}
+      GROUP BY ar.severity
+    `;
+
+    // Process severity stats
+    const severityBreakdown = severityStats.reduce((acc, stat) => {
+      acc[stat.severity] = parseInt(stat.count);
       return acc;
     }, {});
 
@@ -428,6 +428,48 @@ const getAlertStats = async (req, res) => {
   }
 };
 
+// Optimized version for dashboard - minimal includes
+const getRecentAlerts = async (req, res) => {
+  try {
+    const { limit = 5 } = req.query;
+    
+    const alerts = await prisma.alert.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        rule: {
+          select: { 
+            name: true, 
+            severity: true 
+          }
+        },
+        enrollment: {
+          select: { 
+            patient: {
+              select: { 
+                firstName: true, 
+                lastName: true 
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      alerts
+    });
+  } catch (error) {
+    console.error('Error fetching recent alerts:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching recent alerts'
+    });
+  }
+};
+
 module.exports = {
   createAlert,
   getAlerts,
@@ -435,5 +477,6 @@ module.exports = {
   updateAlert,
   deleteAlert,
   evaluateAlerts,
-  getAlertStats
+  getAlertStats,
+  getRecentAlerts
 };
