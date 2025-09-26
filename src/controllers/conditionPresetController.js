@@ -150,7 +150,6 @@ const createConditionPreset = async (req, res) => {
   try {
     const {
       name,
-      description,
       diagnoses = [],
       templateIds = [],
       alertRuleIds = []
@@ -164,7 +163,7 @@ const createConditionPreset = async (req, res) => {
       });
     }
 
-    // Check if preset with same name already exists
+    // Check for duplicate name
     const existingPreset = await prisma.conditionPreset.findFirst({
       where: { name }
     });
@@ -176,14 +175,32 @@ const createConditionPreset = async (req, res) => {
       });
     }
 
+    // Add template validation in createConditionPreset
+    if (templateIds.length > 0) {
+      const existingTemplates = await prisma.assessmentTemplate.findMany({
+        where: { id: { in: templateIds } },
+        select: { id: true }
+      });
+    
+      const existingTemplateIds = existingTemplates.map(t => t.id);
+      const invalidTemplateIds = templateIds.filter(id => !existingTemplateIds.includes(id));
+    
+      if (invalidTemplateIds.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid template IDs: ${invalidTemplateIds.join(', ')}`
+        });
+      }
+    }
+
     const preset = await prisma.conditionPreset.create({
       data: {
         name,
-        description,
         diagnoses: {
           create: diagnoses.map(diagnosis => ({
-            code: diagnosis.code,
-            description: diagnosis.description
+            icd10: diagnosis.icd10,
+            snomed: diagnosis.snomed,
+            label: diagnosis.label
           }))
         },
         templates: {
@@ -204,7 +221,9 @@ const createConditionPreset = async (req, res) => {
             template: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                category: true,
+                isStandardized: true
               }
             }
           }
@@ -215,7 +234,8 @@ const createConditionPreset = async (req, res) => {
               select: {
                 id: true,
                 name: true,
-                severity: true
+                severity: true,
+                expression: true
               }
             }
           }
@@ -241,13 +261,7 @@ const createConditionPreset = async (req, res) => {
 const updateConditionPreset = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      name,
-      description,
-      diagnoses,
-      templateIds,
-      alertRuleIds
-    } = req.body;
+    const { name, diagnoses, templateIds, alertRuleIds } = req.body;
 
     // Check if preset exists
     const existingPreset = await prisma.conditionPreset.findUnique({
@@ -261,34 +275,39 @@ const updateConditionPreset = async (req, res) => {
       });
     }
 
-    // Check if name is being changed and if new name already exists
+    // Check for duplicate name (excluding current preset)
     if (name && name !== existingPreset.name) {
-      const nameExists = await prisma.conditionPreset.findFirst({
-        where: { 
+      const duplicateName = await prisma.conditionPreset.findFirst({
+        where: {
           name,
           id: { not: id }
         }
       });
 
-      if (nameExists) {
+      if (duplicateName) {
         return res.status(400).json({
           success: false,
-          message: 'Condition preset with this name already exists'
+          message: 'A condition preset with this name already exists'
         });
       }
     }
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
 
-    // Handle diagnoses update
+    // Handle diagnoses update with duplicate filtering
     if (diagnoses !== undefined) {
+      // Filter out duplicates by icd10 code
+      const uniqueDiagnoses = diagnoses.filter((diagnosis, index, self) => 
+        index === self.findIndex(d => d.icd10 === diagnosis.icd10)
+      );
+      
       updateData.diagnoses = {
         deleteMany: {},
-        create: diagnoses.map(diagnosis => ({
-          code: diagnosis.code,
-          description: diagnosis.description
+        create: uniqueDiagnoses.map(diagnosis => ({
+          icd10: diagnosis.icd10,
+          snomed: diagnosis.snomed,
+          label: diagnosis.label
         }))
       };
     }
@@ -323,7 +342,9 @@ const updateConditionPreset = async (req, res) => {
             template: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                category: true,
+                isStandardized: true
               }
             }
           }
@@ -334,7 +355,8 @@ const updateConditionPreset = async (req, res) => {
               select: {
                 id: true,
                 name: true,
-                severity: true
+                severity: true,
+                expression: true
               }
             }
           }
@@ -349,9 +371,16 @@ const updateConditionPreset = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating condition preset:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      meta: error.meta
+    });
     res.status(500).json({
       success: false,
-      message: 'Internal server error while updating condition preset'
+      message: 'Internal server error while updating condition preset',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

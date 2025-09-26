@@ -141,18 +141,29 @@ model MetricDefinition {
 }
 
 model AssessmentTemplate {
-  id          String                      @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
-  version     Int                         @default(1)
-  createdAt   DateTime                    @default(now()) @map("created_at")
-  updatedAt   DateTime                    @default(now()) @map("updated_at")
+  id              String                      @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  version         Int                         @default(1)
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @default(now()) @map("updated_at")
+  
+  // New standardization fields
+  isStandardized  Boolean                     @default(false) @map("is_standardized")
+  category        String?
+  validationInfo  Json?                       @map("validation_info")
+  standardCoding  Json?                       @map("standard_coding")
+  scoringInfo     Json?                       @map("scoring_info")
+  copyrightInfo   String?                     @map("copyright_info")
+  clinicalUse     String?                     @map("clinical_use")
 
   items       AssessmentTemplateItem[]
   presets     ConditionPresetTemplate[]
   observations Observation[]
 
   @@unique([name, version])
+  @@index([isStandardized])
+  @@index([category])
   @@map("assessment_templates")
 }
 

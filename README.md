@@ -1,13 +1,13 @@
-# Pain Management Database API
+# ClinMetrics Pro - Clinical Metrics Management Platform
 
-A comprehensive REST API for pain management healthcare applications, built with Node.js, Express, and Prisma ORM.
+A comprehensive REST API for clinical metrics and healthcare management applications, built with Node.js, Express, and Prisma ORM.
 
 ## 🏥 Overview
 
-This API provides a complete backend solution for pain management clinics, enabling:
+ClinMetrics Pro provides a complete backend solution for healthcare clinics, enabling:
 - Patient enrollment and management
 - Clinician profiles and specializations
-- Pain observation tracking and analytics
+- Clinical observation tracking and analytics
 - Alert system for critical conditions
 - Comprehensive reporting and statistics
 
@@ -16,7 +16,7 @@ This API provides a complete backend solution for pain management clinics, enabl
 ### Core Functionality
 - ✅ **Patient Management** - Complete CRUD operations
 - ✅ **Clinician Profiles** - Specializations and credentials
-- ✅ **Observation Tracking** - Pain levels, symptoms, medications
+- ✅ **Observation Tracking** - Clinical metrics, symptoms, medications
 - ✅ **Alert System** - Automated notifications for critical conditions
 - ✅ **Enrollment Management** - Patient-clinician assignments
 - ✅ **Analytics & Reporting** - Comprehensive statistics

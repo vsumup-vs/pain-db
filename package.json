@@ -1,7 +1,7 @@
 {
-  "name": "pain-db-platform",
+  "name": "clinmetrics-pro-platform",
   "version": "1.0.0",
-  "description": "Pain Management Platform UI",
+  "description": "ClinMetrics Pro - Clinical Metrics Management Platform",
   "main": "index.js",
   "scripts": {
     "seed": "node seed.js",

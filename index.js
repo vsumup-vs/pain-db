@@ -29,6 +29,7 @@ const observationRoutes = require('./src/routes/observationRoutes');
 const alertRoutes = require('./src/routes/alertRoutes');
 const alertRuleRoutes = require('./src/routes/alertRuleRoutes');
 const assessmentTemplateRoutes = require('./src/routes/assessmentTemplateRoutes');
+const assessmentTemplateEnhancedRoutes = require('./src/routes/assessmentTemplateRoutes.enhanced');
 const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
 
 // Import new routes
@@ -58,35 +59,38 @@ app.get('/health', async (req, res) => {
 // API info endpoint
 app.get('/api', (req, res) => {
   res.json({
-    name: 'Pain Management Database API',
+    message: 'Pain Management Database API',
     version: '1.0.0',
-    description: 'REST API for pain management healthcare applications',
     endpoints: {
       patients: '/api/patients',
       clinicians: '/api/clinicians',
       enrollments: '/api/enrollments',
-      metricDefinitions: '/api/metric-definitions',
-      assessmentTemplates: '/api/assessment-templates',
+      'metric-definitions': '/api/metric-definitions',
+      'assessment-templates': '/api/assessment-templates',
       observations: '/api/observations',
       alerts: '/api/alerts',
-      alertRules: '/api/alert-rules',
-      conditionPresets: '/api/condition-presets'
+      'alert-rules': '/api/alert-rules',
+      'condition-presets': '/api/condition-presets',
+      drugs: '/api/drugs',
+      'patient-medications': '/api/patient-medications'
     }
   });
 });
 
-// Use routes
+// Routes
 app.use('/api/patients', patientRoutes);
 app.use('/api/clinicians', clinicianRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/metric-definitions', metricDefinitionRoutes);
+// Enhanced assessment template routes with different path to avoid conflicts
+app.use('/api/assessment-templates-v2', assessmentTemplateEnhancedRoutes);
 app.use('/api/assessment-templates', assessmentTemplateRoutes);
 app.use('/api/observations', observationRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/alert-rules', alertRuleRoutes);
 app.use('/api/condition-presets', conditionPresetRoutes);
 
-// Add new routes
+// New medication routes
 app.use('/api/drugs', drugRoutes);
 app.use('/api/patient-medications', patientMedicationRoutes);
 
@@ -94,17 +98,18 @@ app.use('/api/patient-medications', patientMedicationRoutes);
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   
+  // Prisma errors
   if (err.code === 'P2002') {
-    return res.status(409).json({
-      error: 'Unique constraint violation',
-      message: 'A record with this data already exists'
+    return res.status(400).json({
+      error: 'Duplicate entry',
+      message: 'A record with this information already exists'
     });
   }
   
   if (err.code === 'P2025') {
     return res.status(404).json({
-      error: 'Record not found',
-      message: 'The requested record does not exist'
+      error: 'Not found',
+      message: 'The requested record was not found'
     });
   }
   
@@ -114,35 +119,34 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler - Fixed the wildcard route
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     error: 'Not found',
-    message: `Route ${req.originalUrl} not found`
+    message: `Route ${req.method} ${req.path} not found`
   });
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nShutting down gracefully...');
+  console.log('Received SIGINT, shutting down gracefully...');
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\nShutting down gracefully...');
+  console.log('Received SIGTERM, shutting down gracefully...');
   await prisma.$disconnect();
   process.exit(0);
 });
 
-// Start server only if this file is run directly (not imported)
+// Start server
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`🚀 Pain-DB API Server running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`📖 API info: http://localhost:${PORT}/api`);
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/health`);
+    console.log(`API info: http://localhost:${PORT}/api`);
   });
 }
 
-// Export for testing
 module.exports = { app, prisma };

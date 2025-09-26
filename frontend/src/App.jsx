@@ -2,7 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
-import AssessmentTemplates from './pages/AssessmentTemplates'
+import AssessmentTemplatesEnhanced from './pages/AssessmentTemplatesEnhanced'
 import Patients from './pages/Patients'
 import Clinicians from './pages/Clinicians'
 import ConditionPresets from './pages/ConditionPresets'
@@ -22,7 +22,7 @@ function App() {
         <Route path="/clinicians" element={<Clinicians />} />
         <Route path="/condition-presets" element={<ConditionPresets />} />
         <Route path="/metric-definitions" element={<MetricDefinitions />} />
-        <Route path="/assessment-templates" element={<AssessmentTemplates />} />
+        <Route path="/assessment-templates" element={<AssessmentTemplatesEnhanced />} />
         <Route path="/observations" element={<Observations />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/alert-rules" element={<AlertRules />} />
