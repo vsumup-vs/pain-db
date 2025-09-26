@@ -8,7 +8,12 @@ import {
   ClockIcon,
   TagIcon,
   XMarkIcon,
-  FunnelIcon
+  FunnelIcon,
+  EyeIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 
@@ -18,6 +23,8 @@ export default function Observations() {
     startDate: '',
     endDate: '',
   })
+  const [selectedObservation, setSelectedObservation] = useState(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
 
   const { data: observationsResponse, isLoading, error } = useQuery({
     queryKey: ['observations', searchTerm, dateRange],
@@ -89,6 +96,51 @@ export default function Observations() {
     }
   }
 
+  const getValueSeverityColor = (observation) => {
+    const value = getObservationValue(observation)
+    const metricKey = observation.metricDefinition?.key || observation.metricKey
+    
+    // Pain scale indicators
+    if (metricKey?.includes('pain') && observation.metricDefinition?.valueType === 'numeric') {
+      const numValue = parseFloat(value)
+      if (numValue >= 7) return 'text-red-600 bg-red-50'
+      if (numValue >= 4) return 'text-yellow-600 bg-yellow-50'
+      return 'text-green-600 bg-green-50'
+    }
+    
+    // Mood/anxiety indicators
+    if (metricKey?.includes('mood') || metricKey?.includes('anxiety')) {
+      if (value?.toLowerCase().includes('severe') || value?.toLowerCase().includes('high')) {
+        return 'text-red-600 bg-red-50'
+      }
+      if (value?.toLowerCase().includes('moderate') || value?.toLowerCase().includes('medium')) {
+        return 'text-yellow-600 bg-yellow-50'
+      }
+      return 'text-green-600 bg-green-50'
+    }
+    
+    return 'text-gray-900 bg-gray-50'
+  }
+
+  const formatObservationContext = (observation) => {
+    const context = observation.context || {}
+    const raw = observation.raw || {}
+    
+    const details = []
+    
+    if (raw.notes) details.push(`Notes: ${raw.notes}`)
+    if (raw.location) details.push(`Location: ${raw.location}`)
+    if (context.assessmentType) details.push(`Assessment: ${context.assessmentType}`)
+    if (context.enrollmentId) details.push(`Enrollment: ${context.enrollmentId}`)
+    
+    return details
+  }
+
+  const handleViewDetails = (observation) => {
+    setSelectedObservation(observation)
+    setShowDetailModal(true)
+  }
+
   const filteredObservations = observations.filter(observation =>
     !searchTerm || 
     observation.patient?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,10 +185,10 @@ export default function Observations() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Observations
+              Patient Observations
             </h1>
             <p className="mt-2 text-lg text-gray-600">
-              Monitor patient data and health metrics
+              Detailed view of patient-recorded health metrics and assessment data
             </p>
           </div>
           <div className="flex items-center space-x-3 text-sm text-gray-600 bg-white px-4 py-2 rounded-xl shadow-lg">
@@ -185,9 +237,9 @@ export default function Observations() {
               <input
                 type="date"
                 value={dateRange.startDate}
-                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                placeholder="Start Date"
+                placeholder="Start date"
               />
             </div>
             
@@ -196,26 +248,12 @@ export default function Observations() {
               <input
                 type="date"
                 value={dateRange.endDate}
-                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                placeholder="End Date"
+                placeholder="End date"
               />
             </div>
           </div>
-
-          {hasActiveFilters && (
-            <div className="mt-4 text-sm text-gray-600">
-              {searchTerm && (
-                <span>Searching for "{searchTerm}" • </span>
-              )}
-              {dateRange.startDate && (
-                <span>From {new Date(dateRange.startDate).toLocaleDateString()} • </span>
-              )}
-              {dateRange.endDate && (
-                <span>To {new Date(dateRange.endDate).toLocaleDateString()}</span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Observations Grid */}
@@ -231,6 +269,9 @@ export default function Observations() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredObservations.map((observation) => {
               const SourceIcon = getSourceIcon(observation.source)
+              const contextDetails = formatObservationContext(observation)
+              const valueSeverityColor = getValueSeverityColor(observation)
+              
               return (
                 <div key={observation.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group">
                   {/* Header */}
@@ -263,8 +304,8 @@ export default function Observations() {
                         </span>
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                        <div className="text-3xl font-bold text-gray-900">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`text-3xl font-bold px-3 py-2 rounded-lg ${valueSeverityColor}`}>
                           {getObservationValue(observation)}
                           {observation.metricDefinition?.unit && (
                             <span className="text-lg text-gray-500 ml-1">
@@ -273,9 +314,34 @@ export default function Observations() {
                           )}
                         </div>
                       </div>
+
+                      {/* Assessment Context */}
+                      {contextDetails.length > 0 && (
+                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <DocumentTextIcon className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">Assessment Details</span>
+                          </div>
+                          <div className="space-y-1">
+                            {contextDetails.slice(0, 2).map((detail, index) => (
+                              <div key={index} className="text-xs text-gray-600">
+                                {detail}
+                              </div>
+                            ))}
+                            {contextDetails.length > 2 && (
+                              <button
+                                onClick={() => handleViewDetails(observation)}
+                                className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                              >
+                                View all details...
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Source */}
+                    {/* Footer */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <div className="flex items-center space-x-2">
                         <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${getSourceColor(observation.source)}`}>
@@ -283,8 +349,17 @@ export default function Observations() {
                           {formatSource(observation.source)}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {new Date(observation.recordedAt).toLocaleTimeString()}
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewDetails(observation)}
+                          className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center space-x-1"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                          <span>Details</span>
+                        </button>
+                        <div className="text-sm text-gray-500">
+                          {new Date(observation.recordedAt).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -294,6 +369,163 @@ export default function Observations() {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {showDetailModal && selectedObservation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Observation Details</h2>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Patient Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Patient Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Name:</span>
+                      <div className="text-sm text-gray-900">
+                        {selectedObservation.patient?.firstName} {selectedObservation.patient?.lastName}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Patient ID:</span>
+                      <div className="text-sm text-gray-900">{selectedObservation.patient?.id}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metric Details */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Metric Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Metric:</span>
+                      <div className="text-sm text-gray-900">{selectedObservation.metricDefinition?.displayName}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Type:</span>
+                      <div className="text-sm text-gray-900">{selectedObservation.metricDefinition?.valueType}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Value:</span>
+                      <div className="text-lg font-bold text-gray-900">
+                        {getObservationValue(selectedObservation)}
+                        {selectedObservation.metricDefinition?.unit && (
+                          <span className="text-sm text-gray-500 ml-1">
+                            {selectedObservation.metricDefinition.unit}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Source:</span>
+                      <div className="text-sm text-gray-900">{formatSource(selectedObservation.source)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Context & Notes */}
+                {(selectedObservation.context || selectedObservation.raw) && (
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Additional Details</h3>
+                    <div className="space-y-3">
+                      {selectedObservation.raw?.notes && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Notes:</span>
+                          <div className="text-sm text-gray-900 mt-1">{selectedObservation.raw.notes}</div>
+                        </div>
+                      )}
+                      {selectedObservation.raw?.location && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Location:</span>
+                          <div className="text-sm text-gray-900">{selectedObservation.raw.location}</div>
+                        </div>
+                      )}
+                      {selectedObservation.context && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Context:</span>
+                          <pre className="text-xs text-gray-600 mt-1 bg-white p-2 rounded border overflow-x-auto">
+                            {JSON.stringify(selectedObservation.context, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Timestamp */}
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Timing Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Recorded At:</span>
+                      <div className="text-sm text-gray-900">
+                        {new Date(selectedObservation.recordedAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Created At:</span>
+                      <div className="text-sm text-gray-900">
+                        {new Date(selectedObservation.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
+}
+
+// Example of how medication adherence observations appear
+const medicationAdherenceCard = {
+  // Header with patient info and date
+  header: "Sarah Johnson - Dec 15, 2024",
+  
+  // Main content
+  metricName: "Medication Adherence",
+  valueType: "categorical",
+  
+  // Color-coded value based on adherence status
+  value: "Taken as prescribed", // Green background
+  // OR "Missed dose",          // Red background  
+  // OR "Partial dose",         // Yellow background
+  // OR "Wrong time",           // Orange background
+  // OR "Skipped intentionally" // Red background
+  
+  // Assessment context showing medication details
+  assessmentDetails: [
+    "Medication: Ibuprofen 400mg",
+    "Frequency: Three times daily", 
+    "Route: Oral",
+    "Taken at: 2:30 PM",
+    "Notes: Took with food as instructed"
+  ],
+  
+  // Source indicator
+  source: "patient", // Shows patient icon
+  
+  // Timestamp
+  recordedAt: "2024-12-15T14:30:00Z"
 }

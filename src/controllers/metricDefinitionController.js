@@ -3,6 +3,228 @@ const { PrismaClient } = require('../../generated/prisma');
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
 
+// Helper function to categorize metrics
+const getCategoryFromKey = (key) => {
+  if (key.includes('pain')) return 'Pain Management';
+  if (key.includes('glucose') || key.includes('hba1c')) return 'Diabetes';
+  if (key.includes('bp') || key.includes('blood_pressure')) return 'Cardiovascular';
+  if (key.includes('fatigue') || key.includes('sleep') || key.includes('cognitive')) return 'Fibromyalgia';
+  if (key.includes('joint') || key.includes('stiffness')) return 'Arthritis';
+  if (key.includes('medication')) return 'Medication';
+  return 'General';
+};
+
+// Get standardized metric templates
+const getStandardizedTemplates = async (req, res) => {
+  try {
+    const templates = await prisma.metricDefinition.findMany({
+      where: {
+        coding: {
+          not: null
+        }
+      },
+      select: {
+        key: true,
+        displayName: true,
+        valueType: true,
+        coding: true,
+        validation: true,
+        scaleMin: true,
+        scaleMax: true,
+        unit: true,
+        options: true,
+        defaultFrequency: true,
+        decimalPrecision: true
+      },
+      orderBy: { displayName: 'asc' }
+    });
+    
+    // Group by category
+    const categorized = templates.reduce((acc, template) => {
+      const category = getCategoryFromKey(template.key);
+      if (!acc[category]) acc[category] = [];
+      acc[category].push({
+        ...template,
+        category,
+        isStandardized: true,
+        loinc: template.coding?.primary?.code,
+        loincDisplay: template.coding?.primary?.display,
+        snomed: template.coding?.secondary?.[0]?.code,
+        snomedDisplay: template.coding?.secondary?.[0]?.display,
+        icd10: template.coding?.mappings?.icd10,
+        icd10Description: template.coding?.mappings?.description
+      });
+      return acc;
+    }, {});
+    
+    res.json({
+      success: true,
+      data: categorized,
+      totalTemplates: templates.length
+    });
+  } catch (error) {
+    console.error('Error fetching standardized templates:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Create metric from standardized template
+const createFromTemplate = async (req, res) => {
+  try {
+    const { templateKey, customizations } = req.body;
+    
+    if (!templateKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'templateKey is required'
+      });
+    }
+    
+    // Get the template
+    const template = await prisma.metricDefinition.findFirst({
+      where: { key: templateKey }
+    });
+    
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        message: 'Template not found'
+      });
+    }
+    
+    // Generate unique key for the new metric
+    const timestamp = Date.now();
+    const customKey = customizations?.key || `${template.key}_custom_${timestamp}`;
+    
+    // Check if key already exists
+    const existingMetric = await prisma.metricDefinition.findFirst({
+      where: { key: customKey }
+    });
+    
+    if (existingMetric) {
+      return res.status(400).json({
+        success: false,
+        message: 'Metric key already exists'
+      });
+    }
+    
+    // Create new metric with template + customizations
+    const newMetricData = {
+      key: customKey,
+      displayName: customizations?.displayName || `${template.displayName} (Custom)`,
+      valueType: template.valueType, // Protected for standardized metrics
+      unit: template.unit, // Protected for standardized metrics
+      scaleMin: template.scaleMin, // Protected for standardized metrics
+      scaleMax: template.scaleMax, // Protected for standardized metrics
+      decimalPrecision: template.decimalPrecision, // Protected for standardized metrics
+      coding: template.coding, // Preserve standardized codes
+      validation: template.validation, // Preserve validation rules
+      options: template.options, // Protected for standardized metrics
+      // Allow customization of these fields
+      defaultFrequency: customizations?.defaultFrequency || template.defaultFrequency,
+      requiredDefault: customizations?.requiredDefault ?? template.requiredDefault
+    };
+    
+    const newMetric = await prisma.metricDefinition.create({
+      data: newMetricData
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Metric created from standardized template successfully',
+      data: {
+        ...newMetric,
+        isStandardized: true,
+        templateUsed: templateKey
+      }
+    });
+  } catch (error) {
+    console.error('Error creating metric from template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get metric template details
+const getTemplateDetails = async (req, res) => {
+  try {
+    const { templateKey } = req.params;
+    
+    const template = await prisma.metricDefinition.findFirst({
+      where: { 
+        key: templateKey,
+        coding: {
+          not: null
+        }
+      }
+    });
+    
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        message: 'Standardized template not found'
+      });
+    }
+    
+    // Add standardization details
+    const templateDetails = {
+      ...template,
+      category: getCategoryFromKey(template.key),
+      isStandardized: true,
+      standardization: {
+        loinc: {
+          code: template.coding?.primary?.code,
+          display: template.coding?.primary?.display,
+          system: template.coding?.primary?.system
+        },
+        snomed: template.coding?.secondary?.map(code => ({
+          code: code.code,
+          display: code.display,
+          system: code.system
+        })) || [],
+        icd10: {
+          code: template.coding?.mappings?.icd10,
+          description: template.coding?.mappings?.description
+        }
+      },
+      editableFields: [
+        'displayName',
+        'defaultFrequency',
+        'requiredDefault'
+      ],
+      protectedFields: [
+        'key',
+        'valueType',
+        'unit',
+        'scaleMin',
+        'scaleMax',
+        'coding',
+        'validation',
+        'options'
+      ]
+    };
+    
+    res.json({
+      success: true,
+      data: templateDetails
+    });
+  } catch (error) {
+    console.error('Error fetching template details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 // Create a new metric definition
 const createMetricDefinition = async (req, res) => {
   try {
@@ -123,9 +345,16 @@ const getAllMetricDefinitions = async (req, res) => {
       prisma.metricDefinition.count({ where })
     ]);
 
+    // Add standardization info to each metric
+    const enrichedMetrics = metricDefinitions.map(metric => ({
+      ...metric,
+      isStandardized: !!metric.coding,
+      category: getCategoryFromKey(metric.key)
+    }));
+
     res.json({
       success: true,
-      data: metricDefinitions,
+      data: enrichedMetrics,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -173,9 +402,16 @@ const getMetricDefinitionById = async (req, res) => {
       });
     }
 
+    // Add standardization info
+    const enrichedMetric = {
+      ...metricDefinition,
+      isStandardized: !!metricDefinition.coding,
+      category: getCategoryFromKey(metricDefinition.key)
+    };
+
     res.json({
       success: true,
-      data: metricDefinition
+      data: enrichedMetric
     });
   } catch (error) {
     console.error('Error fetching metric definition:', error);
@@ -193,24 +429,6 @@ const updateMetricDefinition = async (req, res) => {
     const { id } = req.params;
     const requestData = req.body;
 
-    // Filter only valid fields that exist in the MetricDefinition schema
-    const validFields = [
-      'key', 'displayName', 'valueType', 'unit', 'scaleMin', 'scaleMax',
-      'decimalPrecision', 'requiredDefault', 'defaultFrequency', 'coding',
-      'options', 'validation', 'localeOverrides', 'version', 'activeFrom', 'activeTo'
-    ];
-
-    const updateData = {};
-    validFields.forEach(field => {
-      if (requestData[field] !== undefined) {
-        updateData[field] = requestData[field];
-      }
-    });
-
-    // Handle empty strings for nullable fields
-    if (updateData.unit === '') updateData.unit = null;
-    if (updateData.defaultFrequency === '') updateData.defaultFrequency = null;
-
     // Check if metric definition exists
     const existingMetric = await prisma.metricDefinition.findUnique({
       where: { id }
@@ -223,6 +441,56 @@ const updateMetricDefinition = async (req, res) => {
       });
     }
 
+    // Check if this is a standardized metric
+    const isStandardized = !!existingMetric.coding;
+    
+    // Define which fields can be updated for standardized metrics
+    const standardizedEditableFields = [
+      'displayName', 'description', 'defaultFrequency', 'requiredDefault'
+    ];
+    
+    // Define all valid fields for custom metrics
+    const allValidFields = [
+      'key', 'displayName', 'valueType', 'unit', 'scaleMin', 'scaleMax',
+      'decimalPrecision', 'requiredDefault', 'defaultFrequency', 'coding',
+      'options', 'validation', 'localeOverrides', 'version', 'activeFrom', 'activeTo'
+    ];
+
+    const updateData = {};
+    
+    if (isStandardized) {
+      // For standardized metrics, only allow editing of specific fields
+      standardizedEditableFields.forEach(field => {
+        if (requestData[field] !== undefined) {
+          updateData[field] = requestData[field];
+        }
+      });
+      
+      // Warn if trying to edit protected fields
+      const protectedFields = allValidFields.filter(f => !standardizedEditableFields.includes(f));
+      const attemptedProtectedEdits = protectedFields.filter(f => requestData[f] !== undefined);
+      
+      if (attemptedProtectedEdits.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot modify protected fields in standardized metric: ${attemptedProtectedEdits.join(', ')}`,
+          editableFields: standardizedEditableFields,
+          protectedFields: protectedFields
+        });
+      }
+    } else {
+      // For custom metrics, allow editing of all fields
+      allValidFields.forEach(field => {
+        if (requestData[field] !== undefined) {
+          updateData[field] = requestData[field];
+        }
+      });
+    }
+
+    // Handle empty strings for nullable fields
+    if (updateData.unit === '') updateData.unit = null;
+    if (updateData.defaultFrequency === '') updateData.defaultFrequency = null;
+
     // Validate data type specific requirements if being updated
     if (updateData.valueType === 'numeric' &&
         (updateData.scaleMin === undefined || updateData.scaleMax === undefined)) {
@@ -232,23 +500,19 @@ const updateMetricDefinition = async (req, res) => {
       });
     }
 
-    if (updateData.valueType === 'categorical' &&
-        (!updateData.options || updateData.options.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Categorical metrics require options array'
-      });
-    }
-
-    const updatedMetricDefinition = await prisma.metricDefinition.update({
+    const updatedMetric = await prisma.metricDefinition.update({
       where: { id },
       data: updateData
     });
 
     res.json({
       success: true,
-      message: 'Metric definition updated successfully',
-      data: updatedMetricDefinition
+      message: `${isStandardized ? 'Standardized' : 'Custom'} metric definition updated successfully`,
+      data: {
+        ...updatedMetric,
+        isStandardized,
+        category: getCategoryFromKey(updatedMetric.key)
+      }
     });
   } catch (error) {
     console.error('Error updating metric definition:', error);
@@ -267,7 +531,7 @@ const deleteMetricDefinition = async (req, res) => {
     const { permanent = false } = req.query;
 
     const existingMetric = await prisma.metricDefinition.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         _count: {
           select: { observations: true }
@@ -292,7 +556,7 @@ const deleteMetricDefinition = async (req, res) => {
       }
 
       await prisma.metricDefinition.delete({
-        where: { id: parseInt(id) }
+        where: { id }
       });
 
       res.json({
@@ -300,10 +564,10 @@ const deleteMetricDefinition = async (req, res) => {
         message: 'Metric definition permanently deleted'
       });
     } else {
-      // Soft delete - just deactivate
+      // Soft delete - set activeTo to current date
       const deactivatedMetric = await prisma.metricDefinition.update({
-        where: { id: parseInt(id) },
-        data: { isActive: false }
+        where: { id },
+        data: { activeTo: new Date() }
       });
 
       res.json({
@@ -333,6 +597,13 @@ const getMetricDefinitionStats = async (req, res) => {
     });
 
     const totalMetrics = await prisma.metricDefinition.count();
+    const standardizedMetrics = await prisma.metricDefinition.count({
+      where: {
+        coding: {
+          not: null
+        }
+      }
+    });
 
     const mostUsedMetrics = await prisma.metricDefinition.findMany({
       take: 5,
@@ -356,7 +627,13 @@ const getMetricDefinitionStats = async (req, res) => {
           return acc;
         }, {}),
         totalMetrics,
-        mostUsedMetrics
+        standardizedMetrics,
+        customMetrics: totalMetrics - standardizedMetrics,
+        mostUsedMetrics: mostUsedMetrics.map(metric => ({
+          ...metric,
+          isStandardized: !!metric.coding,
+          category: getCategoryFromKey(metric.key)
+        }))
       }
     });
   } catch (error) {
@@ -421,19 +698,12 @@ const validateMetricValue = async (req, res) => {
         }
         break;
 
-      case 'TEXT':
-        if (typeof value !== 'string') {
+      default:
+        // For other types, basic validation
+        if (value === null || value === undefined || value === '') {
           isValid = false;
-          errors.push('Value must be a string');
+          errors.push('Value is required');
         }
-        break;
-
-      case 'BOOLEAN':
-        if (typeof value !== 'boolean') {
-          isValid = false;
-          errors.push('Value must be a boolean');
-        }
-        break;
     }
 
     res.json({
@@ -441,10 +711,11 @@ const validateMetricValue = async (req, res) => {
       data: {
         isValid,
         errors,
+        value,
         metricDefinition: {
           id: metricDefinition.id,
-          name: metricDefinition.name,
-          dataType: metricDefinition.dataType
+          displayName: metricDefinition.displayName,
+          valueType: metricDefinition.valueType
         }
       }
     });
@@ -465,5 +736,9 @@ module.exports = {
   updateMetricDefinition,
   deleteMetricDefinition,
   getMetricDefinitionStats,
-  validateMetricValue
+  validateMetricValue,
+  // New functions for standardized templates
+  getStandardizedTemplates,
+  createFromTemplate,
+  getTemplateDetails
 };

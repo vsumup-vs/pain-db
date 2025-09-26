@@ -12,8 +12,17 @@ const {
   updateMetricDefinition,
   deleteMetricDefinition,
   getMetricDefinitionStats,
-  validateMetricValue
+  validateMetricValue,
+  // New functions for standardized templates
+  getStandardizedTemplates,
+  createFromTemplate,
+  getTemplateDetails
 } = require('../controllers/metricDefinitionController');
+
+// Standardized template routes (place before parameterized routes)
+router.get('/templates/standardized', getStandardizedTemplates);
+router.get('/templates/:templateKey', getTemplateDetails);
+router.post('/templates/create', createFromTemplate);
 
 // Base routes with validation
 router.post('/', metricDefinitionValidations.create, handleValidationErrors, createMetricDefinition);

@@ -20,16 +20,23 @@ import {
   CalculatorIcon,
   TagIcon,
   CalendarIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  SparklesIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
+import MetricTemplateSelector from '../components/MetricTemplateSelector'
+import StandardizedMetricSelector from '../components/StandardizedMetricSelector'
+import StandardMetricEditor from '../components/StandardMetricEditor'
 
 export default function MetricDefinitions() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMetric, setEditingMetric] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
+  const [creationFlow, setCreationFlow] = useState('type-selection') // 'type-selection', 'template-selection', 'standard-editor', 'custom-form'
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
   const queryClient = useQueryClient()
 
   const { data: metricDefinitions, isLoading, error } = useQuery({
@@ -41,7 +48,7 @@ export default function MetricDefinitions() {
     mutationFn: api.createMetricDefinition,
     onSuccess: () => {
       queryClient.invalidateQueries(['metricDefinitions'])
-      setIsModalOpen(false)
+      handleCloseModal()
       toast.success('Metric definition created successfully')
     },
     onError: (error) => {
@@ -50,12 +57,24 @@ export default function MetricDefinitions() {
     }
   })
 
+  const createFromTemplateMutation = useMutation({
+    mutationFn: (data) => api.post('/metric-definitions/templates/create', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['metricDefinitions'])
+      handleCloseModal()
+      toast.success('Standardized metric created successfully')
+    },
+    onError: (error) => {
+      console.error('Create from template error:', error)
+      toast.error(error.response?.data?.message || 'Failed to create metric from template')
+    }
+  })
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => api.updateMetricDefinition(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['metricDefinitions'])
-      setIsModalOpen(false)
-      setEditingMetric(null)
+      handleCloseModal()
       toast.success('Metric definition updated successfully')
     },
     onError: (error) => {
@@ -75,6 +94,46 @@ export default function MetricDefinitions() {
       toast.error(error.response?.data?.message || 'Failed to delete metric definition')
     }
   })
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setEditingMetric(null)
+    setCreationFlow('type-selection')
+    setSelectedTemplate(null)
+  }
+
+  const handleOpenCreateModal = () => {
+    setEditingMetric(null)
+    setCreationFlow('type-selection')
+    setIsModalOpen(true)
+  }
+
+  const handleSelectMetricType = (type) => {
+    if (type === 'standardized') {
+      setCreationFlow('template-selection')
+    } else {
+      setCreationFlow('custom-form')
+    }
+  }
+
+  const handleSelectTemplate = (template) => {
+    setSelectedTemplate(template)
+    setCreationFlow('standard-editor')
+  }
+
+  const handleBackToTypeSelection = () => {
+    setCreationFlow('type-selection')
+    setSelectedTemplate(null)
+  }
+
+  const handleBackToTemplateSelection = () => {
+    setCreationFlow('template-selection')
+    setSelectedTemplate(null)
+  }
+
+  const handleSubmitStandardized = (data) => {
+    createFromTemplateMutation.mutate(data)
+  }
 
   const handleSubmit = (data) => {
     // Validate required fields
@@ -148,6 +207,7 @@ export default function MetricDefinitions() {
       maxValue: metric.scaleMax,
     }
     setEditingMetric(frontendMetric)
+    setCreationFlow('custom-form')
     setIsModalOpen(true)
   }
 
@@ -157,20 +217,16 @@ export default function MetricDefinitions() {
     }
   }
 
-  // Helper function to get metric type icon and color
-  const getMetricTypeInfo = (valueType) => {
-    switch (valueType?.toLowerCase()) {
-      case 'numeric':
-        return { icon: CalculatorIcon, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' }
-      case 'categorical':
-        return { icon: TagIcon, color: 'text-green-600', bgColor: 'bg-green-50', borderColor: 'border-green-200' }
-      case 'ordinal':
-        return { icon: NumberedListIcon, color: 'text-purple-600', bgColor: 'bg-purple-50', borderColor: 'border-purple-200' }
-      case 'boolean':
-        return { icon: CheckCircleIcon, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' }
-      default:
-        return { icon: DocumentTextIcon, color: 'text-gray-600', bgColor: 'bg-gray-50', borderColor: 'border-gray-200' }
+  // Get type icon and info
+  const getTypeInfo = (valueType) => {
+    const types = {
+      numeric: { icon: CalculatorIcon, label: 'Numeric', color: 'text-blue-600' },
+      text: { icon: DocumentTextIcon, label: 'Text', color: 'text-green-600' },
+      boolean: { icon: CheckCircleIcon, label: 'Boolean', color: 'text-purple-600' },
+      categorical: { icon: ListBulletIcon, label: 'Categorical', color: 'text-orange-600' },
+      ordinal: { icon: NumberedListIcon, label: 'Ordinal', color: 'text-red-600' }
     }
+    return types[valueType] || { icon: TagIcon, label: valueType, color: 'text-gray-600' }
   }
 
   // Filter metrics based on search and type
@@ -184,6 +240,45 @@ export default function MetricDefinitions() {
 
   // Get unique metric types for filter
   const metricTypes = [...new Set(metricDefinitions?.data?.map(m => m.valueType) || [])]
+
+  // Render modal content based on creation flow
+  const renderModalContent = () => {
+    switch (creationFlow) {
+      case 'type-selection':
+        return (
+          <MetricTemplateSelector
+            onSelectType={handleSelectMetricType}
+            onClose={handleCloseModal}
+          />
+        )
+      case 'template-selection':
+        return (
+          <StandardizedMetricSelector
+            onSelectTemplate={handleSelectTemplate}
+            onBack={handleBackToTypeSelection}
+          />
+        )
+      case 'standard-editor':
+        return (
+          <StandardMetricEditor
+            template={selectedTemplate}
+            onSubmit={handleSubmitStandardized}
+            onBack={handleBackToTemplateSelection}
+            isLoading={createFromTemplateMutation.isLoading}
+          />
+        )
+      case 'custom-form':
+        return (
+          <MetricDefinitionForm
+            metric={editingMetric}
+            onSubmit={handleSubmit}
+            isLoading={createMutation.isLoading || updateMutation.isLoading}
+          />
+        )
+      default:
+        return null
+    }
+  }
 
   if (isLoading) {
     return (
@@ -223,8 +318,8 @@ export default function MetricDefinitions() {
               </p>
             </div>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform transition-all duration-200 hover:scale-105"
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Add New Metric
@@ -257,76 +352,62 @@ export default function MetricDefinitions() {
                 <option value="all">All Types</option>
                 {metricTypes.map(type => (
                   <option key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {getTypeInfo(type).label}
                   </option>
                 ))}
               </select>
             </div>
           </div>
-          
-          {/* Stats */}
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-            <span>
-              Showing {filteredMetrics.length} of {metricDefinitions?.data?.length || 0} metrics
-            </span>
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="text-indigo-600 hover:text-indigo-800"
-              >
-                Clear search
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Metrics Grid */}
         {filteredMetrics.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
-              <ChartBarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || filterType !== 'all' ? 'No matching metrics found' : 'No metric definitions yet'}
-              </h3>
-              <p className="text-gray-500 mb-6">
-                {searchTerm || filterType !== 'all' 
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'Create your first metric definition to get started'
-                }
-              </p>
-              {!searchTerm && filterType === 'all' && (
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Add Your First Metric
-                </button>
-              )}
-            </div>
+          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
+            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {searchTerm || filterType !== 'all' ? 'No matching metrics found' : 'No metric definitions yet'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm || filterType !== 'all' 
+                ? 'Try adjusting your search or filter criteria'
+                : 'Create your first metric definition to get started'
+              }
+            </p>
+            {!searchTerm && filterType === 'all' && (
+              <button
+                onClick={handleOpenCreateModal}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Create First Metric
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMetrics.map((metric) => {
-              const typeInfo = getMetricTypeInfo(metric.valueType)
+              const typeInfo = getTypeInfo(metric.valueType)
               const TypeIcon = typeInfo.icon
-              
+              const isStandardized = !!metric.coding
+
               return (
-                <div 
-                  key={metric.id} 
-                  className={`bg-white rounded-xl shadow-sm border-2 ${typeInfo.borderColor} hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 overflow-hidden`}
-                >
-                  {/* Card Header */}
-                  <div className={`${typeInfo.bgColor} px-6 py-4 border-b border-gray-100`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${typeInfo.bgColor} border ${typeInfo.borderColor}`}>
+                <div key={metric.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start space-x-3 flex-1">
+                        <div className={`p-2 rounded-lg bg-gray-100`}>
                           <TypeIcon className={`h-5 w-5 ${typeInfo.color}`} />
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                            {metric.displayName}
-                          </h3>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                              {metric.displayName}
+                            </h3>
+                            {isStandardized && (
+                              <ShieldCheckIcon className="h-4 w-4 text-blue-600" title="Standardized Metric" />
+                            )}
+                          </div>
                           <div className="flex items-center mt-1">
                             <HashtagIcon className="h-3 w-3 text-gray-400 mr-1" />
                             <span className="text-xs text-gray-500 font-mono">{metric.key}</span>
@@ -350,72 +431,77 @@ export default function MetricDefinitions() {
                         </button>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Card Body */}
-                  <div className="p-6">
                     {/* Description */}
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {metric.description || 'No description provided'}
-                    </p>
+                    {metric.description && (
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {metric.description}
+                      </p>
+                    )}
 
-                    {/* Metric Details */}
-                    <div className="space-y-3">
-                      {/* Type Badge */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Type</span>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.bgColor} ${typeInfo.color}`}>
-                          {metric.valueType}
-                        </span>
-                      </div>
-
-                      {/* Unit */}
-                      {metric.unit && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Unit</span>
-                          <span className="text-sm font-medium text-gray-900">{metric.unit}</span>
+                    {/* Standardization Info */}
+                    {isStandardized && (
+                      <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                        <div className="flex items-center mb-2">
+                          <SparklesIcon className="h-4 w-4 text-blue-600 mr-2" />
+                          <span className="text-xs font-medium text-blue-900">Standardized Codes</span>
                         </div>
-                      )}
-
-                      {/* Required Status */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">Required</span>
-                        <div className="flex items-center">
-                          {metric.requiredDefault ? (
-                            <>
-                              <ExclamationTriangleIcon className="h-4 w-4 text-red-500 mr-1" />
-                              <span className="text-sm font-medium text-red-600">Yes</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircleIcon className="h-4 w-4 text-green-500 mr-1" />
-                              <span className="text-sm font-medium text-green-600">No</span>
-                            </>
+                        <div className="space-y-1 text-xs">
+                          {metric.coding?.primary?.code && (
+                            <div className="text-blue-700">
+                              LOINC: {metric.coding.primary.code}
+                            </div>
+                          )}
+                          {metric.coding?.secondary?.[0]?.code && (
+                            <div className="text-green-700">
+                              SNOMED: {metric.coding.secondary[0].code}
+                            </div>
+                          )}
+                          {metric.coding?.mappings?.icd10 && (
+                            <div className="text-purple-700">
+                              ICD-10: {metric.coding.mappings.icd10}
+                            </div>
                           )}
                         </div>
                       </div>
+                    )}
 
-                      {/* Frequency */}
-                      {metric.defaultFrequency && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Frequency</span>
-                          <div className="flex items-center">
-                            <CalendarIcon className="h-4 w-4 text-gray-400 mr-1" />
-                            <span className="text-sm font-medium text-gray-900">{metric.defaultFrequency}</span>
-                          </div>
+                    {/* Metric Details */}
+                    <div className="space-y-3">
+                      {/* Type and Unit */}
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            typeInfo.color === 'text-blue-600' ? 'bg-blue-100 text-blue-800' :
+                            typeInfo.color === 'text-green-600' ? 'bg-green-100 text-green-800' :
+                            typeInfo.color === 'text-purple-600' ? 'bg-purple-100 text-purple-800' :
+                            typeInfo.color === 'text-orange-600' ? 'bg-orange-100 text-orange-800' :
+                            typeInfo.color === 'text-red-600' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {typeInfo.label}
+                          </span>
+                          {metric.unit && (
+                            <span className="text-gray-500">• {metric.unit}</span>
+                          )}
                         </div>
-                      )}
+                        {metric.requiredDefault && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Required
+                          </span>
+                        )}
+                      </div>
 
-                      {/* Numeric Range */}
-                      {(metric.scaleMin !== null || metric.scaleMax !== null) && (
-                        <div className="bg-gray-50 rounded-lg p-3 mt-3">
+                      {/* Numeric range */}
+                      {metric.valueType === 'numeric' && metric.scaleMin !== null && metric.scaleMax !== null && (
+                        <div className="bg-gray-50 rounded-lg p-3">
                           <div className="flex items-center mb-2">
                             <ScaleIcon className="h-4 w-4 text-gray-500 mr-2" />
                             <span className="text-xs font-medium text-gray-700">Range</span>
                           </div>
-                          <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center justify-between text-sm text-gray-600">
                             <span className="text-gray-600">
-                              {metric.scaleMin !== null ? metric.scaleMin : '−∞'}
+                              {metric.scaleMin !== null ? metric.scaleMin : '-∞'}
                             </span>
                             <div className="flex-1 mx-3 border-t border-gray-300"></div>
                             <span className="text-gray-600">
@@ -442,18 +528,26 @@ export default function MetricDefinitions() {
                           <div className="flex flex-wrap gap-1">
                             {metric.options.slice(0, 3).map((option, index) => (
                               <span 
-                                key={index} 
-                                className="inline-block bg-white text-gray-700 text-xs px-2 py-1 rounded border"
+                                key={index}
+                                className="inline-flex items-center px-2 py-1 rounded text-xs bg-white text-gray-700 border border-gray-200"
                               >
                                 {typeof option === 'object' ? option.label || option.value : option}
                               </span>
                             ))}
                             {metric.options.length > 3 && (
-                              <span className="inline-block bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded">
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-200 text-gray-600">
                                 +{metric.options.length - 3} more
                               </span>
                             )}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Frequency */}
+                      {metric.defaultFrequency && (
+                        <div className="flex items-center text-xs text-gray-500">
+                          <ClockIcon className="h-3 w-3 mr-1" />
+                          Default frequency: {metric.defaultFrequency}
                         </div>
                       )}
                     </div>
@@ -465,13 +559,16 @@ export default function MetricDefinitions() {
         )}
       </div>
 
+      {/* Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setEditingMetric(null)
-        }}
-        title={editingMetric ? 'Edit Metric Definition' : 'Add New Metric Definition'}
+        onClose={handleCloseModal}
+        title={
+          creationFlow === 'type-selection' ? 'Create New Metric' :
+          creationFlow === 'template-selection' ? 'Select Template' :
+          creationFlow === 'standard-editor' ? 'Customize Metric' :
+          editingMetric ? 'Edit Metric Definition' : 'Create Custom Metric'
+        }
         size="xl"
       >
         <MetricDefinitionForm
@@ -504,76 +601,66 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
   const totalSteps = 3
 
   const handleChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
-    setFormData({ ...formData, [e.target.name]: value })
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    
-    // Only allow submission if we're on the final step
-    if (currentStep !== totalSteps) {
-      return
-    }
-    
-    // Process options for categorical/ordinal types
-    let processedOptions = null
-    if ((formData.valueType === 'categorical' || formData.valueType === 'ordinal') && formData.options.trim()) {
-      processedOptions = formData.options.split('\n').filter(opt => opt.trim()).map(opt => opt.trim())
-    }
-    
-    const submitData = {
-      ...formData,
-      options: processedOptions
-    }
-    
-    onSubmit(submitData)
-  }
-
-  // Handle form submission prevention for Enter key
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && currentStep !== totalSteps) {
-      e.preventDefault()
-      // If we're not on the last step and Enter is pressed, go to next step if valid
-      if (isStepValid(currentStep)) {
-        nextStep()
-      }
-    }
+    onSubmit(formData)
   }
 
   const nextStep = () => {
-    if (currentStep < totalSteps) setCurrentStep(currentStep + 1)
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1)
+    }
   }
 
   const prevStep = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1)
-  }
-
-  const getStepTitle = (step) => {
-    switch (step) {
-      case 1: return 'Basic Information'
-      case 2: return 'Configuration'
-      case 3: return 'Advanced Settings'
-      default: return ''
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
     }
   }
 
   const isStepValid = (step) => {
     switch (step) {
       case 1:
-        return formData.name.trim() !== ''
+        return formData.name && formData.valueType
       case 2:
         if (formData.valueType === 'numeric') {
           return formData.minValue !== '' && formData.maxValue !== ''
         }
         if (formData.valueType === 'categorical' || formData.valueType === 'ordinal') {
-          return formData.options.trim() !== ''
+          return formData.options.trim().length > 0
         }
         return true
       case 3:
         return true
       default:
         return false
+    }
+  }
+
+  const getStepTitle = (step) => {
+    switch (step) {
+      case 1: return 'Basic Information'
+      case 2: return 'Configuration'
+      case 3: return 'Final Settings'
+      default: return ''
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.type !== 'textarea') {
+      e.preventDefault()
+      if (currentStep < totalSteps && isStepValid(currentStep)) {
+        nextStep()
+      } else if (currentStep === totalSteps && isStepValid(currentStep)) {
+        handleSubmit(e)
+      }
     }
   }
 
@@ -759,13 +846,13 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                       min="0"
-                      max="4"
-                      placeholder="2"
+                      max="10"
+                      placeholder="0"
                     />
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mt-3">
-                  Set the valid range for numeric values. Patients won't be able to enter values outside this range.
+                <p className="text-xs text-gray-500 mt-2">
+                  Set the valid range for numeric values. Decimal precision determines how many decimal places are allowed.
                 </p>
               </div>
             )}
@@ -773,29 +860,26 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
             {(formData.valueType === 'categorical' || formData.valueType === 'ordinal') && (
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <DocumentTextIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  {formData.valueType === 'categorical' ? 'Multiple Choice Options' : 'Ranked Options'}
+                  <ListBulletIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                  {formData.valueType === 'categorical' ? 'Categorical' : 'Ordinal'} Options
                 </h4>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Options * (one per line)
+                    Available Options *
                   </label>
                   <textarea
                     name="options"
                     value={formData.options}
                     onChange={handleChange}
                     rows={6}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder={formData.valueType === 'categorical' 
-                      ? "Enter options that patients can select from:\nMild\nModerate\nSevere\nExtreme"
-                      : "Enter options in order from lowest to highest:\nNone\nMild\nModerate\nSevere\nExtreme"
-                    }
                     required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder={`Enter one option per line, for example:\nMild\nModerate\nSevere\nVery Severe`}
                   />
-                  <p className="text-sm text-gray-600 mt-2">
-                    {formData.valueType === 'categorical' 
-                      ? "Enter each option on a new line. Patients will be able to select one of these choices."
-                      : "Enter each option on a new line in order from lowest to highest value. This creates a ranked scale."
+                  <p className="text-xs text-gray-500 mt-2">
+                    {formData.valueType === 'ordinal' 
+                      ? 'Enter options in order from lowest to highest. Order matters for ordinal data.'
+                      : 'Enter each option on a new line. Order does not matter for categorical data.'
                     }
                   </p>
                 </div>
@@ -806,12 +890,12 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                   <DocumentTextIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  {formData.valueType === 'text' ? 'Text Input Configuration' : 'Boolean Configuration'}
+                  {formData.valueType === 'text' ? 'Text' : 'Boolean'} Configuration
                 </h4>
                 <p className="text-gray-600">
                   {formData.valueType === 'text' 
-                    ? "Patients will be able to enter free-form text responses for this metric."
-                    : "Patients will be able to select Yes/No or True/False for this metric."
+                    ? 'Text metrics allow patients to enter free-form text responses. No additional configuration is needed.'
+                    : 'Boolean metrics allow patients to select Yes/No or True/False responses. No additional configuration is needed.'
                   }
                 </p>
               </div>
@@ -819,7 +903,7 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
           </div>
         )}
 
-        {/* Step 3: Advanced Settings */}
+        {/* Step 3: Final Settings */}
         {currentStep === 3 && (
           <div className="space-y-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">

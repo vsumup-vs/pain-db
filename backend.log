@@ -1149,3 +1149,358 @@ Error fetching alert stats: TypeError: Cannot set properties of undefined (setti
 2025-09-26T07:53:19.456Z - GET /api/alerts
 2025-09-26T07:53:21.226Z - GET /api/alert-rules
 2025-09-26T07:53:21.238Z - GET /api/alert-rules/stats
+2025-09-26T08:05:39.321Z - GET /api/patients/stats
+2025-09-26T08:05:39.330Z - GET /api/clinicians/stats
+2025-09-26T08:05:39.333Z - GET /api/alerts/stats
+2025-09-26T08:05:39.337Z - GET /api/patients/recent
+2025-09-26T08:05:39.342Z - GET /api/alerts/recent
+2025-09-26T08:05:41.433Z - GET /api/patients
+2025-09-26T08:05:43.872Z - GET /api/clinicians
+2025-09-26T08:05:45.376Z - GET /api/condition-presets
+2025-09-26T08:05:45.682Z - GET /api/assessment-templates
+2025-09-26T08:05:47.989Z - GET /api/metric-definitions
+2025-09-26T08:05:47.992Z - GET /api/metric-definitions
+2025-09-26T08:05:49.815Z - GET /api/assessment-templates
+2025-09-26T08:05:50.124Z - GET /api/metric-definitions
+2025-09-26T08:05:52.416Z - GET /api/observations
+2025-09-26T08:05:54.321Z - GET /api/alerts
+2025-09-26T08:05:56.446Z - GET /api/observations
+2025-09-26T08:11:16.711Z - GET /api/observations
+2025-09-26T08:11:32.115Z - GET /api/observations
+2025-09-26T08:11:49.581Z - GET /api/observations
+2025-09-26T08:12:45.945Z - GET /api/alerts
+2025-09-26T08:12:47.788Z - GET /api/observations
+2025-09-26T09:05:08.107Z - GET /api/observations
+2025-09-26T09:05:16.664Z - GET /api/observations
+2025-09-26T09:06:08.666Z - GET /api/observations
+2025-09-26T09:06:12.566Z - GET /api/observations
+2025-09-26T09:06:16.843Z - GET /api/observations
+2025-09-26T09:06:19.893Z - GET /api/observations
+2025-09-26T09:06:25.634Z - GET /api/observations
+2025-09-26T09:06:25.812Z - GET /api/observations
+2025-09-26T09:06:25.887Z - GET /api/observations
+2025-09-26T09:06:25.996Z - GET /api/observations
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T09:51:12.775Z - GET /api/observations
+2025-09-26T09:52:22.356Z - GET /api/assessment-templates
+2025-09-26T09:52:22.534Z - GET /api/metric-definitions
+2025-09-26T09:52:24.010Z - GET /api/alerts
+2025-09-26T09:52:26.835Z - GET /api/alert-rules
+2025-09-26T09:52:26.839Z - GET /api/alert-rules/stats
+2025-09-26T09:52:37.179Z - GET /api/enrollments
+2025-09-26T09:52:37.489Z - GET /api/patients
+2025-09-26T09:52:37.498Z - GET /api/clinicians
+2025-09-26T09:52:37.502Z - GET /api/condition-presets
+2025-09-26T09:52:42.810Z - GET /api/assessment-templates
+2025-09-26T09:52:42.811Z - GET /api/condition-presets
+2025-09-26T09:52:44.593Z - GET /api/clinicians
+2025-09-26T09:52:46.347Z - GET /api/patients
+2025-09-26T09:52:47.800Z - GET /api/patients/stats
+2025-09-26T09:52:48.116Z - GET /api/clinicians/stats
+2025-09-26T09:52:48.118Z - GET /api/alerts/stats
+2025-09-26T09:52:48.120Z - GET /api/patients/recent
+2025-09-26T09:52:48.125Z - GET /api/alerts/recent
+2025-09-26T09:58:26.058Z - GET /api/alerts
+2025-09-26T09:58:29.292Z - GET /api/alert-rules
+2025-09-26T09:58:29.613Z - GET /api/alert-rules/stats
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T10:25:36.545Z - GET /api/alert-rules
+2025-09-26T10:25:36.558Z - GET /api/alert-rules/stats
+2025-09-26T10:25:40.490Z - GET /api/patients
+2025-09-26T10:25:41.814Z - GET /api/clinicians
+2025-09-26T10:25:43.474Z - GET /api/condition-presets
+2025-09-26T10:25:43.490Z - GET /api/assessment-templates
+2025-09-26T10:25:49.336Z - GET /api/metric-definitions
+2025-09-26T10:25:49.651Z - GET /api/metric-definitions
+2025-09-26T10:25:54.337Z - GET /api/assessment-templates
+2025-09-26T10:25:54.339Z - GET /api/metric-definitions
+2025-09-26T10:25:59.233Z - GET /api/observations
+2025-09-26T10:26:06.640Z - GET /api/alerts
+2025-09-26T10:26:12.540Z - GET /api/patients
+2025-09-26T10:26:15.903Z - GET /api/alerts
+2025-09-26T10:26:20.791Z - GET /api/alert-rules
+2025-09-26T10:26:21.113Z - GET /api/alert-rules/stats
+2025-09-26T10:26:24.371Z - GET /api/enrollments
+2025-09-26T10:26:24.373Z - GET /api/patients
+2025-09-26T10:26:24.375Z - GET /api/clinicians
+2025-09-26T10:26:24.378Z - GET /api/condition-presets
+2025-09-26T10:26:26.291Z - GET /api/alert-rules
+2025-09-26T10:26:26.609Z - GET /api/alert-rules/stats
+2025-09-26T10:35:30.129Z - GET /api/enrollments
+2025-09-26T10:35:30.132Z - GET /api/patients
+2025-09-26T10:35:30.136Z - GET /api/clinicians
+2025-09-26T10:35:30.139Z - GET /api/condition-presets
+2025-09-26T10:35:43.540Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb
+2025-09-26T10:35:43.859Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb/medications
+2025-09-26T10:35:43.863Z - GET /api/alerts
+2025-09-26T10:35:51.975Z - GET /api/enrollments
+2025-09-26T10:35:51.978Z - GET /api/patients
+2025-09-26T10:35:51.981Z - GET /api/clinicians
+2025-09-26T10:35:51.986Z - GET /api/condition-presets
+2025-09-26T10:36:44.023Z - GET /api/alert-rules
+2025-09-26T10:36:44.334Z - GET /api/alert-rules/stats
+2025-09-26T10:36:47.301Z - GET /api/enrollments
+2025-09-26T10:36:47.302Z - GET /api/patients
+2025-09-26T10:36:47.305Z - GET /api/clinicians
+2025-09-26T10:36:47.307Z - GET /api/condition-presets
+2025-09-26T10:36:49.260Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb
+2025-09-26T10:36:49.597Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb/medications
+2025-09-26T10:36:49.598Z - GET /api/alerts
+2025-09-26T10:36:58.721Z - GET /api/enrollments
+2025-09-26T10:36:58.732Z - GET /api/patients
+2025-09-26T10:36:58.734Z - GET /api/clinicians
+2025-09-26T10:36:58.737Z - GET /api/condition-presets
+2025-09-26T10:37:01.690Z - GET /api/alert-rules
+2025-09-26T10:37:01.999Z - GET /api/alert-rules/stats
+2025-09-26T10:37:10.101Z - GET /api/alerts
+2025-09-26T10:37:12.260Z - GET /api/observations
+2025-09-26T10:37:14.666Z - GET /api/assessment-templates
+2025-09-26T10:37:14.668Z - GET /api/metric-definitions
+2025-09-26T10:37:37.011Z - GET /api/enrollments
+2025-09-26T10:37:37.323Z - GET /api/patients
+2025-09-26T10:37:37.325Z - GET /api/clinicians
+2025-09-26T10:37:37.327Z - GET /api/condition-presets
+2025-09-26T10:37:38.802Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb
+2025-09-26T10:37:38.805Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb/medications
+2025-09-26T10:37:38.806Z - GET /api/alerts
+2025-09-26T10:37:39.996Z - GET /api/observations
+2025-09-26T10:37:51.346Z - GET /api/alerts
+2025-09-26T10:37:53.850Z - GET /api/assessment-templates
+2025-09-26T10:37:54.170Z - GET /api/metric-definitions
+2025-09-26T10:37:55.709Z - GET /api/metric-definitions
+2025-09-26T10:37:55.712Z - GET /api/metric-definitions
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T10:46:42.512Z - GET /api/metric-definitions
+2025-09-26T10:46:42.534Z - GET /api/metric-definitions
+2025-09-26T10:49:23.554Z - GET /api/metric-definitions
+2025-09-26T10:49:23.561Z - GET /api/metric-definitions
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T10:53:19.251Z - GET /api/metric-definitions
+2025-09-26T10:53:19.266Z - GET /api/metric-definitions
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T11:24:11.431Z - GET /api/metric-definitions
+2025-09-26T11:28:13.477Z - GET /api/metric-definitions
+2025-09-26T11:28:13.490Z - GET /api/metric-definitions
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T11:30:20.810Z - GET /api/metric-definitions/templates/standardized
+2025-09-26T11:30:20.898Z - GET /api/metric-definitions/templates/blood_glucose
+2025-09-26T11:30:20.931Z - POST /api/metric-definitions/templates/create
+Error creating metric from template: PrismaClientValidationError: 
+Invalid `prisma.metricDefinition.create()` invocation in
+/home/vsumup/pain-db/src/controllers/metricDefinitionController.js:133:53
+
+  130   description: customizations?.description || template.description
+  131 };
+  132 
+→ 133 const newMetric = await prisma.metricDefinition.create({
+        data: {
+          key: "blood_glucose_custom_1758886220934",
+          displayName: "Blood Glucose (Test Custom)",
+          valueType: "numeric",
+          unit: "mg/dL",
+          scaleMin: new Prisma.Decimal("50"),
+          scaleMax: new Prisma.Decimal("400"),
+          decimalPrecision: 0,
+          coding: {
+            primary: {
+              code: "33747-0",
+              system: "http://loinc.org",
+              display: "Glucose [Mass/volume] in Blood by Glucometer"
+            },
+            mappings: {
+              cpt: "82947",
+              description: "Glucose; quantitative, blood (except urine)"
+            },
+            secondary: [
+              {
+                code: "33747-0",
+                system: "http://snomed.info/sct",
+                display: "Blood glucose measurement"
+              }
+            ]
+          },
+          validation: {
+            max: 400,
+            min: 50,
+            type: "integer",
+            criticalLow: 70,
+            criticalHigh: 250
+          },
+          options: null,
+          defaultFrequency: "daily",
+          requiredDefault: true,
+          description: "Test metric created from standardized template",
+          ~~~~~~~~~~~
+      ?   id?: String,
+      ?   localeOverrides?: NullableJsonNullValueInput | Json,
+      ?   version?: Int,
+      ?   activeFrom?: DateTime,
+      ?   activeTo?: DateTime | Null,
+      ?   createdAt?: DateTime,
+      ?   updatedAt?: DateTime,
+      ?   templateItems?: AssessmentTemplateItemCreateNestedManyWithoutMetricDefinitionInput,
+      ?   observations?: ObservationCreateNestedManyWithoutMetricDefinitionInput
+        }
+      })
+
+Unknown argument `description`. Available options are marked with ?.
+    at Nn (/home/vsumup/pain-db/generated/prisma/runtime/library.js:32:1363)
+    at ei.handleRequestError (/home/vsumup/pain-db/generated/prisma/runtime/library.js:124:6911)
+    at ei.handleAndLogRequestError (/home/vsumup/pain-db/generated/prisma/runtime/library.js:124:6593)
+    at ei.request (/home/vsumup/pain-db/generated/prisma/runtime/library.js:124:6300)
+    at async a (/home/vsumup/pain-db/generated/prisma/runtime/library.js:133:9551)
+    at async createFromTemplate (/home/vsumup/pain-db/src/controllers/metricDefinitionController.js:133:23) {
+  clientVersion: '6.16.2'
+}
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T11:34:42.495Z - GET /api/metric-definitions/templates/standardized
+2025-09-26T11:34:42.577Z - GET /api/metric-definitions/templates/blood_glucose
+2025-09-26T11:34:42.595Z - POST /api/metric-definitions/templates/create
+2025-09-26T11:34:42.621Z - DELETE /api/metric-definitions/3a2f14e3-5d38-4f53-9f76-dca4c25dc43f
+Error deleting metric definition: PrismaClientValidationError: 
+Invalid `prisma.metricDefinition.findUnique()` invocation in
+/home/vsumup/pain-db/src/controllers/metricDefinitionController.js:533:58
+
+  530 const { id } = req.params;
+  531 const { permanent = false } = req.query;
+  532 
+→ 533 const existingMetric = await prisma.metricDefinition.findUnique({
+        where: {
+          id: 3
+              ~
+        },
+        include: {
+          _count: {
+            select: {
+              observations: true
+            }
+          }
+        }
+      })
+
+Argument `id`: Invalid value provided. Expected String, provided Int.
+    at Nn (/home/vsumup/pain-db/generated/prisma/runtime/library.js:32:1363)
+    at ei.handleRequestError (/home/vsumup/pain-db/generated/prisma/runtime/library.js:124:6911)
+    at ei.handleAndLogRequestError (/home/vsumup/pain-db/generated/prisma/runtime/library.js:124:6593)
+    at ei.request (/home/vsumup/pain-db/generated/prisma/runtime/library.js:124:6300)
+    at async a (/home/vsumup/pain-db/generated/prisma/runtime/library.js:133:9551)
+    at async deleteMetricDefinition (/home/vsumup/pain-db/src/controllers/metricDefinitionController.js:533:28) {
+  clientVersion: '6.16.2'
+}
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+🚀 Pain-DB API Server running on port 3000
+📊 Health check: http://localhost:3000/health
+📖 API info: http://localhost:3000/api
+2025-09-26T11:36:52.619Z - GET /api/metric-definitions/templates/standardized
+2025-09-26T11:36:52.719Z - GET /api/metric-definitions/templates/blood_glucose
+2025-09-26T11:36:52.741Z - POST /api/metric-definitions/templates/create
+2025-09-26T11:36:52.764Z - DELETE /api/metric-definitions/a9b1ac6b-397c-4b70-abbe-dbc5a28a4df9
+2025-09-26T11:37:49.605Z - GET /api/metric-definitions
+2025-09-26T11:37:49.612Z - GET /api/metric-definitions
+2025-09-26T11:38:57.893Z - GET /api/assessment-templates
+2025-09-26T11:38:58.070Z - GET /api/metric-definitions
+2025-09-26T11:39:02.987Z - GET /api/observations
+2025-09-26T11:39:05.654Z - GET /api/alerts
+2025-09-26T11:39:07.424Z - GET /api/alert-rules
+2025-09-26T11:39:07.734Z - GET /api/alert-rules/stats
+2025-09-26T11:39:10.118Z - GET /api/enrollments
+2025-09-26T11:39:10.128Z - GET /api/patients
+2025-09-26T11:39:10.138Z - GET /api/clinicians
+2025-09-26T11:39:10.140Z - GET /api/condition-presets
+2025-09-26T11:39:12.943Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb
+2025-09-26T11:39:13.255Z - GET /api/enrollments/95f65253-1488-418f-9908-71aabc7525eb/medications
+2025-09-26T11:39:13.259Z - GET /api/alerts
+2025-09-26T11:39:16.764Z - GET /api/patients/stats
+2025-09-26T11:39:16.766Z - GET /api/clinicians/stats
+2025-09-26T11:39:16.771Z - GET /api/alerts/stats
+2025-09-26T11:39:16.775Z - GET /api/patients/recent
+2025-09-26T11:39:16.779Z - GET /api/alerts/recent
