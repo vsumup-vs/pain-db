@@ -8,7 +8,9 @@ import {
   DocumentTextIcon,
   EyeIcon,
   BellIcon,
+  ShieldCheckIcon,
   ClipboardDocumentListIcon,
+  ClipboardDocumentCheckIcon,
   Bars3Icon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
@@ -17,10 +19,12 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Patients', href: '/patients', icon: UserGroupIcon },
   { name: 'Clinicians', href: '/clinicians', icon: UserIcon },
+  { name: 'Condition Presets', href: '/condition-presets', icon: ClipboardDocumentCheckIcon },
   { name: 'Metric Definitions', href: '/metric-definitions', icon: ChartBarIcon },
   { name: 'Assessment Templates', href: '/assessment-templates', icon: DocumentTextIcon },
   { name: 'Observations', href: '/observations', icon: EyeIcon },
   { name: 'Alerts', href: '/alerts', icon: BellIcon },
+  { name: 'Alert Rules', href: '/alert-rules', icon: ShieldCheckIcon },
   { name: 'Enrollments', href: '/enrollments', icon: ClipboardDocumentListIcon },
 ]
 

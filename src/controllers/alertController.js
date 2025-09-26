@@ -394,21 +394,22 @@ const getAlertStats = async (req, res) => {
       })
     ]);
 
-    // Get severity stats using raw SQL for better performance
-    const severityStats = await prisma.$queryRaw`
-      SELECT ar.severity, COUNT(*) as count
-      FROM "alerts" a
-      INNER JOIN "alert_rules" ar ON a."rule_id" = ar.id
-      WHERE a."created_at" >= ${startDate}
-      ${enrollmentId ? prisma.$queryRaw`AND a."enrollment_id" = ${enrollmentId}` : prisma.$queryRaw``}
-      GROUP BY ar.severity
-    `;
+    // Get severity stats by fetching alerts with rules
+    const alertsWithRules = await prisma.alert.findMany({
+      where: recentWhere,
+      include: {
+        rule: {
+          select: { severity: true }
+        }
+      }
+    });
 
     // Process severity stats
-    const severityBreakdown = severityStats.reduce((acc, stat) => {
-      acc[stat.severity] = parseInt(stat.count);
-      return acc;
-    }, {});
+    const severityBreakdown = {};
+    alertsWithRules.forEach(alert => {
+      const severity = alert.rule?.severity || 'unknown';
+      severityBreakdown[severity] = (severityBreakdown[severity] || 0) + 1;
+    });
 
     res.json({
       data: {

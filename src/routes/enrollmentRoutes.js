@@ -17,6 +17,12 @@ const {
   getEnrollmentStats
 } = require('../controllers/enrollmentController');
 
+// Import medication enrollment controller
+const {
+  addMedicationToEnrollment,
+  getEnrollmentMedicationSummary
+} = require('../controllers/medicationEnrollmentController');
+
 // Enrollment CRUD routes with validation
 router.post('/', createEnrollment);
 router.post('/bulk-create', createBulkEnrollments);
@@ -27,5 +33,9 @@ router.put('/:id', updateEnrollment);
 router.delete('/:id', deleteEnrollment);
 router.put('/:id/deactivate', deactivateEnrollment);
 router.patch('/:id/transfer', transferEnrollment);
+
+// Medication-related routes for enrollments
+router.get('/:id/medications', getEnrollmentMedicationSummary);
+router.post('/:id/medications', addMedicationToEnrollment);
 
 module.exports = router;

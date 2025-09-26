@@ -5,7 +5,7 @@ const prisma = global.prisma || new PrismaClient();
 // Add medication management to an enrollment
 const addMedicationToEnrollment = async (req, res) => {
   try {
-    const { enrollmentId } = req.params;
+    const { id: enrollmentId } = req.params;
     const {
       drugId,
       dosage,
@@ -60,21 +60,9 @@ const addMedicationToEnrollment = async (req, res) => {
       }
     });
 
-    // Get medication assessment templates
-    const medicationTemplates = await prisma.assessmentTemplate.findMany({
-      where: {
-        name: {
-          in: ['Daily Medication Assessment', 'PRN Medication Assessment']
-        }
-      }
-    });
-
     res.status(201).json({
-      message: 'Medication added to enrollment successfully',
-      data: {
-        patientMedication,
-        availableTemplates: medicationTemplates
-      }
+      data: patientMedication,
+      message: 'Medication added to enrollment successfully'
     });
   } catch (error) {
     console.error('Error adding medication to enrollment:', error);
@@ -84,10 +72,10 @@ const addMedicationToEnrollment = async (req, res) => {
   }
 };
 
-// Get medication management summary for an enrollment
+// Get medication summary for an enrollment
 const getEnrollmentMedicationSummary = async (req, res) => {
   try {
-    const { enrollmentId } = req.params;
+    const { id: enrollmentId } = req.params;
 
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },

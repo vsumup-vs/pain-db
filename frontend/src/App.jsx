@@ -5,10 +5,13 @@ import Dashboard from './pages/Dashboard'
 import AssessmentTemplates from './pages/AssessmentTemplates'
 import Patients from './pages/Patients'
 import Clinicians from './pages/Clinicians'
+import ConditionPresets from './pages/ConditionPresets'
 import MetricDefinitions from './pages/MetricDefinitions'
 import Observations from './pages/Observations'
 import Alerts from './pages/Alerts'
+import AlertRules from './pages/AlertRules'
 import Enrollments from './pages/Enrollments'
+import EnrollmentDetails from './pages/EnrollmentDetails'
 
 function App() {
   return (
@@ -17,11 +20,14 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/patients" element={<Patients />} />
         <Route path="/clinicians" element={<Clinicians />} />
+        <Route path="/condition-presets" element={<ConditionPresets />} />
         <Route path="/metric-definitions" element={<MetricDefinitions />} />
         <Route path="/assessment-templates" element={<AssessmentTemplates />} />
         <Route path="/observations" element={<Observations />} />
         <Route path="/alerts" element={<Alerts />} />
+        <Route path="/alert-rules" element={<AlertRules />} />
         <Route path="/enrollments" element={<Enrollments />} />
+        <Route path="/enrollments/:id" element={<EnrollmentDetails />} />
       </Routes>
     </Layout>
   )

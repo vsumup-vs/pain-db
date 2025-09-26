@@ -17,6 +17,8 @@ import {
 import { api } from '../services/api'
 import Modal from '../components/Modal'
 import BulkEnrollmentUpload from '../components/BulkEnrollmentUpload'
+import EnhancedEnrollmentForm from '../components/EnhancedEnrollmentForm'
+import { useNavigate } from 'react-router-dom'
 
 export default function Enrollments() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -24,6 +26,7 @@ export default function Enrollments() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const { data: enrollmentsResponse, isLoading } = useQuery({
     queryKey: ['enrollments', statusFilter],
@@ -67,7 +70,35 @@ export default function Enrollments() {
   })
 
   const createMutation = useMutation({
-    mutationFn: api.createEnrollment,
+    mutationFn: async (formData) => {
+      // Create the enrollment first
+      const enrollmentResponse = await api.createEnrollment({
+        patientId: formData.patientId,
+        clinicianId: formData.clinicianId,
+        presetId: formData.presetId,
+        diagnosisCode: formData.diagnosisCode,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        notes: formData.notes
+      })
+
+      // If medications were added, create them
+      if (formData.medications && formData.medications.length > 0) {
+        const enrollmentId = enrollmentResponse.data.id
+        
+        // Create medications for the enrollment
+        await Promise.all(
+          formData.medications.map(medication => 
+            api.addMedicationToEnrollment(enrollmentId, {
+              ...medication,
+              startDate: medication.startDate || formData.startDate
+            })
+          )
+        )
+      }
+
+      return enrollmentResponse
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['enrollments'])
       setIsModalOpen(false)
@@ -101,7 +132,7 @@ export default function Enrollments() {
       }
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to create bulk enrollments')
+      toast.error(error.response?.data?.message || 'Failed to create enrollments')
     },
   })
 
@@ -131,385 +162,223 @@ export default function Enrollments() {
     })
   }
 
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return <CheckCircleIcon className="h-5 w-5 text-green-500" />
-      case 'ended':
-        return <XCircleIcon className="h-5 w-5 text-red-500" />
-      case 'paused':
-        return <ClockIcon className="h-5 w-5 text-yellow-500" />
-      default:
-        return <ClockIcon className="h-5 w-5 text-gray-500" />
-    }
+  const handleViewDetails = (enrollmentId) => {
+    navigate(`/enrollments/${enrollmentId}`)
   }
 
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'bg-green-100 text-green-800'
-      case 'ended':
-        return 'bg-red-100 text-red-800'
-      case 'paused':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800'
+      case 'paused': return 'bg-yellow-100 text-yellow-800'
+      case 'ended': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'active': return <CheckCircleIcon className="h-4 w-4 text-green-600" />
+      case 'paused': return <ClockIcon className="h-4 w-4 text-yellow-600" />
+      case 'ended': return <XCircleIcon className="h-4 w-4 text-gray-600" />
+      default: return <ClockIcon className="h-4 w-4 text-gray-600" />
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="space-y-8 p-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
-              <UserGroupIcon className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Enrollments</h1>
-              <p className="text-gray-600">Manage patient enrollments in care programs</p>
-            </div>
-          </div>
-          <div className="mt-4 sm:mt-0 flex space-x-3">
-            <button
-              onClick={() => setIsBulkUploadOpen(true)}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-teal-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-              Bulk Upload
-            </button>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              New Enrollment
-            </button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Enrollments</h1>
+          <p className="text-gray-600">Manage patient enrollments and care programs</p>
         </div>
-
-        {/* Filters and Search */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search enrollments..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-            <div className="sm:w-48">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="ended">Ended</option>
-                <option value="paused">Paused</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Enrollments Grid */}
-        <div className="grid gap-6">
-          {filteredEnrollments.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
-              <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No enrollments found</h3>
-              <p className="text-gray-500 mb-6">
-                {searchTerm || statusFilter !== 'all'
-                  ? 'Try adjusting your search or filters'
-                  : 'Get started by creating your first enrollment'}
-              </p>
-              {!searchTerm && statusFilter === 'all' && (
-                <div className="flex justify-center space-x-3">
-                  <button
-                    onClick={() => setIsBulkUploadOpen(true)}
-                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-                    Bulk Upload
-                  </button>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Create Enrollment
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            filteredEnrollments.map((enrollment) => (
-              <div key={enrollment.id} className="bg-white rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-200">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <UserIcon className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {enrollment.patient?.firstName} {enrollment.patient?.lastName}
-                        </h3>
-                        <p className="text-gray-600">{enrollment.patient?.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(enrollment.status)}
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(enrollment.status)}`}>
-                        {enrollment.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Clinician</label>
-                      <p className="text-sm text-gray-900">
-                        {enrollment.clinician?.firstName} {enrollment.clinician?.lastName}
-                      </p>
-                      <p className="text-xs text-gray-500">{enrollment.clinician?.email}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Care Program</label>
-                      <p className="text-sm text-gray-900">{enrollment.preset?.name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Diagnosis</label>
-                      <p className="text-sm text-gray-900">{enrollment.diagnosisCode}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>Started: {new Date(enrollment.startDate).toLocaleDateString()}</span>
-                      </div>
-                      {enrollment.endDate && (
-                        <div className="flex items-center space-x-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          <span>Ends: {new Date(enrollment.endDate).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                      <select
-                        value={enrollment.status}
-                        onChange={(e) => handleStatusChange(enrollment.id, e.target.value)}
-                        className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="active">Active</option>
-                        <option value="paused">Paused</option>
-                        <option value="ended">Ended</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setIsBulkUploadOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <CloudArrowUpIcon className="h-4 w-4 mr-2" />
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            New Enrollment
+          </button>
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-gray-200">
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search enrollments..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="ended">Ended</option>
+          </select>
+        </div>
+        <div className="text-sm text-gray-600">
+          {filteredEnrollments.length} enrollment{filteredEnrollments.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      {/* Enrollments List */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : filteredEnrollments.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+            <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No enrollments found</h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm || statusFilter !== 'all' 
+                ? 'Try adjusting your search or filter criteria.'
+                : 'Get started by creating your first enrollment.'
+              }
+            </p>
+            {!searchTerm && statusFilter === 'all' && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Create First Enrollment
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredEnrollments.map((enrollment) => (
+            <div key={enrollment.id} className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <UserIcon className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {enrollment.patient?.firstName} {enrollment.patient?.lastName}
+                    </h3>
+                    <p className="text-gray-600">{enrollment.patient?.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(enrollment.status)}`}>
+                    {getStatusIcon(enrollment.status)}
+                    <span className="ml-1 capitalize">{enrollment.status}</span>
+                  </span>
+                  <button 
+                    onClick={() => handleViewDetails(enrollment.id)}
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                  >
+                    <EyeIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Clinician</p>
+                  <p className="text-sm text-gray-900">
+                    {enrollment.clinician?.firstName} {enrollment.clinician?.lastName}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Care Program</p>
+                  <p className="text-sm text-gray-900">{enrollment.conditionPreset?.name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Start Date</p>
+                  <p className="text-sm text-gray-900">
+                    {enrollment.startDate ? new Date(enrollment.startDate).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              {enrollment.diagnosisCode && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-500">Diagnosis</p>
+                  <p className="text-sm text-gray-900">{enrollment.diagnosisCode}</p>
+                </div>
+              )}
+
+              {enrollment.notes && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-500">Notes</p>
+                  <p className="text-sm text-gray-900">{enrollment.notes}</p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center text-sm text-gray-500">
+                    <CalendarIcon className="h-4 w-4 mr-1" />
+                    Created {enrollment.createdAt ? new Date(enrollment.createdAt).toLocaleDateString() : 'N/A'}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={enrollment.status}
+                    onChange={(e) => handleStatusChange(enrollment.id, e.target.value)}
+                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="active">Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="ended">Ended</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Modals */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Enrollment">
-        <EnrollmentForm
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create New Enrollment"
+        size="lg"
+      >
+        <EnhancedEnrollmentForm
           patients={patients}
           clinicians={clinicians}
           conditionPresets={conditionPresets}
           onSubmit={handleSubmit}
-          isLoading={createMutation.isPending}
+          isLoading={createMutation.isLoading}
         />
       </Modal>
 
-      <BulkEnrollmentUpload
+      <Modal
         isOpen={isBulkUploadOpen}
         onClose={() => setIsBulkUploadOpen(false)}
-        onSubmit={handleBulkSubmit}
-        patients={patients}
-        clinicians={clinicians}
-        conditionPresets={conditionPresets}
-      />
-    </div>
-  )
-}
-
-function EnrollmentForm({ patients, clinicians, conditionPresets, onSubmit, isLoading }) {
-  const [formData, setFormData] = useState({
-    patientId: '',
-    clinicianId: '',
-    presetId: '',
-    diagnosisCode: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
-    notes: ''
-  })
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Patient *
-          </label>
-          <select
-            name="patientId"
-            value={formData.patientId}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Select a patient</option>
-            {patients.map((patient) => (
-              <option key={patient.id} value={patient.id}>
-                {patient.firstName} {patient.lastName} ({patient.email})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Clinician *
-          </label>
-          <select
-            name="clinicianId"
-            value={formData.clinicianId}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Select a clinician</option>
-            {clinicians.map((clinician) => (
-              <option key={clinician.id} value={clinician.id}>
-                {clinician.firstName} {clinician.lastName} ({clinician.email})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Care Program *
-          </label>
-          <select
-            name="presetId"
-            value={formData.presetId}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Select a care program</option>
-            {conditionPresets.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Diagnosis Code *
-          </label>
-          <input
-            type="text"
-            name="diagnosisCode"
-            value={formData.diagnosisCode}
-            onChange={handleChange}
-            required
-            placeholder="e.g., M79.3"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Start Date *
-          </label>
-          <input
-            type="date"
-            name="startDate"
-            value={formData.startDate}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            End Date
-          </label>
-          <input
-            type="date"
-            name="endDate"
-            value={formData.endDate}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Notes
-        </label>
-        <textarea
-          name="notes"
-          value={formData.notes}
-          onChange={handleChange}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="Additional notes about this enrollment..."
+        title="Bulk Upload Enrollments"
+        size="xl"
+      >
+        <BulkEnrollmentUpload
+          onSubmit={handleBulkSubmit}
+          isLoading={bulkCreateMutation.isLoading}
+          onClose={() => setIsBulkUploadOpen(false)}
         />
-      </div>
-
-      <div className="flex justify-end space-x-3">
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading ? 'Creating...' : 'Create Enrollment'}
-        </button>
-      </div>
-    </form>
+      </Modal>
+    </div>
   )
 }

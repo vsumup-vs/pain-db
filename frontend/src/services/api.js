@@ -89,6 +89,15 @@ export const api = {
   deleteAlert: (id) => apiClient.delete(`/alerts/${id}`),
   getAlertsStats: () => apiClient.get('/alerts/stats'),
 
+  // Alert Rules
+  getAlertRules: (params) => apiClient.get('/alert-rules', { params }),
+  getAlertRule: (id) => apiClient.get(`/alert-rules/${id}`),
+  createAlertRule: (data) => apiClient.post('/alert-rules', data),
+  updateAlertRule: (id, data) => apiClient.put(`/alert-rules/${id}`, data),
+  deleteAlertRule: (id) => apiClient.delete(`/alert-rules/${id}`),
+  getAlertRuleStats: () => apiClient.get('/alert-rules/stats'),
+  getAlertRuleTemplates: () => apiClient.get('/alert-rules/templates'),
+
   // Enrollments
   getEnrollments: (params) => apiClient.get('/enrollments', { params }),
   getEnrollment: (id) => apiClient.get(`/enrollments/${id}`),
@@ -97,6 +106,8 @@ export const api = {
   updateEnrollment: (id, data) => apiClient.put(`/enrollments/${id}`, data),
   deleteEnrollment: (id) => apiClient.delete(`/enrollments/${id}`),
   getEnrollmentsStats: () => apiClient.get('/enrollments/stats'),
+  getEnrollmentMedicationSummary: (id) => apiClient.get(`/enrollments/${id}/medications`),
+  addMedicationToEnrollment: (id, data) => apiClient.post(`/enrollments/${id}/medications`, data),
 
   // Condition Presets
   getConditionPresets: (params) => apiClient.get('/condition-presets', { params }),
@@ -104,7 +115,26 @@ export const api = {
   createConditionPreset: (data) => apiClient.post('/condition-presets', data),
   updateConditionPreset: (id, data) => apiClient.put(`/condition-presets/${id}`, data),
   deleteConditionPreset: (id) => apiClient.delete(`/condition-presets/${id}`),
-  getConditionPresetsStats: () => apiClient.get('/condition-presets/stats')
+  getConditionPresetsStats: () => apiClient.get('/condition-presets/stats'),
+
+  // Drugs
+  getDrugs: (params) => apiClient.get('/drugs', { params }),
+  getDrug: (id) => apiClient.get(`/drugs/${id}`),
+  createDrug: (data) => apiClient.post('/drugs', data),
+  updateDrug: (id, data) => apiClient.put(`/drugs/${id}`, data),
+  deleteDrug: (id) => apiClient.delete(`/drugs/${id}`),
+  getDrugClasses: () => apiClient.get('/drugs/classes'),
+
+  // Patient Medications
+  getPatientMedications: (params) => apiClient.get('/patient-medications', { params }),
+  getPatientMedicationsById: (patientId, params) => apiClient.get(`/patient-medications/patient/${patientId}`, { params }),
+  createPatientMedication: (data) => apiClient.post('/patient-medications', data),
+  updatePatientMedication: (id, data) => apiClient.put(`/patient-medications/${id}`, data),
+  deactivatePatientMedication: (id, data) => apiClient.patch(`/patient-medications/${id}/deactivate`, data),
+
+  // Enrollment Medications
+  addMedicationToEnrollment: (enrollmentId, data) => apiClient.post(`/enrollments/${enrollmentId}/medications`, data),
+  getEnrollmentMedicationSummary: (enrollmentId) => apiClient.get(`/enrollments/${enrollmentId}/medications`)
 }
 
 export default api

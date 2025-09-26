@@ -27,6 +27,7 @@ const enrollmentRoutes = require('./src/routes/enrollmentRoutes');
 const metricDefinitionRoutes = require('./src/routes/metricDefinitionRoutes');
 const observationRoutes = require('./src/routes/observationRoutes');
 const alertRoutes = require('./src/routes/alertRoutes');
+const alertRuleRoutes = require('./src/routes/alertRuleRoutes');
 const assessmentTemplateRoutes = require('./src/routes/assessmentTemplateRoutes');
 const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
 
@@ -68,6 +69,7 @@ app.get('/api', (req, res) => {
       assessmentTemplates: '/api/assessment-templates',
       observations: '/api/observations',
       alerts: '/api/alerts',
+      alertRules: '/api/alert-rules',
       conditionPresets: '/api/condition-presets'
     }
   });
@@ -81,6 +83,7 @@ app.use('/api/metric-definitions', metricDefinitionRoutes);
 app.use('/api/assessment-templates', assessmentTemplateRoutes);
 app.use('/api/observations', observationRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/alert-rules', alertRuleRoutes);
 app.use('/api/condition-presets', conditionPresetRoutes);
 
 // Add new routes
