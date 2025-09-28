@@ -72,6 +72,13 @@ export const api = {
   updateAssessmentTemplate: (id, data) => apiClient.put(`/assessment-templates/${id}`, data),
   deleteAssessmentTemplate: (id) => apiClient.delete(`/assessment-templates/${id}`),
 
+  // Metric Definitions
+  getMetricDefinitions: (params) => apiClient.get('/metric-definitions', { params }),
+  getMetricDefinition: (id) => apiClient.get(`/metric-definitions/${id}`),
+  createMetricDefinition: (data) => apiClient.post('/metric-definitions', data),
+  updateMetricDefinition: (id, data) => apiClient.put(`/metric-definitions/${id}`, data),
+  deleteMetricDefinition: (id) => apiClient.delete(`/metric-definitions/${id}`),
+
   // Observations
   getObservations: (params) => apiClient.get('/observations', { params }),
   getObservation: (id) => apiClient.get(`/observations/${id}`),
@@ -134,7 +141,21 @@ export const api = {
 
   // Enrollment Medications
   addMedicationToEnrollment: (enrollmentId, data) => apiClient.post(`/enrollments/${enrollmentId}/medications`, data),
-  getEnrollmentMedicationSummary: (enrollmentId) => apiClient.get(`/enrollments/${enrollmentId}/medications`)
+  getEnrollmentMedicationSummary: (enrollmentId) => apiClient.get(`/enrollments/${enrollmentId}/medications`),
+
+  // Assessment Templates
+  getAssessmentTemplates: (params) => apiClient.get('/assessment-templates', { params }),
+  getAssessmentTemplate: (id) => apiClient.get(`/assessment-templates/${id}`),
+  createAssessmentTemplate: (data) => apiClient.post('/assessment-templates', data),
+  updateAssessmentTemplate: (id, data) => apiClient.put(`/assessment-templates/${id}`, data),
+  deleteAssessmentTemplate: (id) => apiClient.delete(`/assessment-templates/${id}`),
+
+  // Metric Definitions
+  getMetricDefinitions: (params) => apiClient.get('/metric-definitions', { params }),
+  getMetricDefinition: (id) => apiClient.get(`/metric-definitions/${id}`),
+  createMetricDefinition: (data) => apiClient.post('/metric-definitions', data),
+  updateMetricDefinition: (id, data) => apiClient.put(`/metric-definitions/${id}`, data),
+  deleteMetricDefinition: (id) => apiClient.delete(`/metric-definitions/${id}`)
 }
 
 export default api

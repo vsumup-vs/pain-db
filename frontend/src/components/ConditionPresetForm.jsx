@@ -44,20 +44,98 @@ export default function ConditionPresetForm({
   const watchedValues = watch()
   const selectedTemplateIds = watch('templateIds') || []
 
-  const handleFormSubmit = (data) => {
-    // Transform the data to match the API expectations
-    const submitData = {
-      name: data.name,
-      diagnoses: data.diagnoses,
-      templateIds: data.templateIds || [],
+  const handleFormSubmit = (data, event) => {
+    console.log('🔍 handleFormSubmit called:', {
+      currentStep,
+      totalSteps,
+      shouldSubmit: currentStep === totalSteps,
+      data,
+      event,
+      eventType: event?.type,
+      eventTarget: event?.target,
+      eventNativeEvent: event?.nativeEvent
+    })
+    
+    // ALWAYS prevent default form submission behavior
+    if (event) {
+      event.preventDefault()
+      event.stopPropagation()
     }
-    onSubmit(submitData)
+    
+    // Only submit if we're on the final step
+    if (currentStep === totalSteps) {
+      console.log('✅ Submitting form data')
+      // Transform the data to match the API expectations
+      const submitData = {
+        name: data.name,
+        diagnoses: data.diagnoses,
+        templateIds: data.templateIds || [],
+      }
+      onSubmit(submitData)
+    } else {
+      console.log('❌ Blocking submission - not on final step')
+      return false
+    }
+  }
+
+  // Add a separate function for explicit submission
+  const handleExplicitSubmit = () => {
+    console.log('🔍 handleExplicitSubmit called - user clicked submit button')
+    if (currentStep === totalSteps) {
+      handleSubmit(handleFormSubmit)()
+    }
   }
 
   const nextStep = async () => {
-    const isValid = await trigger()
+    console.log('🔍 nextStep called:', { currentStep, totalSteps })
+    
+    // Only validate required fields for current step
+    let fieldsToValidate = []
+    
+    switch (currentStep) {
+      case 1:
+        fieldsToValidate = ['name']
+        break
+      case 2:
+        // Only validate diagnoses if they exist
+        if (diagnosisFields.length > 0) {
+          fieldsToValidate = diagnosisFields.map((_, index) => [
+            `diagnoses.${index}.icd10`,
+            `diagnoses.${index}.label`
+          ]).flat()
+        }
+        break
+      case 3:
+        // Don't automatically submit when reaching step 3
+        console.log('🔍 Already on final step - no further navigation')
+        return
+    }
+    
+    console.log('🔍 Validating fields:', fieldsToValidate)
+    const isValid = fieldsToValidate.length === 0 || await trigger(fieldsToValidate)
+    console.log('🔍 Validation result:', isValid)
+    
     if (isValid && currentStep < totalSteps) {
+      console.log('✅ Moving to next step:', currentStep + 1)
       setCurrentStep(currentStep + 1)
+    } else {
+      console.log('❌ Not moving to next step:', { isValid, currentStep, totalSteps })
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    console.log('🔍 handleKeyDown called:', { key: e.key, currentStep, totalSteps })
+    
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (currentStep < totalSteps) {
+        console.log('🔍 Enter pressed - calling nextStep')
+        nextStep()
+      } else {
+        console.log('🔍 Enter pressed - submitting form')
+        // Only submit when on the final step
+        handleSubmit(handleFormSubmit)()
+      }
     }
   }
 
@@ -99,17 +177,6 @@ export default function ConditionPresetForm({
       case 2: return true // Diagnoses are optional
       case 3: return true // Templates are optional but recommended
       default: return false
-    }
-  }
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (currentStep < totalSteps) {
-        nextStep()
-      } else {
-        handleSubmit(handleFormSubmit)()
-      }
     }
   }
 
@@ -415,7 +482,8 @@ export default function ConditionPresetForm({
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={handleExplicitSubmit}
                 disabled={isLoading}
                 className={`px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
                   isLoading

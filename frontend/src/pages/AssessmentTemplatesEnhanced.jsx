@@ -12,7 +12,9 @@ import {
   ClipboardDocumentListIcon,
   TagIcon,
   BeakerIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  CalendarIcon,
+  ListBulletIcon
 } from '@heroicons/react/24/outline'
 import Modal from '../components/Modal'
 import AssessmentTemplateForm from '../components/AssessmentTemplateForm'
@@ -20,7 +22,9 @@ import EnhancedAssessmentTemplateSelector from '../components/EnhancedAssessment
 
 export default function AssessmentTemplatesEnhanced() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState(null)
+  const [previewingTemplate, setPreviewingTemplate] = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [viewMode, setViewMode] = useState('enhanced') // 'enhanced' or 'manage'
   const queryClient = useQueryClient()
@@ -99,6 +103,19 @@ export default function AssessmentTemplatesEnhanced() {
     setSelectedTemplate(template)
     // You can add additional logic here for what happens when a template is selected
     console.log('Selected template:', template)
+  }
+
+  const handlePreview = async (template) => {
+    try {
+      // Fetch full template details including metrics from the enhanced endpoint
+      const response = await fetch(`/api/assessment-templates-v2/${template.id}`)
+      const data = await response.json()
+      setPreviewingTemplate(data)
+      setIsPreviewModalOpen(true)
+    } catch (error) {
+      console.error('Error fetching template details:', error)
+      toast.error('Failed to load template details')
+    }
   }
 
   // Filter templates for management view (only custom templates can be edited)
@@ -193,6 +210,7 @@ export default function AssessmentTemplatesEnhanced() {
             <EnhancedAssessmentTemplateSelector
               onSelect={handleTemplateSelect}
               selectedTemplateId={selectedTemplate?.id}
+              onPreview={handlePreview}
             />
           </div>
         ) : (
@@ -271,7 +289,161 @@ export default function AssessmentTemplatesEnhanced() {
         )}
       </div>
 
-      {/* Modal for Create/Edit */}
+      {/* Preview Modal */}
+      <Modal
+        isOpen={isPreviewModalOpen}
+        onClose={() => {
+          setIsPreviewModalOpen(false)
+          setPreviewingTemplate(null)
+        }}
+        title="Template Preview"
+        size="xl"
+      >
+        {previewingTemplate && (
+          <div className="space-y-6">
+            {/* Template Header */}
+            <div className="border-b border-gray-200 pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {previewingTemplate.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {previewingTemplate.description || 'No description provided'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm text-gray-500">Version {previewingTemplate.version}</span>
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                      previewingTemplate.isActive 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-gray-50 text-gray-700 border-gray-200'
+                    }`}>
+                      {previewingTemplate.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Template Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center">
+                  <ListBulletIcon className="h-5 w-5 text-blue-600 mr-2" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Total Metrics</p>
+                    <p className="text-lg font-semibold text-blue-700">
+                      {previewingTemplate.items?.length || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center">
+                  <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
+                  <div>
+                    <p className="text-sm font-medium text-green-900">Required</p>
+                    <p className="text-lg font-semibold text-green-700">
+                      {previewingTemplate.items?.filter(item => item.isRequired).length || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center">
+                  <CalendarIcon className="h-5 w-5 text-gray-600 mr-2" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Created</p>
+                    <p className="text-lg font-semibold text-gray-700">
+                      {new Date(previewingTemplate.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Assessment Metrics */}
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 mb-4">Assessment Metrics</h4>
+              {previewingTemplate.items && previewingTemplate.items.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {previewingTemplate.items.map((item, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <h5 className="font-medium text-gray-900">
+                              {item.metricDefinition?.displayName || item.name || 'Unnamed Metric'}
+                            </h5>
+                            {item.isRequired && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="mt-2 space-y-1">
+                            {item.metricDefinition?.type && (
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Type:</span> {item.metricDefinition.type}
+                              </p>
+                            )}
+                            {item.metricDefinition?.unit && (
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Unit:</span> {item.metricDefinition.unit}
+                              </p>
+                            )}
+                            {item.metricDefinition?.coding && (
+                              <div className="text-sm text-gray-600">
+                                <span className="font-medium">Coding:</span>
+                                <div className="ml-4 mt-1 space-y-1">
+                                  {item.metricDefinition.coding.primary && (
+                                    <div className="text-xs text-blue-700">
+                                      LOINC: {item.metricDefinition.coding.primary.code} - {item.metricDefinition.coding.primary.display}
+                                    </div>
+                                  )}
+                                  {item.metricDefinition.coding.secondary?.[0] && (
+                                    <div className="text-xs text-green-700">
+                                      SNOMED: {item.metricDefinition.coding.secondary[0].code} - {item.metricDefinition.coding.secondary[0].display}
+                                    </div>
+                                  )}
+                                  {item.metricDefinition.coding.mappings?.icd10 && (
+                                    <div className="text-xs text-purple-700">
+                                      ICD-10: {item.metricDefinition.coding.mappings.icd10}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {item.metricDefinition?.helpText && (
+                              <p className="text-sm text-gray-500 italic">
+                                {item.metricDefinition.helpText}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="ml-4 text-right">
+                          <span className="text-xs text-gray-500">Order: {item.displayOrder || index + 1}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>No metrics defined for this template</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Existing Create/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => {

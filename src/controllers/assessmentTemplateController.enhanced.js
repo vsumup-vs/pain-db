@@ -43,6 +43,9 @@ const getAllAssessmentTemplates = async (req, res) => {
         where,
         include: {
           items: {
+            include: {
+              metricDefinition: true  // ✅ Added this
+            },
             orderBy: { displayOrder: 'asc' }
           }
         },
@@ -85,6 +88,9 @@ const getStandardizedTemplates = async (req, res) => {
       where,
       include: {
         items: {
+          include: {
+            metricDefinition: true
+          },
           orderBy: { displayOrder: 'asc' }
         }
       },
@@ -105,6 +111,9 @@ const getCustomTemplates = async (req, res) => {
       where: { isStandardized: false },
       include: {
         items: {
+          include: {
+            metricDefinition: true
+          },
           orderBy: { displayOrder: 'asc' }
         }
       },
@@ -151,6 +160,9 @@ const getTemplateById = async (req, res) => {
       where: { id },
       include: {
         items: {
+          include: {
+            metricDefinition: true
+          },
           orderBy: { displayOrder: 'asc' }
         }
       }

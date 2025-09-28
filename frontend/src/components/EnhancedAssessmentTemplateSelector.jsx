@@ -5,10 +5,11 @@ import {
   CheckCircleIcon, 
   CircleStackIcon,
   TagIcon,
-  ClipboardDocumentListIcon 
+  ClipboardDocumentListIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 
-const EnhancedAssessmentTemplateSelector = ({ onSelect, selectedTemplateId }) => {
+const EnhancedAssessmentTemplateSelector = ({ onSelect, selectedTemplateId, onPreview }) => {
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,13 @@ const EnhancedAssessmentTemplateSelector = ({ onSelect, selectedTemplateId }) =>
       </div>
     );
   }
+
+  const handlePreview = (e, template) => {
+    e.stopPropagation(); // Prevent template selection when clicking preview
+    if (onPreview) {
+      onPreview(template);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -183,6 +191,19 @@ const EnhancedAssessmentTemplateSelector = ({ onSelect, selectedTemplateId }) =>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Action Buttons */}
+                  {onPreview && (
+                    <div className="flex space-x-1 ml-4">
+                      <button
+                        onClick={(e) => handlePreview(e, template)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Preview template"
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}

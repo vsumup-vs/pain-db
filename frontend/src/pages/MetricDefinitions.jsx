@@ -22,7 +22,14 @@ import {
   CalendarIcon,
   ExclamationCircleIcon,
   SparklesIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ChevronDownIcon,
+  BeakerIcon,
+  HeartIcon,
+  BoltIcon,
+  ClipboardDocumentListIcon,
+  EyeIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
@@ -581,6 +588,266 @@ export default function MetricDefinitions() {
   )
 }
 
+function EnhancedOrdinalOptionsSelector({ value, onChange }) {
+  const [showStandardOptions, setShowStandardOptions] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
+
+  // Standard ordinal option templates
+  const standardTemplates = {
+    'pain-severity': {
+      name: 'Pain Severity Scale',
+      description: 'Standard 0-10 pain severity scale',
+      icon: HeartIcon,
+      color: 'text-red-600',
+      bg: 'bg-red-50',
+      options: [
+        'No Pain (0)',
+        'Mild Pain (1-3)',
+        'Moderate Pain (4-6)', 
+        'Severe Pain (7-10)'
+      ]
+    },
+    'frequency': {
+      name: 'Frequency Scale',
+      description: 'How often something occurs',
+      icon: ClockIcon,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      options: [
+        'Never',
+        'Rarely',
+        'Sometimes',
+        'Often',
+        'Always'
+      ]
+    },
+    'severity': {
+      name: 'General Severity',
+      description: 'General severity assessment',
+      icon: ExclamationTriangleIcon,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      options: [
+        'None',
+        'Mild',
+        'Moderate',
+        'Severe',
+        'Very Severe'
+      ]
+    },
+    'agreement': {
+      name: 'Agreement Scale',
+      description: 'Likert-style agreement scale',
+      icon: CheckCircleIcon,
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      options: [
+        'Strongly Disagree',
+        'Disagree',
+        'Neutral',
+        'Agree',
+        'Strongly Agree'
+      ]
+    },
+    'quality': {
+      name: 'Quality Assessment',
+      description: 'Quality or satisfaction rating',
+      icon: SparklesIcon,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      options: [
+        'Poor',
+        'Fair',
+        'Good',
+        'Very Good',
+        'Excellent'
+      ]
+    },
+    'improvement': {
+      name: 'Improvement Scale',
+      description: 'Change or improvement assessment',
+      icon: ArrowPathIcon,
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50',
+      options: [
+        'Much Worse',
+        'Worse',
+        'No Change',
+        'Better',
+        'Much Better'
+      ]
+    },
+    'phq9': {
+      name: 'PHQ-9 Response Scale',
+      description: 'Standard PHQ-9 depression screening responses',
+      icon: BeakerIcon,
+      color: 'text-teal-600',
+      bg: 'bg-teal-50',
+      options: [
+        'Not at all',
+        'Several days',
+        'More than half the days',
+        'Nearly every day'
+      ]
+    },
+    'numeric-0-10': {
+      name: 'Numeric Scale (0-10)',
+      description: 'Simple 0-10 numeric scale',
+      icon: NumberedListIcon,
+      color: 'text-gray-600',
+      bg: 'bg-gray-50',
+      options: [
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'
+      ]
+    }
+  }
+
+  const handleTemplateSelect = (templateKey) => {
+    const template = standardTemplates[templateKey]
+    if (template) {
+      setSelectedTemplate(templateKey)
+      onChange(template.options.join('\n'))
+      setShowStandardOptions(false)
+    }
+  }
+
+  const handleCustomChange = (e) => {
+    setSelectedTemplate(null)
+    onChange(e.target.value)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Standard Options Selector */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Available Options *
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowStandardOptions(!showStandardOptions)}
+            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
+          >
+            <SparklesIcon className="w-3 h-3 mr-1" />
+            {showStandardOptions ? 'Hide' : 'Use'} Standard Options
+            <ChevronDownIcon className={`w-3 h-3 ml-1 transition-transform ${showStandardOptions ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+
+        {/* Standard Options Grid */}
+        {showStandardOptions && (
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h5 className="text-sm font-medium text-gray-900 mb-3">Choose from Standard Scales:</h5>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Object.entries(standardTemplates).map(([key, template]) => {
+                const IconComponent = template.icon
+                const isSelected = selectedTemplate === key
+                
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleTemplateSelect(key)}
+                    className={`p-3 text-left border rounded-lg transition-all hover:shadow-sm ${
+                      isSelected 
+                        ? 'border-indigo-300 bg-indigo-50 ring-2 ring-indigo-200' 
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start">
+                      <div className={`p-1.5 rounded-lg ${template.bg} mr-3 flex-shrink-0`}>
+                        <IconComponent className={`w-4 h-4 ${template.color}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {template.name}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {template.description}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {template.options.slice(0, 3).map((option, index) => (
+                            <span 
+                              key={index}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-700"
+                            >
+                              {option}
+                            </span>
+                          ))}
+                          {template.options.length > 3 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-200 text-gray-600">
+                              +{template.options.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Options Textarea */}
+        <div className="relative">
+          <textarea
+            value={value}
+            onChange={handleCustomChange}
+            rows={6}
+            required
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            placeholder={`Enter one option per line, for example:\nMild\nModerate\nSevere\nVery Severe`}
+          />
+          
+          {/* Selected Template Indicator */}
+          {selectedTemplate && (
+            <div className="absolute top-2 right-2">
+              <div className="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-full">
+                <SparklesIcon className="w-3 h-3 mr-1" />
+                {standardTemplates[selectedTemplate].name}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Help Text */}
+        <div className="mt-2 space-y-1">
+          <p className="text-xs text-gray-500">
+            Enter options in order from lowest to highest. Order matters for ordinal data.
+          </p>
+          {selectedTemplate && (
+            <p className="text-xs text-indigo-600">
+              Using "{standardTemplates[selectedTemplate].name}" template. You can modify the options above if needed.
+            </p>
+          )}
+        </div>
+
+        {/* Preview */}
+        {value && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center mb-2">
+              <EyeIcon className="w-4 h-4 text-blue-600 mr-2" />
+              <span className="text-sm font-medium text-blue-900">Preview ({value.split('\n').filter(Boolean).length} options)</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {value.split('\n').filter(Boolean).map((option, index) => (
+                <span 
+                  key={index}
+                  className="inline-flex items-center px-2 py-1 text-xs bg-white text-gray-700 border border-blue-200 rounded"
+                >
+                  {index + 1}. {option.trim()}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
   const [formData, setFormData] = useState({
     name: metric?.displayName || metric?.name || '',
@@ -863,26 +1130,33 @@ function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
                   <ListBulletIcon className="w-5 h-5 mr-2 text-indigo-600" />
                   {formData.valueType === 'categorical' ? 'Categorical' : 'Ordinal'} Options
                 </h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Available Options *
-                  </label>
-                  <textarea
-                    name="options"
+                
+                {formData.valueType === 'ordinal' && (
+                  <EnhancedOrdinalOptionsSelector
                     value={formData.options}
-                    onChange={handleChange}
-                    rows={6}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder={`Enter one option per line, for example:\nMild\nModerate\nSevere\nVery Severe`}
+                    onChange={(value) => setFormData(prev => ({ ...prev, options: value }))}
                   />
-                  <p className="text-xs text-gray-500 mt-2">
-                    {formData.valueType === 'ordinal' 
-                      ? 'Enter options in order from lowest to highest. Order matters for ordinal data.'
-                      : 'Enter each option on a new line. Order does not matter for categorical data.'
-                    }
-                  </p>
-                </div>
+                )}
+                
+                {formData.valueType === 'categorical' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Available Options *
+                    </label>
+                    <textarea
+                      name="options"
+                      value={formData.options}
+                      onChange={handleChange}
+                      rows={6}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      placeholder={`Enter one option per line, for example:\nOption 1\nOption 2\nOption 3`}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Enter each option on a new line. Order does not matter for categorical data.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
