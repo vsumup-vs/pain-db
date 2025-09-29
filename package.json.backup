@@ -21,8 +21,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio",
-    "validate-fields": "node validate-field-usage.js"
+    "prisma:studio": "prisma studio"
   },
   "devDependencies": {
     "@jest/globals": "^30.1.2",

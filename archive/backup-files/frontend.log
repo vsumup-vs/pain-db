@@ -1,0 +1,17 @@
+
+> clinmetrics-pro-ui@0.0.0 dev
+> vite
+
+
+  VITE v4.5.14  ready in 621 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+(node:589328) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+11:30:48 AM [vite] hmr update /src/index.css, /src/pages/AssessmentTemplatesEnhanced.jsx, /src/pages/Dashboard.jsx, /src/pages/Clinicians.jsx, /src/pages/Patients.jsx, /src/pages/ConditionPresets.jsx, /src/pages/MetricDefinitions.jsx, /src/pages/Observations.jsx, /src/pages/Alerts.jsx, /src/pages/Enrollments.jsx, /src/pages/EnrollmentDetails.jsx, /src/pages/AlertRules.jsx, /src/components/AssessmentTemplateForm.jsx, /src/components/StandardizedMetricSelector.jsx, /src/components/StandardMetricEditor.jsx, /src/components/EnhancedEnrollmentForm.jsx, /src/components/AlertRuleForm.jsx
+11:34:28 AM [vite] hmr update /src/index.css, /src/pages/AssessmentTemplatesEnhanced.jsx, /src/pages/Dashboard.jsx, /src/pages/Clinicians.jsx, /src/pages/Patients.jsx, /src/pages/ConditionPresets.jsx, /src/pages/MetricDefinitions.jsx, /src/pages/Observations.jsx, /src/pages/Alerts.jsx, /src/pages/Enrollments.jsx, /src/pages/EnrollmentDetails.jsx, /src/pages/AlertRules.jsx, /src/components/AssessmentTemplateForm.jsx, /src/components/StandardizedMetricSelector.jsx, /src/components/StandardMetricEditor.jsx, /src/components/EnhancedEnrollmentForm.jsx, /src/components/AlertRuleForm.jsx
+11:34:34 AM [vite] hmr update /src/index.css, /src/pages/AssessmentTemplatesEnhanced.jsx, /src/pages/Dashboard.jsx, /src/pages/Clinicians.jsx, /src/pages/Patients.jsx, /src/pages/ConditionPresets.jsx, /src/pages/MetricDefinitions.jsx, /src/pages/Observations.jsx, /src/pages/Alerts.jsx, /src/pages/Enrollments.jsx, /src/pages/EnrollmentDetails.jsx, /src/pages/AlertRules.jsx, /src/components/AssessmentTemplateForm.jsx, /src/components/StandardizedMetricSelector.jsx, /src/components/StandardMetricEditor.jsx, /src/components/EnhancedEnrollmentForm.jsx, /src/components/AlertRuleForm.jsx
+11:47:21 AM [vite] hmr update /src/index.css, /src/pages/AssessmentTemplatesEnhanced.jsx, /src/pages/Dashboard.jsx, /src/pages/Clinicians.jsx, /src/pages/Patients.jsx, /src/pages/ConditionPresets.jsx, /src/pages/MetricDefinitions.jsx, /src/pages/Observations.jsx, /src/pages/Alerts.jsx, /src/pages/Enrollments.jsx, /src/pages/EnrollmentDetails.jsx, /src/pages/AlertRules.jsx, /src/components/AssessmentTemplateForm.jsx, /src/components/StandardizedMetricSelector.jsx, /src/components/StandardMetricEditor.jsx, /src/components/EnhancedEnrollmentForm.jsx, /src/components/AlertRuleForm.jsx
+11:47:48 AM [vite] hmr update /src/pages/AssessmentTemplatesEnhanced.jsx, /src/index.css
+Killed

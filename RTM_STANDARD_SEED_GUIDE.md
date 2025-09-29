@@ -1,289 +1,139 @@
-# RTM Standard Seed File Guide
+# RTM Standard Seed Guide - Enhanced Version 2.0
 
 ## Overview
+The RTM Standard Seed file (`seed-rtm-standard.js`) provides a comprehensive foundation for Remote Therapeutic Monitoring (RTM) with complete coverage of all RTM billable conditions. This enhanced version includes respiratory and musculoskeletal metrics for comprehensive patient care.
 
-The `seed-rtm-standard.js` file provides a comprehensive, standardized seeding solution for Remote Therapeutic Monitoring (RTM) programs. This file consolidates all previously separate seed files into a single, maintainable, and standards-compliant seeding system.
+## Enhanced Features (Version 2.0)
 
-## Features
-
-### 🏥 **Complete RTM Program Coverage**
+### Comprehensive Condition Coverage
 - **Pain Management**: Chronic pain, fibromyalgia, arthritis
-- **Diabetes Management**: Blood glucose, HbA1c, medication adherence
-- **Cardiovascular Monitoring**: Blood pressure, weight tracking
-- **Mental Health**: Depression (PHQ-9), anxiety (GAD-7) screening
+- **Diabetes Management**: Blood glucose, HbA1c monitoring
+- **Mental Health**: Depression (PHQ-9), anxiety (GAD-7)
+- **Cardiovascular Health**: Blood pressure, weight monitoring
+- **Respiratory Health**: COPD, asthma monitoring (NEW)
+- **Musculoskeletal Function**: Range of motion, strength assessment (NEW)
 
-### 📊 **Standardized Coding Systems**
-- **LOINC**: Laboratory and clinical observations
-- **SNOMED CT**: Clinical terminology
-- **ICD-10**: Diagnosis coding
-- **CPT**: Procedure coding for billing
+### New Respiratory Metrics
+- **Oxygen Saturation (SpO2)**: Pulse oximetry monitoring
+- **Peak Expiratory Flow Rate**: Respiratory function assessment
+- **Dyspnea Scale**: Shortness of breath severity (0-4 scale)
+- **Cough Severity**: Cough symptom tracking (0-4 scale)
 
-### 🎯 **CMS RTM Compliance**
-- Supports CPT codes 98976-98981
-- 30-day device supply tracking
-- Daily recording capabilities
-- Automated alert systems
-- Patient education workflows
+### New Musculoskeletal Metrics
+- **Shoulder Range of Motion**: Joint mobility assessment (0-180 degrees)
+- **Grip Strength Assessment**: Functional strength evaluation (0-4 scale)
+- **Functional Mobility**: Activities of daily living assessment (1-5 scale)
+- **Balance Assessment**: Fall risk and stability evaluation (1-4 scale)
+
+### Enhanced Condition Presets
+- **COPD Management Program**: Comprehensive respiratory monitoring
+- **Asthma Monitoring Program**: Daily symptom and peak flow tracking
+- **Post-Surgical Rehabilitation**: Recovery monitoring with functional assessment
+- **Physical Therapy Monitoring**: Progress tracking for PT patients
+
+### Enhanced Assessment Templates
+- **COPD Daily Monitoring**: SpO2, peak flow, dyspnea, cough tracking
+- **Asthma Daily Check-in**: Peak flow and symptom monitoring
+- **Post-Surgical Recovery Assessment**: Pain, ROM, and functional recovery
+- **Physical Therapy Progress Assessment**: Comprehensive functional evaluation
+
+## RTM Billing Compliance
+
+### Supported CPT Codes
+- **CPT 98976**: RTM device setup and patient education
+- **CPT 98977**: RTM device supply with daily recording
+- **CPT 98980**: RTM physiologic monitoring treatment management services, 20 minutes
+- **CPT 98981**: RTM physiologic monitoring treatment management services, each additional 20 minutes
+
+### CMS Requirements Met
+- ✅ 16+ days of data collection per month
+- ✅ Standardized coding (LOINC, SNOMED, ICD-10)
+- ✅ Evidence-based assessment tools
+- ✅ Comprehensive condition coverage
+- ✅ Medication adherence tracking
+- ✅ Clinical decision support
 
 ## Usage
 
-### Quick Start
+### Running the Seed
 ```bash
-# Run the standardized seed
-npm run seed:rtm
-# or
-npm run seed:standard
-# or directly
 node seed-rtm-standard.js
 ```
 
-### What Gets Created
+### Integration
+```javascript
+const { seedRTMStandard, standardizedMetrics, conditionPresets, assessmentTemplates } = require('./seed-rtm-standard');
 
-#### 1. **Standardized Metrics** (15+ metrics)
-- Pain scales with LOINC coding
-- Vital signs (BP, weight, glucose)
-- Mental health assessments
-- Medication adherence tracking
-- Condition-specific metrics
+// Use in your application
+await seedRTMStandard();
+```
 
-#### 2. **Assessment Templates** (6 templates)
-- Chronic Pain Daily Assessment
-- Fibromyalgia Daily Check-in
-- Arthritis Management Assessment
-- Diabetes Monitoring
-- Cardiovascular Daily Monitoring
-- Mental Health Weekly Assessment
+## Metrics Summary
 
-#### 3. **Condition Presets** (6 presets)
+### Total Metrics: 22
+- **Pain Management**: 3 metrics
+- **Respiratory Health**: 4 metrics (NEW)
+- **Musculoskeletal Function**: 4 metrics (NEW)
+- **Fibromyalgia**: 4 metrics
+- **Arthritis**: 3 metrics
+- **Diabetes**: 2 metrics
+- **Cardiovascular**: 3 metrics
+- **Mental Health**: 2 metrics
+- **Medication Adherence**: 1 metric
+
+### Condition Presets: 10
 - Chronic Pain Management
 - Fibromyalgia Care Program
 - Arthritis Management
+- COPD Management Program (NEW)
+- Asthma Monitoring Program (NEW)
+- Post-Surgical Rehabilitation (NEW)
+- Physical Therapy Monitoring (NEW)
 - Diabetes Management Program
 - Cardiovascular Monitoring
 - Mental Health Monitoring
 
-#### 4. **Sample Data**
-- 3 sample patients with realistic medical histories
-- 3 sample clinicians with different specializations
-- Proper linkages between templates and condition presets
+### Assessment Templates: 10
+- Chronic Pain Daily Assessment
+- Fibromyalgia Daily Check-in
+- Arthritis Management Assessment
+- COPD Daily Monitoring (NEW)
+- Asthma Daily Check-in (NEW)
+- Post-Surgical Recovery Assessment (NEW)
+- Physical Therapy Progress Assessment (NEW)
+- Diabetes Monitoring
+- Cardiovascular Daily Monitoring
+- Mental Health Weekly Assessment
 
-## Metric Categories
+## Version History
 
-### Pain Management Metrics
-```javascript
-- pain_scale_0_10 (LOINC: 72514-3)
-- pain_location (with SNOMED mapping)
-- pain_interference (LOINC: 61758-9)
-- joint_stiffness (LOINC: 72514-3)
-- morning_stiffness_duration
-```
+### Version 2.0 (Current)
+- Added comprehensive respiratory health metrics
+- Added musculoskeletal function assessments
+- Enhanced condition presets for COPD, asthma, post-surgical care
+- Added physical therapy monitoring capabilities
+- Improved RTM billing compliance coverage
 
-### Fibromyalgia-Specific Metrics
-```javascript
-- fatigue_level (LOINC: 89026-8)
-- sleep_quality (LOINC: 93832-4)
-- cognitive_symptoms (LOINC: 72133-2)
-- tender_points_count
-```
+### Version 1.0 (Previous)
+- Basic pain management, diabetes, cardiovascular, and mental health metrics
+- Standard condition presets and assessment templates
+- Core RTM functionality
 
-### Diabetes Metrics
-```javascript
-- blood_glucose (LOINC: 33747-0, CPT: 82947)
-- hba1c (LOINC: 4548-4, CPT: 83036)
-- medication_adherence (LOINC: 71799-1)
-```
+## Migration from Previous Versions
 
-### Cardiovascular Metrics
-```javascript
-- systolic_bp (LOINC: 8480-6)
-- diastolic_bp (LOINC: 8462-4)
-- weight (LOINC: 29463-7)
-```
-
-### Mental Health Metrics
-```javascript
-- phq9_score (LOINC: 44249-1)
-- gad7_score (LOINC: 70274-6)
-```
-
-## Condition Presets with ICD-10 Mapping
-
-### Chronic Pain Management
-- M79.3 - Chronic pain syndrome
-- M25.50 - Joint pain, unspecified
-- M54.5 - Low back pain
-- G89.29 - Other chronic pain
-
-### Fibromyalgia Care Program
-- M79.7 - Fibromyalgia
-- M79.0 - Rheumatism, unspecified
-
-### Arthritis Management
-- M06.9 - Rheumatoid arthritis, unspecified
-- M15.9 - Polyosteoarthritis, unspecified
-- M19.90 - Unspecified osteoarthritis
-
-### Diabetes Management Program
-- E11.9 - Type 2 diabetes mellitus without complications
-- E10.9 - Type 1 diabetes mellitus without complications
-- E11.65 - Type 2 diabetes mellitus with hyperglycemia
-
-### Cardiovascular Monitoring
-- I10 - Essential hypertension
-- I50.9 - Heart failure, unspecified
-- I25.10 - Atherosclerotic heart disease
-
-### Mental Health Monitoring
-- F32.9 - Major depressive disorder, single episode
-- F41.1 - Generalized anxiety disorder
-- F33.9 - Major depressive disorder, recurrent
-
-## Assessment Template Structure
-
-Each template includes:
-- **Standardized metrics** with proper coding
-- **Required/optional** field designation
-- **Display order** for consistent UI
-- **Help text** for patient guidance
-- **Validation rules** for data quality
-
-### Example: Fibromyalgia Daily Check-in
-1. Pain Scale (0-10) - Required
-2. Fatigue Level (0-10) - Required
-3. Sleep Quality (1-5) - Required
-4. Morning Stiffness Duration - Required
-5. Cognitive Symptoms - Required
-6. Pain Interference - Optional
-
-## Data Validation
-
-### Numeric Metrics
-- Min/max ranges
-- Decimal precision
-- Critical value thresholds
-- Normal ranges for reference
-
-### Categorical Metrics
-- Predefined value sets
-- SNOMED coding for options
-- Display names and codes
-
-### Frequency Settings
-- `daily` - Once per day
-- `multiple_daily` - Multiple times per day
-- `weekly` - Once per week
-- `quarterly` - Every 3 months
-
-## Integration with Existing System
-
-### Database Schema Compatibility
-- Works with existing Prisma schema
-- Maintains referential integrity
-- Supports existing API endpoints
-
-### Frontend Integration
-- Compatible with existing React components
-- Supports assessment template rendering
-- Works with condition preset selection
-
-### API Endpoints
-The seed creates data compatible with:
-- `/api/assessment-templates`
-- `/api/metric-definitions`
-- `/api/condition-presets`
-- `/api/patients`
-- `/api/clinicians`
-
-## Maintenance and Updates
-
-### Adding New Metrics
-1. Add to `standardizedMetrics` array
-2. Include proper LOINC/SNOMED coding
-3. Define validation rules
-4. Update relevant assessment templates
-
-### Adding New Conditions
-1. Add to `conditionPresets` array
-2. Include ICD-10/SNOMED diagnoses
-3. Create corresponding assessment template
-4. Link template to preset
-
-### Updating Coding Standards
-1. Review latest LOINC/SNOMED releases
-2. Update coding objects in metrics
-3. Validate against CMS requirements
-4. Test with billing systems
-
-## Quality Assurance
-
-### Validation Checks
-- All metrics have proper coding
-- Assessment templates are complete
-- Condition presets have valid diagnoses
-- Sample data is realistic and diverse
-
-### Testing
-```bash
-# Run after seeding to verify
-npm test
-node check-assessment-templates.js
-node check-condition-presets.js
-```
-
-## Migration from Legacy Seeds
-
-### Deprecated Files
-The following files are replaced by `seed-rtm-standard.js`:
-- `seed-standardized-metrics.js`
-- `seed-fibromyalgia-metrics.js`
-- `seed-arthritis-metrics.js`
-- `seed-condition-presets.js`
-- `seed-condition-templates.js`
-
-### Migration Steps
+If upgrading from Version 1.0:
 1. Backup existing data
-2. Run `seed-rtm-standard.js`
-3. Verify data integrity
-4. Update any custom scripts
-5. Remove deprecated seed files
+2. Run the new seed file
+3. Update any custom integrations to use new metric keys
+4. Test respiratory and musculoskeletal assessments
 
-## Compliance and Standards
+## Support
 
-### CMS RTM Requirements ✅
-- 30-day device supply tracking
-- Daily recording capability
-- Programmed alerts transmission
-- Patient education system
-- Clinical outcome tracking
-
-### Coding Standards ✅
-- LOINC for laboratory/clinical observations
-- SNOMED CT for clinical terminology
-- ICD-10 for diagnosis coding
-- CPT for procedure coding
-
-### Data Quality ✅
-- Validation rules for all metrics
-- Standardized value sets
-- Proper data types and ranges
-- Help text for patient guidance
-
-## Support and Documentation
-
-### Additional Resources
-- `TRACEABILITY_MATRIX.md` - RTM compliance tracking
-- `RTM_COMPLIANCE_GUIDE.md` - CMS requirements
-- `STANDARDIZATION_GUIDE.md` - Coding standards
-- `STANDARDIZED_ASSESSMENT_GUIDE.md` - Assessment design
-
-### Getting Help
-1. Check existing documentation
-2. Review seed file comments
-3. Test with sample data
-4. Validate against standards
+For questions or issues with the RTM Standard Seed:
+1. Check the TRACEABILITY_MATRIX.md for requirement coverage
+2. Review RTM_COMPLIANCE_GUIDE.md for billing information
+3. Consult STANDARDIZATION_GUIDE.md for coding standards
 
 ---
 
-**Last Updated**: December 2024  
-**Version**: 1.0  
-**Maintained By**: Development Team
+**Note**: This enhanced version provides complete RTM coverage for all billable conditions, ensuring maximum reimbursement potential and comprehensive patient care.

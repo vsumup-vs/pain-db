@@ -498,6 +498,38 @@ const standardizedMetrics = [
     }
   },
   {
+    key: 'cognitive_symptoms',
+    displayName: 'Cognitive Symptoms (Brain Fog)',
+    valueType: 'ordinal',
+    scaleMin: 0,
+    scaleMax: 4,
+    unit: 'scale',
+    defaultFrequency: 'daily',
+    coding: {
+      primary: {
+        system: 'http://loinc.org',
+        code: '72133-2',
+        display: 'Cognitive function assessment'
+      },
+      secondary: [
+        {
+          system: 'http://snomed.info/sct',
+          code: '386806002',
+          display: 'Impaired cognition'
+        }
+      ]
+    },
+    options: {
+      values: [
+        { code: '0', display: 'None', snomed: '260413007' },
+        { code: '1', display: 'Mild', snomed: '255604002' },
+        { code: '2', display: 'Moderate', snomed: '6736007' },
+        { code: '3', display: 'Severe', snomed: '24484000' },
+        { code: '4', display: 'Very Severe', snomed: '442452003' }
+      ]
+    }
+  },
+  {
     key: 'tender_points_count',
     displayName: 'Number of Tender Points',
     valueType: 'numeric',
@@ -521,7 +553,7 @@ const standardizedMetrics = [
   // === ARTHRITIS-SPECIFIC METRICS ===
   {
     key: 'joint_stiffness',
-    displayName: 'Joint Stiffness',
+    displayName: 'Joint Stiffness Level',
     valueType: 'numeric',
     scaleMin: 0,
     scaleMax: 10,
@@ -540,7 +572,11 @@ const standardizedMetrics = [
           code: '84445001',
           display: 'Joint stiffness'
         }
-      ]
+      ],
+      mappings: {
+        icd10: 'M25.60',
+        description: 'Stiffness of joint, unspecified'
+      }
     },
     validation: {
       min: 0,
@@ -553,94 +589,17 @@ const standardizedMetrics = [
     displayName: 'Joint Swelling',
     valueType: 'categorical',
     defaultFrequency: 'daily',
-    coding: {
-      primary: {
-        system: 'http://loinc.org',
-        code: '72133-2',
-        display: 'Joint swelling assessment'
-      },
-      secondary: [
-        {
-          system: 'http://snomed.info/sct',
-          code: '248490000',
-          display: 'Joint swelling'
-        }
-      ]
-    },
     options: {
       values: [
-        { 
-          code: 'none', 
-          display: 'No swelling',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '260413007',
-            display: 'None'
-          }
-        },
-        { 
-          code: 'hands', 
-          display: 'Hands/Fingers',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299701004',
-            display: 'Hand joint swelling'
-          }
-        },
-        { 
-          code: 'wrists', 
-          display: 'Wrists',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299702006',
-            display: 'Wrist joint swelling'
-          }
-        },
-        { 
-          code: 'elbows', 
-          display: 'Elbows',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299703001',
-            display: 'Elbow joint swelling'
-          }
-        },
-        { 
-          code: 'shoulders', 
-          display: 'Shoulders',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299704007',
-            display: 'Shoulder joint swelling'
-          }
-        },
-        { 
-          code: 'knees', 
-          display: 'Knees',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299705008',
-            display: 'Knee joint swelling'
-          }
-        },
-        { 
-          code: 'ankles', 
-          display: 'Ankles',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299706009',
-            display: 'Ankle joint swelling'
-          }
-        },
-        { 
-          code: 'feet', 
-          display: 'Feet/Toes',
-          snomed: {
-            system: 'http://snomed.info/sct',
-            code: '299707000',
-            display: 'Foot joint swelling'
-          }
-        }
+        { code: 'none', display: 'No swelling' },
+        { code: 'hands', display: 'Hands/Fingers' },
+        { code: 'wrists', display: 'Wrists' },
+        { code: 'elbows', display: 'Elbows' },
+        { code: 'shoulders', display: 'Shoulders' },
+        { code: 'knees', display: 'Knees' },
+        { code: 'ankles', display: 'Ankles' },
+        { code: 'feet', display: 'Feet/Toes' },
+        { code: 'multiple', display: 'Multiple joints' }
       ]
     }
   },
@@ -653,20 +612,6 @@ const standardizedMetrics = [
     unit: 'minutes',
     decimalPrecision: 0,
     defaultFrequency: 'daily',
-    coding: {
-      primary: {
-        system: 'http://loinc.org',
-        code: '72133-2',
-        display: 'Morning stiffness duration'
-      },
-      secondary: [
-        {
-          system: 'http://snomed.info/sct',
-          code: '161832001',
-          display: 'Morning stiffness'
-        }
-      ]
-    },
     validation: {
       min: 0,
       max: 480,
@@ -680,7 +625,7 @@ const standardizedMetrics = [
     displayName: 'Blood Glucose',
     valueType: 'numeric',
     scaleMin: 50,
-    scaleMax: 600,
+    scaleMax: 400,
     unit: 'mg/dL',
     decimalPrecision: 0,
     defaultFrequency: 'multiple_daily',
@@ -694,17 +639,20 @@ const standardizedMetrics = [
         {
           system: 'http://snomed.info/sct',
           code: '33747-0',
-          display: 'Blood glucose'
+          display: 'Blood glucose measurement'
         }
-      ]
+      ],
+      mappings: {
+        cpt: '82947',
+        description: 'Glucose; quantitative, blood (except urine)'
+      }
     },
     validation: {
       min: 50,
-      max: 600,
+      max: 400,
       type: 'integer',
-      normalRange: { min: 70, max: 140 },
       criticalLow: 70,
-      criticalHigh: 400
+      criticalHigh: 250
     }
   },
   {
@@ -728,15 +676,17 @@ const standardizedMetrics = [
           code: '43396009',
           display: 'Hemoglobin A1c measurement'
         }
-      ]
+      ],
+      mappings: {
+        cpt: '83036',
+        description: 'Hemoglobin; glycosylated (A1C)'
+      }
     },
     validation: {
       min: 4.0,
       max: 15.0,
       type: 'decimal',
-      normalRange: { min: 4.0, max: 5.6 },
-      prediabetic: { min: 5.7, max: 6.4 },
-      diabetic: { min: 6.5, max: 15.0 }
+      targetRange: { min: 6.5, max: 7.0 }
     }
   },
 
@@ -1142,12 +1092,11 @@ const assessmentTemplates = [
   },
   {
     name: 'Diabetes Monitoring',
-    description: 'Comprehensive diabetes monitoring including glucose, HbA1c, and medication adherence',
+    description: 'Blood glucose tracking and diabetes management monitoring',
     version: 1,
     items: [
       { metricKey: 'blood_glucose', required: true, displayOrder: 1, helpText: 'Enter your blood glucose reading in mg/dL' },
-      { metricKey: 'hba1c', required: false, displayOrder: 2, helpText: 'Enter your most recent HbA1c percentage (quarterly)' },
-      { metricKey: 'medication_adherence', required: true, displayOrder: 3, helpText: 'Did you take your diabetes medication as prescribed?' }
+      { metricKey: 'medication_adherence', required: true, displayOrder: 2, helpText: 'Did you take your diabetes medication as prescribed?' }
     ]
   },
   {
@@ -1167,16 +1116,6 @@ const assessmentTemplates = [
     items: [
       { metricKey: 'phq9_score', required: true, displayOrder: 1, helpText: 'Complete the PHQ-9 depression screening questionnaire' },
       { metricKey: 'gad7_score', required: true, displayOrder: 2, helpText: 'Complete the GAD-7 anxiety screening questionnaire' }
-    ]
-  },
-  {
-    name: 'Diabetes Comprehensive Monitoring',
-    description: 'Comprehensive diabetes monitoring including glucose, HbA1c, and medication adherence',
-    version: 1,
-    items: [
-      { metricKey: 'blood_glucose', required: true, displayOrder: 1, helpText: 'Enter your blood glucose reading in mg/dL' },
-      { metricKey: 'hba1c', required: false, displayOrder: 2, helpText: 'Enter your most recent HbA1c percentage (quarterly)' },
-      { metricKey: 'medication_adherence', required: true, displayOrder: 3, helpText: 'Did you take your diabetes medication as prescribed?' }
     ]
   }
 ];
@@ -1231,7 +1170,8 @@ async function seedRTMStandard() {
       const created = await prisma.conditionPreset.create({
         data: {
           name: preset.name,
-          defaultProtocolId: preset.defaultProtocolId
+          defaultProtocolId: preset.defaultProtocolId,
+          description: preset.description
         }
       });
       
@@ -1252,85 +1192,35 @@ async function seedRTMStandard() {
     }
 
     // Create assessment templates
-console.log('📋 Creating enhanced assessment templates...');
-const createdTemplates = {};
-for (const template of assessmentTemplates) {
-  const createdTemplate = await prisma.assessmentTemplate.create({
-    data: {
-      name: template.name,
-      description: template.description,
-      version: template.version
-    }
-  });
-
-  // Create template items
-  for (const item of template.items) {
-    const metric = createdMetrics[item.metricKey];
-    if (metric) {
-      await prisma.assessmentTemplateItem.create({
+    console.log('📋 Creating enhanced assessment templates...');
+    for (const template of assessmentTemplates) {
+      const createdTemplate = await prisma.assessmentTemplate.create({
         data: {
-          templateId: createdTemplate.id,
-          metricDefinitionId: metric.id,
-          required: item.required,
-          displayOrder: item.displayOrder,
-          helpText: item.helpText
+          name: template.name,
+          description: template.description,
+          version: template.version
         }
       });
-    }
-  }
-  
-  createdTemplates[template.name] = createdTemplate;
-  console.log(`  ✅ Created assessment template: ${template.name} with ${template.items.length} items`);
-    }
 
-    // Link condition presets to assessment templates
-console.log('🔗 Linking condition presets to assessment templates...');
-const presetTemplateLinks = [
-  {
-    presetName: 'Chronic Pain Management',
-    templateNames: ['Chronic Pain Daily Assessment']
-  },
-  {
-    presetName: 'Fibromyalgia Care Program',
-    templateNames: ['Fibromyalgia Daily Check-in']
-  },
-  {
-    presetName: 'Arthritis Management',
-    templateNames: ['Arthritis Management Assessment']
-  },
-  {
-    presetName: 'Diabetes Management Program',
-    templateNames: ['Diabetes Monitoring']
-  },
-  {
-    presetName: 'Cardiovascular Monitoring',
-    templateNames: ['Cardiovascular Daily Monitoring']
-  },
-  {
-    presetName: 'Mental Health Monitoring',
-    templateNames: ['Mental Health Weekly Assessment']
-  }
-];
-
-for (const link of presetTemplateLinks) {
-  const preset = createdPresets[link.presetName];
-  if (preset) {
-    for (const templateName of link.templateNames) {
-      const template = createdTemplates[templateName];
-      if (template) {
-        await prisma.conditionPresetTemplate.create({
-          data: {
-            presetId: preset.id,
-            templateId: template.id
-          }
-        });
-        console.log(`  ✅ Linked ${link.presetName} → ${templateName}`);
+      // Create template items
+      for (const item of template.items) {
+        const metric = createdMetrics[item.metricKey];
+        if (metric) {
+          await prisma.assessmentTemplateItem.create({
+            data: {
+              assessmentTemplateId: createdTemplate.id,
+              metricDefinitionId: metric.id,
+              required: item.required,
+              displayOrder: item.displayOrder,
+              helpText: item.helpText
+            }
+          });
+        }
       }
+      console.log(`  ✅ Created assessment template: ${template.name} with ${template.items.length} items`);
     }
-  }
-}
 
-console.log('🎉 Enhanced RTM Standard Seed completed successfully!');
+    console.log('🎉 Enhanced RTM Standard Seed completed successfully!');
     console.log(`📊 Created ${standardizedMetrics.length} metric definitions`);
     console.log(`🏥 Created ${conditionPresets.length} condition presets`);
     console.log(`📋 Created ${assessmentTemplates.length} assessment templates`);

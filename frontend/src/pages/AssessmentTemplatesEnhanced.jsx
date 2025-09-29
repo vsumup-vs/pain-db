@@ -7,31 +7,56 @@ import {
   PencilIcon,
   TrashIcon,
   DocumentTextIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  ClipboardDocumentListIcon,
+  CalendarIcon,
+  HashtagIcon,
   ExclamationCircleIcon,
   CheckCircleIcon,
-  ClipboardDocumentListIcon,
-  TagIcon,
-  BeakerIcon,
+  ListBulletIcon,
   UserGroupIcon,
-  CalendarIcon,
-  ListBulletIcon
+  ClockIcon,
+  TagIcon,
+  EyeIcon,
+  StarIcon,
+  CogIcon
 } from '@heroicons/react/24/outline'
 import Modal from '../components/Modal'
 import AssessmentTemplateForm from '../components/AssessmentTemplateForm'
-import EnhancedAssessmentTemplateSelector from '../components/EnhancedAssessmentTemplateSelector'
 
 export default function AssessmentTemplatesEnhanced() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [previewingTemplate, setPreviewingTemplate] = useState(null)
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
-  const [viewMode, setViewMode] = useState('enhanced') // 'enhanced' or 'manage'
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [activeTab, setActiveTab] = useState('all') // 'all', 'standardized', 'custom'
   const queryClient = useQueryClient()
 
-  const { data: templates, isLoading, error } = useQuery({
-    queryKey: ['assessment-templates'],
-    queryFn: () => api.getAssessmentTemplates(),
+  // Fetch all templates using enhanced API
+  const { data: templatesData, isLoading, error } = useQuery({
+    queryKey: ['assessment-templates-v2'],
+    queryFn: () => api.getAssessmentTemplatesV2(),
+  })
+
+  // Fetch standardized templates
+  const { data: standardizedTemplates } = useQuery({
+    queryKey: ['standardized-templates'],
+    queryFn: () => api.getStandardizedTemplates(),
+  })
+
+  // Fetch custom templates
+  const { data: customTemplates } = useQuery({
+    queryKey: ['custom-templates'],
+    queryFn: () => api.getCustomTemplates(),
+  })
+
+  // Fetch categories
+  const { data: categories } = useQuery({
+    queryKey: ['template-categories'],
+    queryFn: () => api.getTemplateCategories(),
   })
 
   const { data: metricDefinitions } = useQuery({
@@ -42,7 +67,8 @@ export default function AssessmentTemplatesEnhanced() {
   const createMutation = useMutation({
     mutationFn: (data) => api.createAssessmentTemplate(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['assessment-templates'])
+      queryClient.invalidateQueries(['assessment-templates-v2'])
+      queryClient.invalidateQueries(['custom-templates'])
       setIsModalOpen(false)
       toast.success('Assessment template created successfully')
     },
@@ -54,7 +80,8 @@ export default function AssessmentTemplatesEnhanced() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => api.updateAssessmentTemplate(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['assessment-templates'])
+      queryClient.invalidateQueries(['assessment-templates-v2'])
+      queryClient.invalidateQueries(['custom-templates'])
       setIsModalOpen(false)
       setEditingTemplate(null)
       toast.success('Assessment template updated successfully')
@@ -67,12 +94,37 @@ export default function AssessmentTemplatesEnhanced() {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.deleteAssessmentTemplate(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['assessment-templates'])
+      queryClient.invalidateQueries(['assessment-templates-v2'])
+      queryClient.invalidateQueries(['custom-templates'])
       toast.success('Assessment template deleted successfully')
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to delete template')
     },
+  })
+
+  // Get templates based on active tab
+  const getTemplatesForTab = () => {
+    switch (activeTab) {
+      case 'standardized':
+        return standardizedTemplates || []
+      case 'custom':
+        return customTemplates || []
+      default:
+        return templatesData?.templates || []
+    }
+  }
+
+  const templates = getTemplatesForTab()
+
+  // Filter templates
+  const filteredTemplates = templates.filter(template => {
+    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (template.description && template.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    
+    const matchesCategory = !selectedCategory || template.category === selectedCategory
+    
+    return matchesSearch && matchesCategory
   })
 
   const handleCreate = () => {
@@ -81,13 +133,34 @@ export default function AssessmentTemplatesEnhanced() {
   }
 
   const handleEdit = (template) => {
+    // Only allow editing of custom templates
+    if (template.isStandardized) {
+      toast.warning('Standardized templates cannot be edited')
+      return
+    }
     setEditingTemplate(template)
     setIsModalOpen(true)
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, template) => {
+    // Only allow deletion of custom templates
+    if (template.isStandardized) {
+      toast.warning('Standardized templates cannot be deleted')
+      return
+    }
+    
     if (window.confirm('Are you sure you want to delete this assessment template?')) {
       deleteMutation.mutate(id)
+    }
+  }
+
+  const handlePreview = async (template) => {
+    try {
+      const response = await api.getAssessmentTemplateV2(template.id)
+      setPreviewingTemplate(response.data)
+      setIsPreviewModalOpen(true)
+    } catch (error) {
+      toast.error('Failed to load template details')
     }
   }
 
@@ -99,27 +172,34 @@ export default function AssessmentTemplatesEnhanced() {
     }
   }
 
-  const handleTemplateSelect = (template) => {
-    setSelectedTemplate(template)
-    // You can add additional logic here for what happens when a template is selected
-    console.log('Selected template:', template)
-  }
-
-  const handlePreview = async (template) => {
-    try {
-      // Fetch full template details including metrics from the enhanced endpoint
-      const response = await fetch(`/api/assessment-templates-v2/${template.id}`)
-      const data = await response.json()
-      setPreviewingTemplate(data)
-      setIsPreviewModalOpen(true)
-    } catch (error) {
-      console.error('Error fetching template details:', error)
-      toast.error('Failed to load template details')
+  const getTemplateStatusColor = (template) => {
+    if (template.isStandardized) {
+      return 'bg-green-50 text-green-700 border-green-200'
     }
+    return 'bg-blue-50 text-blue-700 border-blue-200'
   }
 
-  // Filter templates for management view (only custom templates can be edited)
-  const customTemplates = templates?.data?.filter(template => !template.isStandardized) || []
+  const getTemplateStatusText = (template) => {
+    if (template.isStandardized) {
+      return 'Standardized'
+    }
+    return 'Custom'
+  }
+
+  const getCategoryBadgeColor = (category) => {
+    const colors = {
+      'pain_management': 'bg-red-100 text-red-800',
+      'mental_health': 'bg-blue-100 text-blue-800',
+      'fibromyalgia': 'bg-purple-100 text-purple-800',
+      'diabetes': 'bg-green-100 text-green-800',
+      'general': 'bg-gray-100 text-gray-800'
+    }
+    return colors[category] || 'bg-gray-100 text-gray-800'
+  }
+
+  const formatCategoryName = (category) => {
+    return category?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'General'
+  }
 
   if (isLoading) {
     return (
@@ -155,136 +235,306 @@ export default function AssessmentTemplatesEnhanced() {
                 Assessment Templates
               </h1>
               <p className="mt-2 text-gray-600">
-                {viewMode === 'enhanced' 
-                  ? 'Browse and select standardized clinical assessment forms and custom templates'
-                  : 'Create and manage custom assessment templates'
-                }
+                Manage standardized clinical assessments and custom templates
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              {/* View Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('enhanced')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'enhanced'
-                      ? 'bg-white text-indigo-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <BeakerIcon className="h-4 w-4 inline mr-2" />
-                  Browse Templates
-                </button>
-                <button
-                  onClick={() => setViewMode('manage')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'manage'
-                      ? 'bg-white text-indigo-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <DocumentTextIcon className="h-4 w-4 inline mr-2" />
-                  Manage Custom
-                </button>
-              </div>
-              
-              {viewMode === 'manage' && (
-                <button
-                  onClick={handleCreate}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Create New Template
-                </button>
-              )}
+              <button
+                onClick={handleCreate}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Create Custom Template
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {viewMode === 'enhanced' ? (
-          /* Enhanced Template Selector View */
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <EnhancedAssessmentTemplateSelector
-              onSelect={handleTemplateSelect}
-              selectedTemplateId={selectedTemplate?.id}
-              onPreview={handlePreview}
-            />
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'all'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                All Templates
+                <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
+                  {templatesData?.templates?.length || 0}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('standardized')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'standardized'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <StarIcon className="h-4 w-4 inline mr-1" />
+                Standardized
+                <span className="ml-2 bg-green-100 text-green-900 py-0.5 px-2.5 rounded-full text-xs">
+                  {standardizedTemplates?.length || 0}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('custom')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'custom'
+                    ? 'border-indigo-500 text-indigo-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <CogIcon className="h-4 w-4 inline mr-1" />
+                Custom
+                <span className="ml-2 bg-blue-100 text-blue-900 py-0.5 px-2.5 rounded-full text-xs">
+                  {customTemplates?.length || 0}
+                </span>
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search templates..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div className="sm:w-64">
+              <div className="relative">
+                <FunnelIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">All Categories</option>
+                  {categories?.map((category) => (
+                    <option key={category} value={category}>
+                      {formatCategoryName(category)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          {/* Stats */}
+          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+            <span>
+              Showing {filteredTemplates.length} of {templates.length} templates
+            </span>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="text-indigo-600 hover:text-indigo-800"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Templates Grid */}
+        {filteredTemplates.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+              <ClipboardDocumentListIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm ? 'No matching templates found' : 
+                 activeTab === 'standardized' ? 'No standardized templates available' :
+                 activeTab === 'custom' ? 'No custom templates yet' :
+                 'No assessment templates yet'}
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {searchTerm 
+                  ? 'Try adjusting your search criteria'
+                  : activeTab === 'standardized' 
+                    ? 'Standardized templates need to be created by running the setup scripts'
+                    : 'Create your first custom assessment template to get started'
+                }
+              </p>
+              {!searchTerm && activeTab !== 'standardized' && (
+                <button
+                  onClick={handleCreate}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Create Your First Template
+                </button>
+              )}
+            </div>
           </div>
         ) : (
-          /* Management View for Custom Templates */
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Custom Templates</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Manage your custom assessment templates. Standardized templates cannot be edited.
-                </p>
-              </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredTemplates.map((template) => {
+              const statusColor = getTemplateStatusColor(template)
+              const statusText = getTemplateStatusText(template)
+              const metricCount = template.items?.length || 0
               
-              <div className="p-6">
-                {customTemplates.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ClipboardDocumentListIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No custom templates</h3>
-                    <p className="text-gray-600 mb-6">Get started by creating your first custom assessment template.</p>
-                    <button
-                      onClick={handleCreate}
-                      className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors flex items-center mx-auto"
-                    >
-                      <PlusIcon className="h-5 w-5 mr-2" />
-                      Create Template
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-6">
-                    {customTemplates.map(template => (
-                      <div key={template.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Custom
+              return (
+                <div 
+                  key={template.id} 
+                  className="bg-white rounded-xl shadow-sm border-2 border-gray-200 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 overflow-hidden"
+                >
+                  {/* Card Header */}
+                  <div className={`px-6 py-4 border-b border-gray-100 ${
+                    template.isStandardized 
+                      ? 'bg-gradient-to-r from-green-50 to-emerald-50' 
+                      : 'bg-gradient-to-r from-indigo-50 to-purple-50'
+                  }`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg bg-white border ${
+                          template.isStandardized ? 'border-green-200' : 'border-indigo-200'
+                        }`}>
+                          {template.isStandardized ? (
+                            <StarIcon className="h-6 w-6 text-green-600" />
+                          ) : (
+                            <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                            {template.name}
+                          </h3>
+                          <div className="flex items-center mt-1 space-x-2">
+                            <span className="text-xs text-gray-500">Version {template.version}</span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
+                              {statusText}
+                            </span>
+                            {template.category && (
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryBadgeColor(template.category)}`}>
+                                {formatCategoryName(template.category)}
                               </span>
-                              <span className="text-sm text-gray-500">Version {template.version}</span>
-                            </div>
-                            {template.description && (
-                              <p className="text-gray-600 mb-3">{template.description}</p>
                             )}
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
-                              <span className="flex items-center">
-                                <TagIcon className="h-4 w-4 mr-1" />
-                                {template.items?.length || 0} items
-                              </span>
-                              <span>Created {new Date(template.createdAt).toLocaleDateString()}</span>
-                            </div>
                           </div>
-                          <div className="flex items-center space-x-2 ml-4">
+                        </div>
+                      </div>
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => handlePreview(template)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Preview template"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </button>
+                        {!template.isStandardized && (
+                          <>
                             <button
                               onClick={() => handleEdit(template)}
                               className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                               title="Edit template"
                             >
-                              <PencilIcon className="h-5 w-5" />
+                              <PencilIcon className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(template.id)}
+                              onClick={() => handleDelete(template.id, template)}
                               className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Delete template"
                             >
-                              <TrashIcon className="h-5 w-5" />
+                              <TrashIcon className="h-4 w-4" />
                             </button>
-                          </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-6">
+                    {/* Description */}
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                      {template.description || template.clinicalUse || 'No description provided'}
+                    </p>
+
+                    {/* Template Details */}
+                    <div className="space-y-3">
+                      {/* Metrics Count */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Metrics</span>
+                        <div className="flex items-center">
+                          <ListBulletIcon className="h-4 w-4 text-gray-400 mr-1" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {metricCount} {metricCount === 1 ? 'metric' : 'metrics'}
+                          </span>
                         </div>
                       </div>
-                    ))}
+
+                      {/* Validation Info for Standardized Templates */}
+                      {template.isStandardized && template.validationInfo && (
+                        <div className="bg-green-50 rounded-lg p-3 mt-3">
+                          <div className="flex items-center mb-2">
+                            <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                            <span className="text-xs font-medium text-green-700">
+                              Validated Instrument
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            {template.validationInfo.instrument && (
+                              <div className="text-xs text-green-600">
+                                <span className="font-medium">Instrument:</span> {template.validationInfo.instrument}
+                              </div>
+                            )}
+                            {template.validationInfo.sensitivity && (
+                              <div className="text-xs text-green-600">
+                                <span className="font-medium">Sensitivity:</span> {template.validationInfo.sensitivity}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Created Date */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">Created</span>
+                        <div className="flex items-center">
+                          <CalendarIcon className="h-4 w-4 text-gray-400 mr-1" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {new Date(template.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Empty State for Metrics */}
+                      {metricCount === 0 && (
+                        <div className="bg-red-50 rounded-lg p-3 mt-3">
+                          <div className="flex items-center">
+                            <ExclamationCircleIcon className="h-4 w-4 text-red-500 mr-2" />
+                            <span className="text-xs font-medium text-red-700">
+                              No metrics configured
+                            </span>
+                          </div>
+                          <p className="text-xs text-red-600 mt-1">
+                            Add metrics to make this template functional
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -315,13 +565,14 @@ export default function AssessmentTemplatesEnhanced() {
                 <div className="text-right">
                   <span className="text-sm text-gray-500">Version {previewingTemplate.version}</span>
                   <div className="mt-1">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-                      previewingTemplate.isActive 
-                        ? 'bg-green-50 text-green-700 border-green-200' 
-                        : 'bg-gray-50 text-gray-700 border-gray-200'
-                    }`}>
-                      {previewingTemplate.isActive ? 'Active' : 'Inactive'}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getTemplateStatusColor(previewingTemplate)}`}>
+                      {getTemplateStatusText(previewingTemplate)}
                     </span>
+                    {previewingTemplate.category && (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryBadgeColor(previewingTemplate.category)}`}>
+                        {formatCategoryName(previewingTemplate.category)}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -346,7 +597,7 @@ export default function AssessmentTemplatesEnhanced() {
                   <div>
                     <p className="text-sm font-medium text-green-900">Required</p>
                     <p className="text-lg font-semibold text-green-700">
-                      {previewingTemplate.items?.filter(item => item.isRequired).length || 0}
+                      {previewingTemplate.items?.filter(item => item.required).length || 0}
                     </p>
                   </div>
                 </div>
@@ -375,7 +626,7 @@ export default function AssessmentTemplatesEnhanced() {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
                             <h5 className="font-medium text-gray-900">
-                              {item.metricDefinition?.displayName || item.name || 'Unnamed Metric'}
+                              {item.metricDefinition?.displayName || 'Unknown Metric'}
                             </h5>
                             {item.isRequired && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
