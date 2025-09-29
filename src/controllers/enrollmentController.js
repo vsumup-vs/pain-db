@@ -15,7 +15,14 @@ const createEnrollment = async (req, res) => {
       endDate,
       status = 'active',
       consentAt,
-      notes
+      notes,
+      // New reminder configuration
+      reminderSettings = {
+        dailyAssessment: true,
+        reminderTime: "09:00",
+        methods: ["email"],
+        timezone: "America/New_York"
+      }
     } = req.body;
 
     // Validate required fields
@@ -78,6 +85,10 @@ const createEnrollment = async (req, res) => {
       });
     }
 
+    // Add this at the top with other imports
+    const { setupDailyReminderRule } = require('../services/reminderService');
+    
+    // In the createEnrollment function, update the enrollment creation:
     const enrollment = await prisma.enrollment.create({
       data: {
         patientId,
@@ -87,7 +98,8 @@ const createEnrollment = async (req, res) => {
         startDate: startDate ? new Date(startDate) : new Date(),
         endDate: endDate ? new Date(endDate) : null,
         status,
-        consentAt: consentAt ? new Date(consentAt) : null
+        consentAt: consentAt ? new Date(consentAt) : null,
+        reminderSettings // Add this line
       },
       include: {
         patient: {
@@ -115,9 +127,12 @@ const createEnrollment = async (req, res) => {
       }
     });
 
+    // Auto-setup daily reminder alert rule
+    await setupDailyReminderRule(enrollment.id, reminderSettings);
+
     res.status(201).json({
       success: true,
-      message: 'Enrollment created successfully',
+      message: 'Enrollment created successfully with daily reminders configured',
       data: enrollment
     });
   } catch (error) {
@@ -817,11 +832,144 @@ const createBulkEnrollments = async (req, res) => {
   }
 };
 
+// Get enrollment with filtered metric definitions based on condition preset and assessment templates
+const getEnrollmentWithFilteredMetrics = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Step 1: Fetch enrollment details including the condition preset
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { id },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            dateOfBirth: true
+          }
+        },
+        clinician: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            specialization: true,
+            department: true,
+            email: true,
+            phone: true
+          }
+        },
+        preset: {
+          include: {
+            // Step 2: Get associated assessment templates for that preset
+            templates: {
+              include: {
+                template: {
+                  include: {
+                    items: {
+                      include: {
+                        metricDefinition: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Enrollment not found'
+      });
+    }
+
+    // Step 3: Filter metric definitions to only show those included in the relevant templates
+    const relevantMetricIds = new Set();
+    
+    if (enrollment.preset?.templates) {
+      enrollment.preset.templates.forEach(presetTemplate => {
+        presetTemplate.template.items.forEach(item => {
+          relevantMetricIds.add(item.metricDefinitionId);
+        });
+      });
+    }
+
+    // Step 4: Get the filtered metric definitions
+    const filteredMetricDefinitions = await prisma.metricDefinition.findMany({
+      where: {
+        id: {
+          in: Array.from(relevantMetricIds)
+        }
+      },
+      orderBy: {
+        displayName: 'asc'
+      }
+    });
+
+    // Prepare response with contextual information
+    const response = {
+      enrollment: {
+        id: enrollment.id,
+        patientId: enrollment.patientId,
+        clinicianId: enrollment.clinicianId,
+        presetId: enrollment.presetId,
+        diagnosisCode: enrollment.diagnosisCode,
+        startDate: enrollment.startDate,
+        endDate: enrollment.endDate,
+        status: enrollment.status,
+        notes: enrollment.notes,
+        patient: enrollment.patient,
+        clinician: enrollment.clinician,
+        preset: {
+          id: enrollment.preset.id,
+          name: enrollment.preset.name,
+          templateCount: enrollment.preset.templates?.length || 0
+        }
+      },
+      assessmentTemplates: enrollment.preset?.templates?.map(pt => ({
+        id: pt.template.id,
+        name: pt.template.name,
+        description: pt.template.description,
+        itemCount: pt.template.items?.length || 0,
+        isStandardized: pt.template.isStandardized,
+        category: pt.template.category
+      })) || [],
+      filteredMetricDefinitions,
+      context: {
+        totalAvailableMetrics: filteredMetricDefinitions.length,
+        conditionPreset: enrollment.preset?.name,
+        filteringApplied: true,
+        message: `Showing ${filteredMetricDefinitions.length} metrics relevant to ${enrollment.preset?.name} condition preset`
+      }
+    };
+
+    res.json({
+      success: true,
+      data: response
+    });
+
+  } catch (error) {
+    console.error('Error fetching enrollment with filtered metrics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching enrollment details'
+    });
+  }
+};
+
 module.exports = {
   createEnrollment,
   createBulkEnrollments,
   getAllEnrollments,
   getEnrollmentById,
+  getEnrollmentWithFilteredMetrics, // Add the new method
   updateEnrollment,
   deleteEnrollment,
   deactivateEnrollment,

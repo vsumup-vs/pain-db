@@ -1373,37 +1373,6 @@ Server running on port 3000
 Health check: http://localhost:3000/health
 API info: http://localhost:3000/api
 [32m[nodemon] clean exit - waiting for changes before restart[39m
-] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 [32m[nodemon] restarting due to changes...[39m
@@ -1427,78 +1396,7 @@ API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
@@ -1530,59 +1428,7 @@ API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
@@ -1602,21 +1448,13 @@ API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
 Health check: http://localhost:3000/health
@@ -1624,14 +1462,17 @@ API info: http://localhost:3000/api
 [32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
-Health check: http://locaServer running on port 3000
-Health check: http://local2025-09-29T10:37:40.879Z - GET /api/assessment-templates-v2
-2025-09-29T10:37:40.891Z - GET /api/assessment-templates-v2/s[32m[nodemon] restarting due to changes...[39m
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
@@ -1679,8 +1520,6 @@ API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
 Health check: http://localhost:3000/health
 API info: http://localhost:3000/api
@@ -1690,37 +1529,9 @@ API info: http://localhost:3000/api
 Server running on port 3000
 Health check: http://localhost:3000/health
 API info: http://localhost:3000/api
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
 [32m[nodemon] clean exit - waiting for changes before restart[39m
-odemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
@@ -1737,53 +1548,53 @@ API info: http://localhost:3000/api
 Server running on port 3000
 Health check: http://localhost:3000/health
 API info: http://localhost:3000/api
-2025-09-29T11:49:18.989Z - GET /api/condition-presets
-2025-09-29T11:49:19.017Z - GET /api/assessment-templates
-2025-09-29T12:07:18.294Z - GET /api/condition-presets
-2025-09-29T12:07:18.306Z - GET /api/assessment-templates
-2025-09-29T12:07:21.308Z - GET /api/clinicians
-2025-09-29T12:07:23.150Z - GET /api/condition-presets
-2025-09-29T12:07:23.156Z - GET /api/assessment-templates
-2025-09-29T12:07:31.303Z - GET /api/metric-definitions
-2025-09-29T12:07:31.323Z - GET /api/metric-definitions
-2025-09-29T12:07:43.263Z - GET /api/assessment-templates-v2
-2025-09-29T12:07:43.644Z - GET /api/assessment-templates-v2/custom
-2025-09-29T12:07:43.646Z - GET /api/assessment-templates-v2/categories
-2025-09-29T12:07:43.649Z - GET /api/assessment-templates-v2/standardized
-2025-09-29T12:07:43.657Z - GET /api/metric-definitions
-2025-09-29T12:08:49.119Z - GET /api/metric-definitions
-2025-09-29T12:08:49.130Z - GET /api/metric-definitions
- http://localhost:3000/health
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+2025-09-29T13:51:57.493Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69
+2025-09-29T13:51:57.503Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/medications
+2025-09-29T13:51:57.507Z - GET /api/alerts
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
 API info: http://localhost:3000/api
 [32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+2025-09-29T13:54:39.897Z - GET /api/observations
+2025-09-29T13:54:46.211Z - GET /api/enrollments
+2025-09-29T13:54:46.351Z - GET /api/clinicians
+2025-09-29T13:54:46.354Z - GET /api/patients
+2025-09-29T13:54:46.367Z - GET /api/condition-presets
+2025-09-29T13:54:48.704Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69
+2025-09-29T13:54:49.101Z - GET /api/alerts
+2025-09-29T13:54:49.105Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/medications
+2025-09-29T13:55:57.187Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69
+2025-09-29T13:55:57.196Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/medications
+2025-09-29T13:55:57.202Z - GET /api/alerts
+2025-09-29T13:56:19.821Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/filtered-metrics
+2025-09-29T13:57:16.323Z - GET /api/observations
+2025-09-29T13:57:20.939Z - GET /api/metric-definitions
+2025-09-29T13:57:20.942Z - GET /api/metric-definitions
+2025-09-29T13:58:01.100Z - GET /api/enrollments
+2025-09-29T13:58:01.487Z - GET /api/patients
+2025-09-29T13:58:01.507Z - GET /api/clinicians
+2025-09-29T13:58:01.509Z - GET /api/condition-presets
+2025-09-29T13:58:04.107Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69
+2025-09-29T13:58:04.117Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/medications
+2025-09-29T13:58:04.128Z - GET /api/alerts
+2025-09-29T13:58:05.522Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/filtered-metrics
+2025-09-29T14:47:06.316Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69
+2025-09-29T14:47:06.325Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/medications
+2025-09-29T14:47:06.328Z - GET /api/alerts
+2025-09-29T14:47:06.695Z - GET /api/enrollments/06aa8077-3aab-494e-b4bd-dc32e989fa69/filtered-metrics
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
@@ -1804,213 +1615,227 @@ API info: http://localhost:3000/api
 [32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+(node:589190) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 exit listeners added to [Bus]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 [32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
 [31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
@@ -2032,36 +1857,24 @@ API info: http://localhost:3000/api
 [32m[nodemon] starting `node index.js`[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-Server running on port 3000
-Health check: http://localhost:3000/health
-API info: http://localhost:3000/api
-[32m[nodemon] clean exit - waiting for changes before restart[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
+/home/vsumup/pain-db/src/controllers/alertRuleController.js:803
+  name: 'Daily Pain Assessment Reminder',
+      ^
+
+SyntaxError: Unexpected token ':'
+    at wrapSafe (node:internal/modules/cjs/loader:1638:18)
+    at Module._compile (node:internal/modules/cjs/loader:1680:20)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/vsumup/pain-db/src/routes/alertRuleRoutes.js:15:5)
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
@@ -2085,6 +1898,752 @@ API info: http://localhost:3000/api
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+2025-09-29T18:13:08.836Z - GET /api/patients/recent
+2025-09-29T18:13:08.854Z - GET /api/alerts/recent
+2025-09-29T18:13:30.017Z - GET /api/patients/stats
+2025-09-29T18:13:30.023Z - GET /api/clinicians/stats
+2025-09-29T18:13:30.031Z - GET /api/alerts/stats
+2025-09-29T18:13:30.038Z - GET /api/patients/recent
+2025-09-29T18:13:30.046Z - GET /api/alerts/recent
+2025-09-29T18:13:34.964Z - GET /api/enrollments
+2025-09-29T18:13:35.369Z - GET /api/clinicians
+2025-09-29T18:13:35.375Z - GET /api/patients
+2025-09-29T18:13:35.387Z - GET /api/condition-presets
+2025-09-29T18:13:37.607Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T18:13:37.616Z - GET /api/alerts
+2025-09-29T18:13:37.627Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T18:13:38.974Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/filtered-metrics
+2025-09-29T18:13:47.434Z - POST /api/observations
+2025-09-29T18:15:43.686Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T18:15:43.692Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T18:15:43.695Z - GET /api/alerts
+2025-09-29T18:15:44.082Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/filtered-metrics
+2025-09-29T18:30:18.838Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T18:30:18.846Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T18:30:18.851Z - GET /api/alerts
+2025-09-29T18:30:21.748Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/filtered-metrics
+2025-09-29T18:30:33.673Z - POST /api/observations
+2025-09-29T18:30:33.932Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T18:30:34.187Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/filtered-metrics
+2025-09-29T18:30:34.189Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T18:30:34.191Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T18:30:34.193Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T18:30:34.196Z - GET /api/alerts
+2025-09-29T18:30:34.322Z - GET /api/alerts
+2025-09-29T18:30:34.581Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/filtered-metrics
+2025-09-29T18:30:40.802Z - GET /api/observations
+2025-09-29T18:30:54.532Z - GET /api/alert-rules
+2025-09-29T18:30:54.908Z - GET /api/alert-rules/stats
+2025-09-29T[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+tp://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+odemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+2025-09-29T20:03:41.524Z - GET /api/alert-rules
+2025-09-29T20:03:41.571Z - GET /api/alert-rules/stats
+ges...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] restarting due to changes...[39m
@@ -2110,12 +2669,495 @@ API info: http://localhost:3000/api
 [32m[nodemon] clean exit - waiting for changes before restart[39m
 [32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
-[32m[nodemon] starting `node index.js`[39m
-[32m[nodemon] restarting due to changes...[39m
 Server running on port 3000
 Health check: http://localhost:3000/health
 API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+2025-09-29T18:48:54.376Z - GET /api/condition-presets
+2025-09-29T18:48:54.398Z - GET /api/assessment-templates
+2025-09-29T18:49:02.388Z - GET /api/condition-presets
+2025-09-29T18:49:02.395Z - GET /api/assessment-templates
+2025-09-29T18:50:23.784Z - GET /api/condition-presets
+2025-09-29T18:50:23.789Z - GET /api/assessment-templates
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+2025-09-29T18:58:39.906Z - GET /api/condition-presets
+2025-09-29T18:58:39.922Z - GET /api/assessment-templates
+2025-09-29T19:01:50.899Z - GET /api/condition-presets
+2025-09-29T19:01:50.906Z - GET /api/assessment-templates
+2025-09-29T19:02:03.035Z - GET /api/condition-presets
+2025-09-29T19:02:03.042Z - GET /api/assessment-templates
+2025-09-29T19:06:29.946Z - GET /api/metric-definitions
+2025-09-29T19:06:30.096Z - GET /api/metric-definitions
+2025-09-29T19:07:04.999Z - GET /api/assessment-templates-v2
+2025-09-29T19:07:05.400Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:07:05.402Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:07:05.405Z - GET /api/metric-definitions
+2025-09-29T19:07:05.408Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:07:08.956Z - GET /api/assessment-templates-v2/df2ce6ff-e302-40e1-a8fc-856ebddc48aa
+2025-09-29T19:08:48.792Z - GET /api/assessment-templates-v2/3797a554-e94a-4a8f-bb96-982320535ce3
+2025-09-29T19:08:50.359Z - GET /api/assessment-templates-v2/3797a554-e94a-4a8f-bb96-982320535ce3
+2025-09-29T19:12:40.204Z - GET /api/assessment-templates-v2
+2025-09-29T19:12:40.222Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:12:40.227Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:12:40.231Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:12:40.234Z - GET /api/metric-definitions
+2025-09-29T19:12:45.864Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:15:07.002Z - GET /api/assessment-templates-v2
+2025-09-29T19:15:07.021Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:15:07.029Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:15:07.038Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:15:07.051Z - GET /api/metric-definitions
+2025-09-29T19:15:09.061Z - GET /api/assessment-templates-v2/637308a7-7620-4d6d-b71d-5a727ceace2b
+2025-09-29T19:15:54.008Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:17:26.780Z - GET /api/assessment-templates-v2
+2025-09-29T19:17:26.783Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:17:26.787Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:17:26.790Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:17:26.797Z - GET /api/metric-definitions
+2025-09-29T19:17:33.244Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:17:36.993Z - GET /api/assessment-templates-v2/637308a7-7620-4d6d-b71d-5a727ceace2b
+2025-09-29T19:18:41.034Z - GET /api/assessment-templates-v2
+2025-09-29T19:18:41.036Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:18:41.040Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:18:41.043Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:18:41.048Z - GET /api/metric-definitions
+2025-09-29T19:18:43.049Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:19:56.374Z - GET /api/assessment-templates-v2
+2025-09-29T19:19:56.384Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:19:56.387Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:19:56.390Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:19:56.392Z - GET /api/metric-definitions
+2025-09-29T19:19:59.029Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:20:04.350Z - GET /api/assessment-templates-v2
+2025-09-29T19:20:04.357Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:20:04.361Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:20:04.363Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:20:04.368Z - GET /api/metric-definitions
+2025-09-29T19:20:34.764Z - GET /api/assessment-templates-v2/637308a7-7620-4d6d-b71d-5a727ceace2b
+2025-09-29T19:21:37.665Z - GET /api/assessment-templates-v2
+2025-09-29T19:21:37.674Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:21:37.680Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:21:37.685Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:21:37.689Z - GET /api/metric-definitions
+2025-09-29T19:21:42.408Z - GET /api/assessment-templates-v2
+2025-09-29T19:21:42.412Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:21:42.415Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:21:42.417Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:21:42.429Z - GET /api/metric-definitions
+2025-09-29T19:21:44.093Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:23:47.935Z - GET /api/assessment-templates-v2
+2025-09-29T19:23:47.949Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:23:47.951Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:23:48.312Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:23:48.331Z - GET /api/metric-definitions
+2025-09-29T19:23:56.137Z - GET /api/assessment-templates-v2
+2025-09-29T19:23:56.140Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:23:56.143Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:23:56.146Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:23:56.151Z - GET /api/metric-definitions
+2025-09-29T19:23:57.153Z - GET /api/assessment-templates-v2/637308a7-7620-4d6d-b71d-5a727ceace2b
+2025-09-29T19:24:02.890Z - GET /api/assessment-templates-v2/a8884bd9-08b8-47a3-9881-f2d242661be1
+2025-09-29T19:24:51.144Z - GET /api/assessment-templates-v2/b9d005d0-a925-4e95-94fd-5f0bc228590d
+2025-09-29T19:25:00.552Z - GET /api/assessment-templates-v2/2f0ce31e-9119-414d-8af9-6e92f4e7daad
+2025-09-29T19:25:05.349Z - GET /api/assessment-templates-v2/28f168fd-efa9-42d9-9328-a9b661d5a7d1
+2025-09-29T19:25:17.661Z - GET /api/assessment-templates-v2/3797a554-e94a-4a8f-bb96-982320535ce3
+2025-09-29T19:29:10.720Z - GET /api/observations
+2025-09-29T19:29:18.555Z - GET /api/alerts
+2025-09-29T19:29:21.286Z - GET /api/alert-rules
+2025-09-29T19:29:21.288Z - GET /api/alert-rules/stats
+2025-09-29T19:29:33.404Z - GET /api/alert-rules/templates
+2025-09-29T19:29:47.320Z - GET /api/enrollments
+2025-09-29T19:29:47.330Z - GET /api/clinicians
+2025-09-29T19:29:47.339Z - GET /api/patients
+2025-09-29T19:29:47.352Z - GET /api/condition-presets
+2025-09-29T19:29:50.294Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T19:29:50.680Z - GET /api/alerts
+2025-09-29T19:29:50.683Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T19:29:53.550Z - GET /api/observations
+2025-09-29T19:29:55.682Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef
+2025-09-29T19:29:56.080Z - GET /api/alerts
+2025-09-29T19:29:56.083Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/medications
+2025-09-29T19:29:57.239Z - GET /api/enrollments/a83bf500-b08d-47a6-857e-25ebf8aef7ef/filtered-metrics
+2025-09-29T19:29:59.988Z - GET /api/assessment-templates-v2
+2025-09-29T19:30:00.369Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:30:00.381Z - GET /api/metric-definitions
+2025-09-29T19:30:00.383Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:30:00.390Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:30:05.152Z - GET /api/clinicians/stats
+2025-09-29T19:30:05.158Z - GET /api/patients/recent
+2025-09-29T19:30:05.162Z - GET /api/patients/stats
+2025-09-29T19:30:05.218Z - GET /api/alerts/recent
+2025-09-29T19:30:05.221Z - GET /api/alerts/stats
+2025-09-29T19:41:32.453Z - GET /api/patients
+2025-09-29T19:41:33.859Z - GET /api/clinicians
+2025-09-29T19:41:36.357Z - GET /api/assessment-templates
+2025-09-29T19:41:36.361Z - GET /api/condition-presets
+2025-09-29T19:41:39.027Z - GET /api/metric-definitions
+2025-09-29T19:41:39.406Z - GET /api/metric-definitions
+2025-09-29T19:41:41.586Z - GET /api/assessment-templates-v2
+2025-09-29T19:41:41.629Z - GET /api/assessment-templates-v2/standardized
+2025-09-29T19:41:41.632Z - GET /api/assessment-templates-v2/categories
+2025-09-29T19:41:41.634Z - GET /api/metric-definitions
+2025-09-29T19:41:41.664Z - GET /api/assessment-templates-v2/custom
+2025-09-29T19:41:43.826Z - GET /api/observations
+2025-09-29T19:41:45.716Z - GET /api/alerts
+2025-09-29T19:41:47.114Z - GET /api/alert-rules
+2025-09-29T19:41:47.496Z - GET /api/alert-rules/stats
+2025-09-29T19:41:50.018Z - GET /api/condition-presets
+2025-09-29T19:41:50.021Z - GET /api/clinicians
+2025-09-29T19:41:50.025Z - GET /api/enrollments
+2025-09-29T19:41:50.027Z - GET /api/patients
+2025-09-29T19:41:51.618Z - GET /api/alert-rules
+2025-09-29T19:41:51.996Z - GET /api/alert-rules/stats
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+[32m[nodemon] clean exit - waiting for changes before restart[39m
+[32m[nodemon] restarting due to changes...[39m
 [32m[nodemon] starting `node index.js`[39m
 Server running on port 3000
 Health check: http://localhost:3000/health

@@ -342,6 +342,26 @@ export default function Patients() {
 }
 
 function PatientForm({ patient, onSubmit, isLoading }) {
+  // Helper function to format address for editing
+  const formatAddressForEdit = (address) => {
+    if (!address) return ''
+    
+    // If address is already a string, return it
+    if (typeof address === 'string') return address
+    
+    // If address is an object, format it properly
+    if (typeof address === 'object') {
+      const parts = []
+      if (address.street) parts.push(address.street)
+      if (address.city) parts.push(address.city)
+      if (address.state) parts.push(address.state)
+      if (address.zipCode) parts.push(address.zipCode)
+      return parts.join(', ')
+    }
+    
+    return ''
+  }
+
   const [formData, setFormData] = useState({
     firstName: patient?.firstName || '',
     lastName: patient?.lastName || '',
@@ -349,7 +369,7 @@ function PatientForm({ patient, onSubmit, isLoading }) {
     phone: patient?.phone || '',
     dateOfBirth: patient?.dateOfBirth ? patient.dateOfBirth.split('T')[0] : '',
     gender: patient?.gender || '',
-    address: patient?.address || '',
+    address: formatAddressForEdit(patient?.address),
   })
 
   const handleSubmit = (e) => {

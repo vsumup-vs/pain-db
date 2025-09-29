@@ -4,7 +4,8 @@ import {
   PlusIcon, 
   TrashIcon, 
   MagnifyingGlassIcon,
-  InformationCircleIcon 
+  InformationCircleIcon,
+  BellIcon 
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 
@@ -23,7 +24,12 @@ export default function EnhancedEnrollmentForm({
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     notes: '',
-    medications: []
+    medications: [],
+    reminderSettings: {
+      dailyAssessment: false,
+      reminderTime: '09:00',
+      methods: []
+    }
   })
 
   const [selectedPreset, setSelectedPreset] = useState(null)
@@ -101,6 +107,26 @@ export default function EnhancedEnrollmentForm({
   const getDrugName = (drugId) => {
     const drug = drugs.find(d => d.id === drugId)
     return drug ? `${drug.name} ${drug.strength}` : 'Select medication'
+  }
+
+  // Add method change handler for reminder settings
+  const handleMethodChange = (method, checked) => {
+    setFormData(prev => ({
+      ...prev,
+      reminderSettings: {
+        ...prev.reminderSettings,
+        methods: checked 
+          ? [...prev.reminderSettings.methods, method]
+          : prev.reminderSettings.methods.filter(m => m !== method)
+      }
+    }))
+  }
+
+  const setReminderSettings = (newSettings) => {
+    setFormData(prev => ({
+      ...prev,
+      reminderSettings: newSettings
+    }))
   }
 
   return (
@@ -398,6 +424,87 @@ export default function EnhancedEnrollmentForm({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Reminder Settings Section */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="flex items-center mb-4">
+          <BellIcon className="h-5 w-5 text-gray-600 mr-2" />
+          <h3 className="text-lg font-medium text-gray-900">Daily Assessment Reminders</h3>
+        </div>
+        
+        <div className="flex items-center mb-4">
+          <input
+            type="checkbox"
+            id="enableReminders"
+            checked={formData.reminderSettings.dailyAssessment}
+            onChange={(e) => setReminderSettings({
+              ...formData.reminderSettings,
+              dailyAssessment: e.target.checked
+            })}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label htmlFor="enableReminders" className="ml-2 text-sm font-medium text-gray-700">
+            Enable daily pain assessment reminders
+          </label>
+        </div>
+
+        {formData.reminderSettings.dailyAssessment && (
+          <div className="space-y-4 pl-6 border-l-2 border-blue-200">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reminder Time
+              </label>
+              <input
+                type="time"
+                value={formData.reminderSettings.reminderTime}
+                onChange={(e) => setReminderSettings({
+                  ...formData.reminderSettings,
+                  reminderTime: e.target.value
+                })}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Time when daily reminders will be sent to the patient
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notification Methods
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.reminderSettings.methods.includes('email')}
+                    onChange={(e) => handleMethodChange('email', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Email notifications</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.reminderSettings.methods.includes('sms')}
+                    onChange={(e) => handleMethodChange('sms', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">SMS notifications</span>
+                </label>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Choose how the patient will receive reminder notifications
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!formData.reminderSettings.dailyAssessment && (
+          <div className="text-center py-4 text-gray-500">
+            <p className="text-sm">Enable reminders to help patients stay on track with their daily assessments.</p>
           </div>
         )}
       </div>

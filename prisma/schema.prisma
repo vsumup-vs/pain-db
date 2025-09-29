@@ -268,7 +268,7 @@ model Enrollment {
   consentAt      DateTime?         @map("consent_at")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @default(now()) @map("updated_at")
-
+  reminderSettings  Json?             @map("reminder_settings")
   patient        Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
   preset         ConditionPreset   @relation(fields: [presetId], references: [id])
   clinician      Clinician?        @relation(fields: [clinicianId], references: [id])

@@ -157,9 +157,13 @@ export default function AssessmentTemplatesEnhanced() {
   const handlePreview = async (template) => {
     try {
       const response = await api.getAssessmentTemplateV2(template.id)
-      setPreviewingTemplate(response.data)
+      console.log('V2 API Response:', response)
+      // The enhanced controller returns the template directly, not wrapped in { data: template }
+      // The interceptor returns response.data, so response IS the template
+      setPreviewingTemplate(response)
       setIsPreviewModalOpen(true)
     } catch (error) {
+      console.error('Error in handlePreview:', error)
       toast.error('Failed to load template details')
     }
   }

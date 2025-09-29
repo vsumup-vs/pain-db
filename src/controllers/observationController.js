@@ -4,12 +4,13 @@ const { PrismaClient } = require('../../generated/prisma');
 const prisma = global.prisma || new PrismaClient();
 
 // Create a new observation
+// Optimized createObservation function
 const createObservation = async (req, res) => {
   try {
     const {
       patientId,
       metricDefinitionId,
-      enrollmentId, // Add this required field
+      enrollmentId,
       value,
       notes,
       recordedAt,
@@ -26,95 +27,65 @@ const createObservation = async (req, res) => {
       });
     }
 
-    // Validate UUID formats
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(patientId)) {
+    // OPTIMIZATION 1: Batch all validation queries into a single Promise.all
+    const [patient, enrollment, metricDefinition] = await Promise.all([
+      prisma.patient.findUnique({
+        where: { id: patientId },
+        select: { id: true, mrn: true } // Only select needed fields
+      }),
+      prisma.enrollment.findUnique({
+        where: { id: enrollmentId },
+        select: { id: true, patientId: true, status: true } // Only select needed fields
+      }),
+      prisma.metricDefinition.findUnique({
+        where: { id: metricDefinitionId },
+        select: { 
+          id: true, 
+          key: true, 
+          displayName: true, 
+          valueType: true, 
+          unit: true,
+          version: true,
+          activeFrom: true,
+          activeTo: true
+        }
+      })
+    ]);
+
+    // OPTIMIZATION 2: Batch validation checks
+    const validationErrors = [];
+    
+    if (!patient) validationErrors.push('Patient not found');
+    if (!enrollment) validationErrors.push('Enrollment not found');
+    if (!metricDefinition) validationErrors.push('Metric definition not found');
+    
+    if (enrollment && enrollment.patientId !== patientId) {
+      validationErrors.push('Enrollment does not belong to the specified patient');
+    }
+    
+    if (enrollment && enrollment.status !== 'active') {
+      validationErrors.push('Enrollment is not active');
+    }
+
+    // Check metric definition active status
+    if (metricDefinition) {
+      const now = new Date();
+      if (metricDefinition.activeTo && metricDefinition.activeTo < now) {
+        validationErrors.push('Metric definition is no longer active');
+      }
+      if (metricDefinition.activeFrom && metricDefinition.activeFrom > now) {
+        validationErrors.push('Metric definition is not yet active');
+      }
+    }
+
+    if (validationErrors.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid patientId format. Must be a valid UUID.'
-      });
-    }
-    if (!uuidRegex.test(metricDefinitionId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid metricDefinitionId format. Must be a valid UUID.'
-      });
-    }
-    if (!uuidRegex.test(enrollmentId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid enrollmentId format. Must be a valid UUID.'
+        message: validationErrors.join(', ')
       });
     }
 
-    // Verify patient exists
-    const patient = await prisma.patient.findUnique({
-      where: { id: patientId }
-    });
-
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
-    }
-
-    // Verify enrollment exists and is active
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { id: enrollmentId },
-      include: { patient: true }
-    });
-
-    if (!enrollment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Enrollment not found'
-      });
-    }
-
-    if (enrollment.patientId !== patientId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Enrollment does not belong to the specified patient'
-      });
-    }
-
-    if (enrollment.status !== 'active') {
-      return res.status(400).json({
-        success: false,
-        message: 'Enrollment is not active'
-      });
-    }
-
-    // Verify metric definition exists and is active
-    const metricDefinition = await prisma.metricDefinition.findUnique({
-      where: { id: metricDefinitionId }
-    });
-
-    if (!metricDefinition) {
-      return res.status(404).json({
-        success: false,
-        message: 'Metric definition not found'
-      });
-    }
-
-    // Check if metric definition is currently active
-    const now = new Date();
-    if (metricDefinition.activeTo && metricDefinition.activeTo < now) {
-      return res.status(400).json({
-        success: false,
-        message: 'Metric definition is no longer active'
-      });
-    }
-
-    if (metricDefinition.activeFrom && metricDefinition.activeFrom > now) {
-      return res.status(400).json({
-        success: false,
-        message: 'Metric definition is not yet active'
-      });
-    }
-
-    // Validate value against metric definition
+    // OPTIMIZATION 3: Simplified value validation
     const validationResult = validateValueAgainstMetric(value, metricDefinition);
     if (!validationResult.isValid) {
       return res.status(400).json({
@@ -142,17 +113,17 @@ const createObservation = async (req, res) => {
         valueFields.valueText = validationResult.processedValue;
     }
 
-    // Create observation
+    // OPTIMIZATION 4: Create observation with minimal includes
     const observation = await prisma.observation.create({
       data: {
         patientId: patientId,
         enrollmentId: enrollmentId,
         metricDefinitionId: metricDefinitionId,
-        metricKey: metricDefinition.key, // Required field from schema
+        metricKey: metricDefinition.key,
         metricDefinitionVersion: metricDefinition.version,
         recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
         source: recordedBy === 'device' ? 'device' : recordedBy === 'staff' ? 'staff' : 'patient',
-        ...valueFields, // Spread the appropriate value field
+        ...valueFields,
         unit: metricDefinition.unit,
         context: context,
         raw: {
@@ -161,31 +132,21 @@ const createObservation = async (req, res) => {
           originalRecordedBy: recordedBy
         }
       },
-      include: {
-        patient: {
-          select: { id: true, mrn: true }
-        },
-        metricDefinition: {
-          select: { 
-            id: true, 
-            key: true, 
-            displayName: true, 
-            valueType: true, 
-            unit: true 
-          }
-        },
-        enrollment: {
-          select: {
-            id: true,
-            status: true
-          }
-        }
+      select: {
+        id: true,
+        patientId: true,
+        enrollmentId: true,
+        metricDefinitionId: true,
+        recordedAt: true,
+        valueNumeric: true,
+        valueCode: true,
+        valueText: true
       }
     });
 
     res.status(201).json({
       success: true,
-      message: 'Observation created successfully',
+      message: 'Observation recorded successfully',
       data: observation
     });
   } catch (error) {

@@ -36,7 +36,7 @@ export default function ConditionPresets() {
 
   const { data: assessmentTemplates } = useQuery({
     queryKey: ['assessment-templates'],
-    queryFn: () => api.getAssessmentTemplates(),
+    queryFn: () => api.getAssessmentTemplates({ limit: 1000 }), // Fetch all templates
   })
 
   const createMutation = useMutation({
@@ -353,12 +353,12 @@ export default function ConditionPresets() {
                         </div>
                         <div className="space-y-1">
                           {preset.templates.slice(0, 3).map((templateLink, index) => (
-                            <div key={index} className="flex items-center justify-between text-xs">
-                              <span className="text-gray-600 truncate">
-                                {templateLink.template?.name || 'Unknown Template'}
-                              </span>
-                              <CheckCircleIcon className="h-3 w-3 text-green-500 ml-2" />
-                            </div>
+                          <div key={index} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600 truncate">
+                              {templateLink.template?.name || `Template ID: ${templateLink.templateId} (Missing)`}
+                            </span>
+                            <CheckCircleIcon className="h-3 w-3 text-green-500 ml-2" />
+                          </div>
                           ))}
                           {preset.templates.length > 3 && (
                             <div className="text-xs text-gray-500 pt-1">

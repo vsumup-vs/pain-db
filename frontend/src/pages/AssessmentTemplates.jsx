@@ -96,13 +96,34 @@ export default function AssessmentTemplates() {
 
   const handlePreview = async (template) => {
     try {
-      // Fetch full template details including metrics
-      const response = await api.get(`/assessment-templates/${template.id}`)
-      setPreviewingTemplate(response.data)
-      setIsPreviewModalOpen(true)
+      console.log('🔍 Starting preview for template:', template);
+      
+      // Fetch full template details including metrics using the proper API method
+      const response = await api.getAssessmentTemplate(template.id);
+      
+      console.log('📡 Full API Response:', response);
+      console.log('📊 Response.data:', response.data);
+      console.log('🆔 Template ID:', template.id);
+      console.log('🔍 Type of response:', typeof response);
+      console.log('🔍 Type of response.data:', typeof response.data);
+      
+      // Check if response.data exists and has the expected structure
+      if (response && response.data) {
+        console.log('✅ Setting previewingTemplate to:', response.data);
+        setPreviewingTemplate(response.data);
+      } else if (response) {
+        console.log('⚠️ No response.data, setting previewingTemplate to response:', response);
+        setPreviewingTemplate(response);
+      } else {
+        console.log('❌ No response received');
+        toast.error('No template data received');
+        return;
+      }
+      
+      setIsPreviewModalOpen(true);
     } catch (error) {
-      console.error('Error fetching template details:', error)
-      toast.error('Failed to load template details')
+      console.error('❌ Error fetching template details:', error);
+      toast.error('Failed to load template details');
     }
   }
 

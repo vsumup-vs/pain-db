@@ -10,6 +10,7 @@ const {
   createBulkEnrollments,
   getAllEnrollments,
   getEnrollmentById,
+  getEnrollmentWithFilteredMetrics, // Add the new import
   updateEnrollment,
   deleteEnrollment,
   deactivateEnrollment,
@@ -29,6 +30,7 @@ router.post('/bulk-create', createBulkEnrollments);
 router.get('/', getAllEnrollments);
 router.get('/stats', getEnrollmentStats);
 router.get('/:id', getEnrollmentById);
+router.get('/:id/filtered-metrics', getEnrollmentWithFilteredMetrics); // Add the new route
 router.put('/:id', updateEnrollment);
 router.delete('/:id', deleteEnrollment);
 router.put('/:id/deactivate', deactivateEnrollment);

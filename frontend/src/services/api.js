@@ -111,6 +111,7 @@ export const api = {
   // Enrollments
   getEnrollments: (params) => apiClient.get('/enrollments', { params }),
   getEnrollment: (id) => apiClient.get(`/enrollments/${id}`),
+  getEnrollmentWithFilteredMetrics: (id) => apiClient.get(`/enrollments/${id}/filtered-metrics`), // Add new method
   createEnrollment: (data) => apiClient.post('/enrollments', data),
   createBulkEnrollments: (enrollmentData) => apiClient.post('/enrollments/bulk-create', { enrollments: enrollmentData }),
   updateEnrollment: (id, data) => apiClient.put(`/enrollments/${id}`, data),
