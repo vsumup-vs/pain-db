@@ -14,6 +14,27 @@ const getCategoryFromKey = (key) => {
   return 'General';
 };
 
+// Helper function to generate key from name and category
+const generateKeyFromNameAndCategory = (name, category) => {
+  const categoryPrefixes = {
+    'Pain Management': 'pain',
+    'Diabetes': 'glucose',
+    'Cardiovascular': 'bp',
+    'Fibromyalgia': 'fatigue',
+    'Arthritis': 'joint',
+    'Medication': 'medication',
+    'General': 'general'
+  };
+  
+  const prefix = categoryPrefixes[category] || 'general';
+  const cleanName = name.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 20);
+  
+  return `${prefix}_${cleanName}`;
+};
+
 // Get standardized metric templates
 const getStandardizedTemplates = async (req, res) => {
   try {
@@ -229,13 +250,16 @@ const getTemplateDetails = async (req, res) => {
 const createMetricDefinition = async (req, res) => {
   try {
     const {
-      key,           // Add this required field
-      displayName,   // Change from 'name'
+      name,          // Accept 'name' from frontend
+      displayName,   // Also accept displayName for backward compatibility
       description,
-      valueType,     // Change from 'dataType'
+      valueType,
+      category,      // Add category field
       unit,
-      scaleMin,      // Change from 'minValue'
-      scaleMax,      // Change from 'maxValue'
+      minValue,      // Accept both minValue and scaleMin
+      maxValue,      // Accept both maxValue and scaleMax
+      scaleMin,
+      scaleMax,
       decimalPrecision,
       requiredDefault = false,
       defaultFrequency,
@@ -245,53 +269,93 @@ const createMetricDefinition = async (req, res) => {
       localeOverrides
     } = req.body;
 
+    // Use name or displayName, whichever is provided
+    const finalDisplayName = displayName || name;
+    const finalCategory = category || 'General';
+    
+    // Generate key from name and category
+    const key = generateKeyFromNameAndCategory(finalDisplayName, finalCategory);
+
+    // Use the provided scale values or fall back to min/max values
+    const finalScaleMin = scaleMin !== undefined ? scaleMin : minValue;
+    const finalScaleMax = scaleMax !== undefined ? scaleMax : maxValue;
+
     // Validate required fields
-    if (!key || !displayName || !valueType) {
+    if (!finalDisplayName || !valueType) {
       return res.status(400).json({
         success: false,
-        message: 'key, displayName and valueType are required'
+        message: 'name/displayName and valueType are required'
       });
     }
 
     // Validate value type specific requirements
-    if (valueType === 'numeric' && (scaleMin === undefined || scaleMax === undefined)) {
+    if (valueType === 'numeric' && (finalScaleMin === undefined || finalScaleMax === undefined)) {
       return res.status(400).json({
         success: false,
-        message: 'Numeric metrics require scaleMin and scaleMax'
+        message: 'Numeric metrics require scaleMin/minValue and scaleMax/maxValue'
       });
     }
 
-    // Validate categorical/ordinal metrics require options
-    if ((valueType === 'categorical' || valueType === 'ordinal') && (!options || !Array.isArray(options) || options.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Categorical and ordinal metrics require options array'
-      });
+    // Process options for categorical/ordinal metrics
+    let processedOptions = options;
+    if (valueType === 'categorical' || valueType === 'ordinal') {
+      if (typeof options === 'string') {
+        // Convert string options (from textarea) to proper format
+        const optionLines = options.split('\n').filter(line => line.trim());
+        processedOptions = {
+          values: optionLines.map((line, index) => ({
+            code: `option_${index + 1}`,
+            display: line.trim()
+          }))
+        };
+      } else if (Array.isArray(options)) {
+        // Convert array to proper format
+        processedOptions = {
+          values: options.map((option, index) => ({
+            code: typeof option === 'object' ? option.code : `option_${index + 1}`,
+            display: typeof option === 'object' ? option.display : option
+          }))
+        };
+      }
+
+      if (!processedOptions || !processedOptions.values || processedOptions.values.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Categorical and ordinal metrics require options'
+        });
+      }
     }
 
     const metricDefinition = await prisma.metricDefinition.create({
       data: {
         key,
-        displayName,
-        description,  // Add this missing field
+        displayName: finalDisplayName,
+        description,
         valueType,
         unit,
-        scaleMin: valueType === 'numeric' ? scaleMin : null,
-        scaleMax: valueType === 'numeric' ? scaleMax : null,
+        scaleMin: valueType === 'numeric' ? finalScaleMin : null,
+        scaleMax: valueType === 'numeric' ? finalScaleMax : null,
         decimalPrecision,
         requiredDefault,
         defaultFrequency,
         coding,
-        options,
+        options: processedOptions,
         validation,
         localeOverrides
       }
     });
 
+    // Add category info to response
+    const enrichedMetric = {
+      ...metricDefinition,
+      category: finalCategory,
+      isStandardized: !!metricDefinition.coding
+    };
+
     res.status(201).json({
       success: true,
       message: 'Metric definition created successfully',
-      data: metricDefinition
+      data: enrichedMetric
     });
   } catch (error) {
     console.error('Error creating metric definition:', error);
@@ -345,9 +409,12 @@ const getAllMetricDefinitions = async (req, res) => {
       prisma.metricDefinition.count({ where })
     ]);
 
-    // Add standardization info to each metric
+    // Add standardization info to each metric and convert Decimal values to numbers
     const enrichedMetrics = metricDefinitions.map(metric => ({
       ...metric,
+      // Convert Prisma Decimal objects to JavaScript numbers
+      scaleMin: metric.scaleMin ? Number(metric.scaleMin.toString()) : null,
+      scaleMax: metric.scaleMax ? Number(metric.scaleMax.toString()) : null,
       isStandardized: !!metric.coding,
       category: getCategoryFromKey(metric.key)
     }));
@@ -402,9 +469,12 @@ const getMetricDefinitionById = async (req, res) => {
       });
     }
 
-    // Add standardization info
+    // Add standardization info and convert Decimal values to numbers
     const enrichedMetric = {
       ...metricDefinition,
+      // Convert Prisma Decimal objects to JavaScript numbers
+      scaleMin: metricDefinition.scaleMin ? Number(metricDefinition.scaleMin.toString()) : null,
+      scaleMax: metricDefinition.scaleMax ? Number(metricDefinition.scaleMax.toString()) : null,
       isStandardized: !!metricDefinition.coding,
       category: getCategoryFromKey(metricDefinition.key)
     };

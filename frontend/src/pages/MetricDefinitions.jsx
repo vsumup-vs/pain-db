@@ -1,19 +1,9 @@
 import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'react-toastify'
 import { 
   PlusIcon, 
-  PencilIcon, 
-  TrashIcon,
   InformationCircleIcon,
-  HashtagIcon,
-  DocumentTextIcon,
-  ScaleIcon,
-  ClockIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
   ChartBarIcon,
   ListBulletIcon,
   NumberedListIcon,
@@ -29,1271 +19,450 @@ import {
   BoltIcon,
   ClipboardDocumentListIcon,
   EyeIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  // Additional RTM-specific icons
+  AcademicCapIcon,
+  BanknotesIcon,
+  CpuChipIcon,
+  FireIcon,
+  GlobeAltIcon,
+  HomeIcon,
+  LifebuoyIcon,
+  LightBulbIcon,
+  MoonIcon,
+  PuzzlePieceIcon,
+  RocketLaunchIcon,
+  SunIcon,
+  TrophyIcon,
+  UserGroupIcon,
+  WifiIcon
 } from '@heroicons/react/24/outline'
-import { api } from '../services/api'
-import Modal from '../components/Modal'
-import MetricTemplateSelector from '../components/MetricTemplateSelector'
-import StandardizedMetricSelector from '../components/StandardizedMetricSelector'
-import StandardMetricEditor from '../components/StandardMetricEditor'
+
+// Import refactored components and hooks
+import { useMetricDefinitions } from '../components/MetricDefinitions/hooks/useMetricDefinitions'
+import { useMetricFilters } from '../components/MetricDefinitions/hooks/useMetricFilters'
+import { SearchAndFilters } from '../components/MetricDefinitions/components/SearchAndFilters'
+import { MetricsList } from '../components/MetricDefinitions/components/MetricsList'
+import { GroupedMetricsList } from '../components/MetricDefinitions/components/GroupedMetricsList'
+import MetricDefinitionForm from '../components/MetricDefinitions/forms/MetricDefinitionForm'
 
 export default function MetricDefinitions() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  // State management
+  const [showModal, setShowModal] = useState(false)
   const [editingMetric, setEditingMetric] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
-  const [creationFlow, setCreationFlow] = useState('type-selection') // 'type-selection', 'template-selection', 'standard-editor', 'custom-form'
+  const [currentFlow, setCurrentFlow] = useState('typeSelection') // 'typeSelection', 'templateSelection', 'standardizedSelection', 'customForm'
+  const [selectedType, setSelectedType] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState(null)
-  const queryClient = useQueryClient()
 
-  const { data: metricDefinitions, isLoading, error } = useQuery({
-    queryKey: ['metricDefinitions'],
-    queryFn: api.getMetricDefinitions
-  })
+  // Custom hooks
+  const {
+    metricDefinitions,
+    isLoading,
+    error,
+    refetch,
+    createMetric,
+    updateMetric,
+    deleteMetric,
+    isCreating,
+    isUpdating,
+    isDeleting
+  } = useMetricDefinitions()
 
-  const createMutation = useMutation({
-    mutationFn: api.createMetricDefinition,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['metricDefinitions'])
-      handleCloseModal()
-      toast.success('Metric definition created successfully')
-    },
-    onError: (error) => {
-      console.error('Create error:', error)
-      toast.error(error.response?.data?.message || 'Failed to create metric definition')
-    }
-  })
+  const {
+    searchTerm,
+    setSearchTerm,
+    filterType,
+    setFilterType,
+    filterCategory,
+    setFilterCategory,
+    viewMode,
+    setViewMode,
+    uniqueTypes,
+    uniqueCategories,
+    filteredMetrics
+  } = useMetricFilters(metricDefinitions)
 
-  const createFromTemplateMutation = useMutation({
-    mutationFn: (data) => api.post('/metric-definitions/templates/create', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['metricDefinitions'])
-      handleCloseModal()
-      toast.success('Standardized metric created successfully')
-    },
-    onError: (error) => {
-      console.error('Create from template error:', error)
-      toast.error(error.response?.data?.message || 'Failed to create metric from template')
-    }
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => api.updateMetricDefinition(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['metricDefinitions'])
-      handleCloseModal()
-      toast.success('Metric definition updated successfully')
-    },
-    onError: (error) => {
-      console.error('Update error:', error)
-      toast.error(error.response?.data?.message || 'Failed to update metric definition')
-    }
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: api.deleteMetricDefinition,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['metricDefinitions'])
-      toast.success('Metric definition deleted successfully')
-    },
-    onError: (error) => {
-      console.error('Delete error:', error)
-      toast.error(error.response?.data?.message || 'Failed to delete metric definition')
-    }
-  })
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
+  // Modal handlers
+  const openCreateModal = () => {
     setEditingMetric(null)
-    setCreationFlow('type-selection')
+    setCurrentFlow('typeSelection')
+    setSelectedType('')
+    setSelectedTemplate(null)
+    setShowModal(true)
+  }
+
+  const openEditModal = (metric) => {
+    setEditingMetric(metric)
+    setCurrentFlow('customForm')
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setEditingMetric(null)
+    setCurrentFlow('typeSelection')
+    setSelectedType('')
     setSelectedTemplate(null)
   }
 
-  const handleOpenCreateModal = () => {
-    setEditingMetric(null)
-    setCreationFlow('type-selection')
-    setIsModalOpen(true)
+  // Form handlers
+  const handleSubmit = async (formData) => {
+    try {
+      if (editingMetric) {
+        await updateMetric(editingMetric.id, formData)
+      } else {
+        await createMetric(formData)
+      }
+      closeModal()
+    } catch (error) {
+      console.error('Error saving metric:', error)
+    }
   }
 
-  const handleSelectMetricType = (type) => {
+  const handleDelete = async (metric) => {
+    if (window.confirm(`Are you sure you want to delete "${metric.displayName || metric.key}"?`)) {
+      try {
+        await deleteMetric(metric.id)
+      } catch (error) {
+        console.error('Error deleting metric:', error)
+      }
+    }
+  }
+
+  // Flow handlers
+  const handleTypeSelection = (type) => {
+    setSelectedType(type)
     if (type === 'standardized') {
-      setCreationFlow('template-selection')
+      setCurrentFlow('standardizedSelection')
     } else {
-      setCreationFlow('custom-form')
+      setCurrentFlow('templateSelection')
     }
   }
 
-  const handleSelectTemplate = (template) => {
+  const handleTemplateSelection = (template) => {
     setSelectedTemplate(template)
-    setCreationFlow('standard-editor')
+    setCurrentFlow('customForm')
   }
 
-  const handleBackToTypeSelection = () => {
-    setCreationFlow('type-selection')
+  const handleStandardizedSelection = (metric) => {
+    setEditingMetric(metric)
+    setCurrentFlow('customForm')
+  }
+
+  const goBackToTypeSelection = () => {
+    setCurrentFlow('typeSelection')
+    setSelectedType('')
     setSelectedTemplate(null)
   }
 
-  const handleBackToTemplateSelection = () => {
-    setCreationFlow('template-selection')
+  const goBackToTemplateSelection = () => {
+    setCurrentFlow('templateSelection')
     setSelectedTemplate(null)
   }
 
-  const handleSubmitStandardized = (data) => {
-    createFromTemplateMutation.mutate(data)
-  }
-
-  const handleSubmit = (data) => {
-    // Validate required fields
-    if (!data.name) {
-      toast.error('Name is required')
-      return
-    }
-
-    // Additional validation for numeric metrics
-    if (data.valueType === 'numeric') {
-      if (!data.minValue || !data.maxValue) {
-        toast.error('Min Value and Max Value are required for numeric metrics')
-        return
-      }
-      if (parseFloat(data.minValue) >= parseFloat(data.maxValue)) {
-        toast.error('Min Value must be less than Max Value')
-        return
-      }
-    }
-
-    // Validation for categorical/ordinal metrics
-    if ((data.valueType === 'categorical' || data.valueType === 'ordinal') && (!data.options || data.options.length === 0)) {
-      toast.error('Options are required for categorical and ordinal metrics')
-      return
-    }
-
-    // Generate a key from the name if not provided
-    const key = data.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-
-    // Map frontend field names to backend field names
-    const backendData = {
-      key: key,
-      displayName: data.name,
-      description: data.description || '',
-      valueType: data.valueType.toLowerCase(),
-      unit: data.unit || null,
-      requiredDefault: data.requiredDefault || false,
-      defaultFrequency: data.defaultFrequency || null,
-    }
-
-    // Only include numeric-specific fields for numeric metrics
-    if (data.valueType === 'numeric') {
-      backendData.scaleMin = parseFloat(data.minValue)
-      backendData.scaleMax = parseFloat(data.maxValue)
-      if (data.decimalPrecision) {
-        backendData.decimalPrecision = parseInt(data.decimalPrecision)
-      }
-    }
-
-    // Include options for categorical/ordinal metrics
-    if ((data.valueType === 'categorical' || data.valueType === 'ordinal') && data.options) {
-      backendData.options = data.options
-    }
-
-    // Add debugging
-    console.log('Submitting metric definition:', backendData)
-
-    if (editingMetric) {
-      updateMutation.mutate({ id: editingMetric.id, data: backendData })
-    } else {
-      createMutation.mutate(backendData)
-    }
-  }
-
-  const handleEdit = (metric) => {
-    // Map backend field names to frontend field names
-    const frontendMetric = {
-      ...metric,
-      name: metric.displayName,
-      minValue: metric.scaleMin,
-      maxValue: metric.scaleMax,
-    }
-    setEditingMetric(frontendMetric)
-    setCreationFlow('custom-form')
-    setIsModalOpen(true)
-  }
-
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this metric definition?')) {
-      deleteMutation.mutate(id)
-    }
-  }
-
-  // Get type icon and info
-  const getTypeInfo = (valueType) => {
-    const types = {
-      numeric: { icon: CalculatorIcon, label: 'Numeric', color: 'text-blue-600' },
-      text: { icon: DocumentTextIcon, label: 'Text', color: 'text-green-600' },
-      boolean: { icon: CheckCircleIcon, label: 'Boolean', color: 'text-purple-600' },
-      categorical: { icon: ListBulletIcon, label: 'Categorical', color: 'text-orange-600' },
-      ordinal: { icon: NumberedListIcon, label: 'Ordinal', color: 'text-red-600' }
-    }
-    return types[valueType] || { icon: TagIcon, label: valueType, color: 'text-gray-600' }
-  }
-
-  // Filter metrics based on search and type
-  const filteredMetrics = metricDefinitions?.data?.filter(metric => {
-    const matchesSearch = metric.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         metric.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         metric.key.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'all' || metric.valueType === filterType
-    return matchesSearch && matchesType
-  }) || []
-
-  // Get unique metric types for filter
-  const metricTypes = [...new Set(metricDefinitions?.data?.map(m => m.valueType) || [])]
-
-  // Render modal content based on creation flow
-  const renderModalContent = () => {
-    switch (creationFlow) {
-      case 'type-selection':
-        return (
-          <MetricTemplateSelector
-            onSelectType={handleSelectMetricType}
-            onClose={handleCloseModal}
-          />
-        )
-      case 'template-selection':
-        return (
-          <StandardizedMetricSelector
-            onSelectTemplate={handleSelectTemplate}
-            onBack={handleBackToTypeSelection}
-          />
-        )
-      case 'standard-editor':
-        return (
-          <StandardMetricEditor
-            template={selectedTemplate}
-            onSubmit={handleSubmitStandardized}
-            onBack={handleBackToTemplateSelection}
-            isLoading={createFromTemplateMutation.isLoading}
-          />
-        )
-      case 'custom-form':
-        return (
-          <MetricDefinitionForm
-            metric={editingMetric}
-            onSubmit={handleSubmit}
-            isLoading={createMutation.isLoading || updateMutation.isLoading}
-          />
-        )
-      default:
-        return null
-    }
-  }
-
+  // Loading and error states
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading metric definitions...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <ExclamationCircleIcon className="h-12 w-12 text-red-500 mx-auto" />
-          <p className="mt-4 text-red-600">Error loading metric definitions: {error.message}</p>
+          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-500" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading metrics</h3>
+          <p className="mt-1 text-sm text-gray-500">{error.message}</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <ArrowPathIcon className="h-4 w-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header Section */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <ChartBarIcon className="h-8 w-8 text-indigo-600 mr-3" />
-                Metric Definitions
-              </h1>
-              <p className="mt-2 text-gray-600">
-                Manage and configure metrics for patient data collection
-              </p>
-            </div>
-            <button
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Add New Metric
-            </button>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Metric Definitions</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage and configure metric definitions for patient monitoring
+          </p>
         </div>
+        <button
+          onClick={openCreateModal}
+          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <PlusIcon className="h-4 w-4 mr-2" />
+          Create Metric
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search and Filter Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search metrics by name, description, or key..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              />
-            </div>
-            <div className="relative">
-              <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white min-w-[150px]"
-              >
-                <option value="all">All Types</option>
-                {metricTypes.map(type => (
-                  <option key={type} value={type}>
-                    {getTypeInfo(type).label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+      {/* Search and Filters */}
+      <SearchAndFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        filterType={filterType}
+        setFilterType={setFilterType}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        uniqueTypes={uniqueTypes}
+        uniqueCategories={uniqueCategories}
+      />
 
-        {/* Metrics Grid */}
-        {filteredMetrics.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
-            <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm || filterType !== 'all' ? 'No matching metrics found' : 'No metric definitions yet'}
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {searchTerm || filterType !== 'all' 
-                ? 'Try adjusting your search or filter criteria'
-                : 'Create your first metric definition to get started'
-              }
-            </p>
-            {!searchTerm && filterType === 'all' && (
-              <button
-                onClick={handleOpenCreateModal}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Create First Metric
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMetrics.map((metric) => {
-              const typeInfo = getTypeInfo(metric.valueType)
-              const TypeIcon = typeInfo.icon
-              const isStandardized = !!metric.coding
-
-              return (
-                <div key={metric.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200">
-                  <div className="p-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start space-x-3 flex-1">
-                        <div className={`p-2 rounded-lg bg-gray-100`}>
-                          <TypeIcon className={`h-5 w-5 ${typeInfo.color}`} />
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                              {metric.displayName}
-                            </h3>
-                            {isStandardized && (
-                              <ShieldCheckIcon className="h-4 w-4 text-blue-600" title="Standardized Metric" />
-                            )}
-                          </div>
-                          <div className="flex items-center mt-1">
-                            <HashtagIcon className="h-3 w-3 text-gray-400 mr-1" />
-                            <span className="text-xs text-gray-500 font-mono">{metric.key}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleEdit(metric)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Edit metric"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(metric.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete metric"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    {metric.description && (
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                        {metric.description}
-                      </p>
-                    )}
-
-                    {/* Standardization Info */}
-                    {isStandardized && (
-                      <div className="bg-blue-50 rounded-lg p-3 mb-4">
-                        <div className="flex items-center mb-2">
-                          <SparklesIcon className="h-4 w-4 text-blue-600 mr-2" />
-                          <span className="text-xs font-medium text-blue-900">Standardized Codes</span>
-                        </div>
-                        <div className="space-y-1 text-xs">
-                          {metric.coding?.primary?.code && (
-                            <div className="text-blue-700">
-                              LOINC: {metric.coding.primary.code}
-                            </div>
-                          )}
-                          {metric.coding?.secondary?.[0]?.code && (
-                            <div className="text-green-700">
-                              SNOMED: {metric.coding.secondary[0].code}
-                            </div>
-                          )}
-                          {metric.coding?.mappings?.icd10 && (
-                            <div className="text-purple-700">
-                              ICD-10: {metric.coding.mappings.icd10}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Metric Details */}
-                    <div className="space-y-3">
-                      {/* Type and Unit */}
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            typeInfo.color === 'text-blue-600' ? 'bg-blue-100 text-blue-800' :
-                            typeInfo.color === 'text-green-600' ? 'bg-green-100 text-green-800' :
-                            typeInfo.color === 'text-purple-600' ? 'bg-purple-100 text-purple-800' :
-                            typeInfo.color === 'text-orange-600' ? 'bg-orange-100 text-orange-800' :
-                            typeInfo.color === 'text-red-600' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {typeInfo.label}
-                          </span>
-                          {metric.unit && (
-                            <span className="text-gray-500">• {metric.unit}</span>
-                          )}
-                        </div>
-                        {metric.requiredDefault && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Required
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Numeric range */}
-                      {metric.valueType === 'numeric' && metric.scaleMin !== null && metric.scaleMax !== null && (
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center mb-2">
-                            <ScaleIcon className="h-4 w-4 text-gray-500 mr-2" />
-                            <span className="text-xs font-medium text-gray-700">Range</span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <span className="text-gray-600">
-                              {metric.scaleMin !== null ? metric.scaleMin : '-∞'}
-                            </span>
-                            <div className="flex-1 mx-3 border-t border-gray-300"></div>
-                            <span className="text-gray-600">
-                              {metric.scaleMax !== null ? metric.scaleMax : '+∞'}
-                            </span>
-                          </div>
-                          {metric.decimalPrecision !== null && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              Precision: {metric.decimalPrecision} decimal places
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Options for categorical/ordinal */}
-                      {metric.options && Array.isArray(metric.options) && metric.options.length > 0 && (
-                        <div className="bg-gray-50 rounded-lg p-3 mt-3">
-                          <div className="flex items-center mb-2">
-                            <ListBulletIcon className="h-4 w-4 text-gray-500 mr-2" />
-                            <span className="text-xs font-medium text-gray-700">
-                              Options ({metric.options.length})
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {metric.options.slice(0, 3).map((option, index) => (
-                              <span 
-                                key={index}
-                                className="inline-flex items-center px-2 py-1 rounded text-xs bg-white text-gray-700 border border-gray-200"
-                              >
-                                {typeof option === 'object' ? option.label || option.value : option}
-                              </span>
-                            ))}
-                            {metric.options.length > 3 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-200 text-gray-600">
-                                +{metric.options.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Frequency */}
-                      {metric.defaultFrequency && (
-                        <div className="flex items-center text-xs text-gray-500">
-                          <ClockIcon className="h-3 w-3 mr-1" />
-                          Default frequency: {metric.defaultFrequency}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      {/* Metrics List */}
+      {viewMode === 'grouped' ? (
+        <GroupedMetricsList
+          metrics={filteredMetrics}
+          onEdit={openEditModal}
+          onDelete={handleDelete}
+          onCreateFirst={openCreateModal}
+        />
+      ) : (
+        <MetricsList
+          metrics={filteredMetrics}
+          onEdit={openEditModal}
+          onDelete={handleDelete}
+          onCreateFirst={openCreateModal}
+        />
+      )}
 
       {/* Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        title={
-          creationFlow === 'type-selection' ? 'Create New Metric' :
-          creationFlow === 'template-selection' ? 'Select Template' :
-          creationFlow === 'standard-editor' ? 'Customize Metric' :
-          editingMetric ? 'Edit Metric Definition' : 'Create Custom Metric'
-        }
-        size="xl"
-      >
-        <MetricDefinitionForm
-          metric={editingMetric}
-          onSubmit={handleSubmit}
-          isLoading={createMutation.isLoading || updateMutation.isLoading}
-        />
-      </Modal>
-    </div>
-  )
-}
-
-function EnhancedOrdinalOptionsSelector({ value, onChange }) {
-  const [showStandardOptions, setShowStandardOptions] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
-
-  // Standard ordinal option templates
-  const standardTemplates = {
-    'pain-severity': {
-      name: 'Pain Severity Scale',
-      description: 'Standard 0-10 pain severity scale',
-      icon: HeartIcon,
-      color: 'text-red-600',
-      bg: 'bg-red-50',
-      options: [
-        'No Pain (0)',
-        'Mild Pain (1-3)',
-        'Moderate Pain (4-6)', 
-        'Severe Pain (7-10)'
-      ]
-    },
-    'frequency': {
-      name: 'Frequency Scale',
-      description: 'How often something occurs',
-      icon: ClockIcon,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-      options: [
-        'Never',
-        'Rarely',
-        'Sometimes',
-        'Often',
-        'Always'
-      ]
-    },
-    'severity': {
-      name: 'General Severity',
-      description: 'General severity assessment',
-      icon: ExclamationTriangleIcon,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50',
-      options: [
-        'None',
-        'Mild',
-        'Moderate',
-        'Severe',
-        'Very Severe'
-      ]
-    },
-    'agreement': {
-      name: 'Agreement Scale',
-      description: 'Likert-style agreement scale',
-      icon: CheckCircleIcon,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
-      options: [
-        'Strongly Disagree',
-        'Disagree',
-        'Neutral',
-        'Agree',
-        'Strongly Agree'
-      ]
-    },
-    'quality': {
-      name: 'Quality Assessment',
-      description: 'Quality or satisfaction rating',
-      icon: SparklesIcon,
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
-      options: [
-        'Poor',
-        'Fair',
-        'Good',
-        'Very Good',
-        'Excellent'
-      ]
-    },
-    'improvement': {
-      name: 'Improvement Scale',
-      description: 'Change or improvement assessment',
-      icon: ArrowPathIcon,
-      color: 'text-indigo-600',
-      bg: 'bg-indigo-50',
-      options: [
-        'Much Worse',
-        'Worse',
-        'No Change',
-        'Better',
-        'Much Better'
-      ]
-    },
-    'phq9': {
-      name: 'PHQ-9 Response Scale',
-      description: 'Standard PHQ-9 depression screening responses',
-      icon: BeakerIcon,
-      color: 'text-teal-600',
-      bg: 'bg-teal-50',
-      options: [
-        'Not at all',
-        'Several days',
-        'More than half the days',
-        'Nearly every day'
-      ]
-    },
-    'numeric-0-10': {
-      name: 'Numeric Scale (0-10)',
-      description: 'Simple 0-10 numeric scale',
-      icon: NumberedListIcon,
-      color: 'text-gray-600',
-      bg: 'bg-gray-50',
-      options: [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'
-      ]
-    }
-  }
-
-  const handleTemplateSelect = (templateKey) => {
-    const template = standardTemplates[templateKey]
-    if (template) {
-      setSelectedTemplate(templateKey)
-      onChange(template.options.join('\n'))
-      setShowStandardOptions(false)
-    }
-  }
-
-  const handleCustomChange = (e) => {
-    setSelectedTemplate(null)
-    onChange(e.target.value)
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Standard Options Selector */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <label className="block text-sm font-medium text-gray-700">
-            Available Options *
-          </label>
-          <button
-            type="button"
-            onClick={() => setShowStandardOptions(!showStandardOptions)}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors"
-          >
-            <SparklesIcon className="w-3 h-3 mr-1" />
-            {showStandardOptions ? 'Hide' : 'Use'} Standard Options
-            <ChevronDownIcon className={`w-3 h-3 ml-1 transition-transform ${showStandardOptions ? 'rotate-180' : ''}`} />
-          </button>
-        </div>
-
-        {/* Standard Options Grid */}
-        {showStandardOptions && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h5 className="text-sm font-medium text-gray-900 mb-3">Choose from Standard Scales:</h5>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {Object.entries(standardTemplates).map(([key, template]) => {
-                const IconComponent = template.icon
-                const isSelected = selectedTemplate === key
-                
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleTemplateSelect(key)}
-                    className={`p-3 text-left border rounded-lg transition-all hover:shadow-sm ${
-                      isSelected 
-                        ? 'border-indigo-300 bg-indigo-50 ring-2 ring-indigo-200' 
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start">
-                      <div className={`p-1.5 rounded-lg ${template.bg} mr-3 flex-shrink-0`}>
-                        <IconComponent className={`w-4 h-4 ${template.color}`} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {template.name}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {template.description}
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {template.options.slice(0, 3).map((option, index) => (
-                            <span 
-                              key={index}
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-700"
-                            >
-                              {option}
-                            </span>
-                          ))}
-                          {template.options.length > 3 && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-200 text-gray-600">
-                              +{template.options.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Custom Options Textarea */}
-        <div className="relative">
-          <textarea
-            value={value}
-            onChange={handleCustomChange}
-            rows={6}
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            placeholder={`Enter one option per line, for example:\nMild\nModerate\nSevere\nVery Severe`}
-          />
-          
-          {/* Selected Template Indicator */}
-          {selectedTemplate && (
-            <div className="absolute top-2 right-2">
-              <div className="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-full">
-                <SparklesIcon className="w-3 h-3 mr-1" />
-                {standardTemplates[selectedTemplate].name}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Help Text */}
-        <div className="mt-2 space-y-1">
-          <p className="text-xs text-gray-500">
-            Enter options in order from lowest to highest. Order matters for ordinal data.
-          </p>
-          {selectedTemplate && (
-            <p className="text-xs text-indigo-600">
-              Using "{standardTemplates[selectedTemplate].name}" template. You can modify the options above if needed.
-            </p>
-          )}
-        </div>
-
-        {/* Preview */}
-        {value && (
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center mb-2">
-              <EyeIcon className="w-4 h-4 text-blue-600 mr-2" />
-              <span className="text-sm font-medium text-blue-900">Preview ({value.split('\n').filter(Boolean).length} options)</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {value.split('\n').filter(Boolean).map((option, index) => (
-                <span 
-                  key={index}
-                  className="inline-flex items-center px-2 py-1 text-xs bg-white text-gray-700 border border-blue-200 rounded"
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {editingMetric ? 'Edit Metric Definition' : 'Create New Metric Definition'}
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600"
                 >
-                  {index + 1}. {option.trim()}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
-  const [formData, setFormData] = useState({
-    name: metric?.displayName || metric?.name || '',
-    description: metric?.description || '',
-    valueType: metric?.valueType || 'numeric',
-    unit: metric?.unit || '',
-    minValue: metric?.scaleMin || metric?.minValue || '',
-    maxValue: metric?.scaleMax || metric?.maxValue || '',
-    decimalPrecision: metric?.decimalPrecision || '',
-    requiredDefault: metric?.requiredDefault || false,
-    defaultFrequency: metric?.defaultFrequency || '',
-    options: metric?.options ? (Array.isArray(metric.options) ? metric.options.map(opt => 
-      typeof opt === 'object' ? opt.label || opt.value : opt
-    ).join('\n') : '') : '',
-  })
+              {/* Modal Content */}
+              {currentFlow === 'typeSelection' && !editingMetric && (
+                <TypeSelectionFlow onSelectType={handleTypeSelection} />
+              )}
 
-  const [currentStep, setCurrentStep] = useState(1)
-  const totalSteps = 3
+              {currentFlow === 'templateSelection' && (
+                <TemplateSelectionFlow
+                  selectedType={selectedType}
+                  onSelectTemplate={handleTemplateSelection}
+                  onBack={goBackToTypeSelection}
+                />
+              )}
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }))
-  }
+              {currentFlow === 'standardizedSelection' && (
+                <StandardizedSelectionFlow
+                  onSelectMetric={handleStandardizedSelection}
+                  onBack={goBackToTypeSelection}
+                />
+              )}
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  const nextStep = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1)
-    }
-  }
-
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1)
-    }
-  }
-
-  const isStepValid = (step) => {
-    switch (step) {
-      case 1:
-        return formData.name && formData.valueType
-      case 2:
-        if (formData.valueType === 'numeric') {
-          return formData.minValue !== '' && formData.maxValue !== ''
-        }
-        if (formData.valueType === 'categorical' || formData.valueType === 'ordinal') {
-          return formData.options.trim().length > 0
-        }
-        return true
-      case 3:
-        return true
-      default:
-        return false
-    }
-  }
-
-  const getStepTitle = (step) => {
-    switch (step) {
-      case 1: return 'Basic Information'
-      case 2: return 'Configuration'
-      case 3: return 'Final Settings'
-      default: return ''
-    }
-  }
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && e.target.type !== 'textarea') {
-      e.preventDefault()
-      if (currentStep < totalSteps && isStepValid(currentStep)) {
-        nextStep()
-      } else if (currentStep === totalSteps && isStepValid(currentStep)) {
-        handleSubmit(e)
-      }
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Progress Steps */}
-      <div className="flex items-center justify-between mb-8">
-        {[1, 2, 3].map((step) => (
-          <div key={step} className="flex items-center">
-            <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-              step === currentStep 
-                ? 'border-indigo-600 bg-indigo-600 text-white' 
-                : step < currentStep 
-                  ? 'border-green-500 bg-green-500 text-white'
-                  : 'border-gray-300 bg-white text-gray-500'
-            }`}>
-              {step < currentStep ? (
-                <CheckCircleIcon className="w-6 h-6" />
-              ) : (
-                <span className="text-sm font-medium">{step}</span>
+              {currentFlow === 'customForm' && (
+                <MetricDefinitionForm
+                  metric={editingMetric}
+                  selectedType={selectedType}
+                  selectedTemplate={selectedTemplate}
+                  onSubmit={handleSubmit}
+                  onBack={editingMetric ? null : (selectedTemplate ? goBackToTemplateSelection : goBackToTypeSelection)}
+                  isLoading={isCreating || isUpdating}
+                />
               )}
             </div>
-            <div className="ml-3">
-              <p className={`text-sm font-medium ${
-                step === currentStep ? 'text-indigo-600' : step < currentStep ? 'text-green-600' : 'text-gray-500'
-              }`}>
-                {getStepTitle(step)}
-              </p>
-            </div>
-            {step < totalSteps && (
-              <div className={`w-16 h-0.5 ml-4 ${
-                step < currentStep ? 'bg-green-500' : 'bg-gray-300'
-              }`} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="space-y-6">
-        {/* Step 1: Basic Information */}
-        {currentStep === 1 && (
-          <div className="space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-900">Getting Started</h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Define the basic properties of your metric. This information will be visible to patients when they enter data.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-500" />
-                  Metric Name *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="e.g., Pain Quality, Mood Level, Sleep Quality"
-                />
-                <p className="text-xs text-gray-500 mt-1">This is what patients will see when entering data</p>
-              </div>
-
-              <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-500" />
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="Describe what this metric measures and how patients should interpret it..."
-                />
-                <p className="text-xs text-gray-500 mt-1">Help patients understand what they're measuring</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                    <ScaleIcon className="w-4 h-4 mr-2 text-gray-500" />
-                    Value Type *
-                  </label>
-                  <select
-                    name="valueType"
-                    value={formData.valueType}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  >
-                    <option value="numeric">📊 Numeric (numbers)</option>
-                    <option value="text">📝 Text (free text)</option>
-                    <option value="boolean">✅ Boolean (yes/no)</option>
-                    <option value="categorical">📋 Categorical (multiple choice)</option>
-                    <option value="ordinal">🔢 Ordinal (ranked options)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                    <HashtagIcon className="w-4 h-4 mr-2 text-gray-500" />
-                    Unit
-                  </label>
-                  <input
-                    type="text"
-                    name="unit"
-                    value={formData.unit}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="e.g., points, mg, cm, hours, N/A"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Unit of measurement (if applicable)</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Configuration */}
-        {currentStep === 2 && (
-          <div className="space-y-6">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-amber-900">Configuration Settings</h4>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Configure how patients will interact with this metric. These settings affect data validation and user experience.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {formData.valueType === 'numeric' && (
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <ScaleIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  Numeric Configuration
-                </h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Min Value *</label>
-                    <input
-                      type="number"
-                      name="minValue"
-                      value={formData.minValue}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                      step="any"
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Max Value *</label>
-                    <input
-                      type="number"
-                      name="maxValue"
-                      value={formData.maxValue}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                      step="any"
-                      placeholder="10"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Decimal Precision</label>
-                    <input
-                      type="number"
-                      name="decimalPrecision"
-                      value={formData.decimalPrecision}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                      min="0"
-                      max="10"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Set the valid range for numeric values. Decimal precision determines how many decimal places are allowed.
-                </p>
-              </div>
-            )}
-
-            {(formData.valueType === 'categorical' || formData.valueType === 'ordinal') && (
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <ListBulletIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  {formData.valueType === 'categorical' ? 'Categorical' : 'Ordinal'} Options
-                </h4>
-                
-                {formData.valueType === 'ordinal' && (
-                  <EnhancedOrdinalOptionsSelector
-                    value={formData.options}
-                    onChange={(value) => setFormData(prev => ({ ...prev, options: value }))}
-                  />
-                )}
-                
-                {formData.valueType === 'categorical' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Available Options *
-                    </label>
-                    <textarea
-                      name="options"
-                      value={formData.options}
-                      onChange={handleChange}
-                      rows={6}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                      placeholder={`Enter one option per line, for example:\nOption 1\nOption 2\nOption 3`}
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Enter each option on a new line. Order does not matter for categorical data.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {(formData.valueType === 'text' || formData.valueType === 'boolean') && (
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <DocumentTextIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  {formData.valueType === 'text' ? 'Text' : 'Boolean'} Configuration
-                </h4>
-                <p className="text-gray-600">
-                  {formData.valueType === 'text' 
-                    ? 'Text metrics allow patients to enter free-form text responses. No additional configuration is needed.'
-                    : 'Boolean metrics allow patients to select Yes/No or True/False responses. No additional configuration is needed.'
-                  }
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Final Settings */}
-        {currentStep === 3 && (
-          <div className="space-y-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <CheckCircleIcon className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-green-900">Final Settings</h4>
-                  <p className="text-sm text-green-700 mt-1">
-                    Configure additional settings for data collection frequency and requirements.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <ClockIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  Collection Settings
-                </h4>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        name="requiredDefault"
-                        checked={formData.requiredDefault}
-                        onChange={handleChange}
-                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">Required by Default</span>
-                        <p className="text-xs text-gray-500">Patients must provide this metric when submitting data</p>
-                      </div>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Default Collection Frequency</label>
-                    <select
-                      name="defaultFrequency"
-                      value={formData.defaultFrequency}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    >
-                      <option value="">Select frequency...</option>
-                      <option value="daily">📅 Daily</option>
-                      <option value="weekly">📆 Weekly</option>
-                      <option value="monthly">🗓️ Monthly</option>
-                      <option value="as_needed">🔔 As Needed</option>
-                      <option value="custom">⚙️ Custom</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">How often should patients typically report this metric?</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation Buttons */}
-        <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-          <div className="flex space-x-3">
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={prevStep}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-              >
-                Previous
-              </button>
-            )}
-          </div>
-
-          <div className="text-sm text-gray-500">
-            Step {currentStep} of {totalSteps}
-          </div>
-
-          <div className="flex space-x-3">
-            {currentStep < totalSteps ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  console.log('Next button clicked. Current step:', currentStep)
-                  nextStep()
-                }}
-                disabled={!isStepValid(currentStep)}
-                className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={isLoading || !isStepValid(currentStep)}
-                className="px-6 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircleIcon className="w-4 h-4" />
-                    <span>{metric ? 'Update Metric' : 'Create Metric'}</span>
-                  </>
-                )}
-              </button>
-            )}
           </div>
         </div>
-      </form>
+      )}
+    </div>
+  )
+}
+
+// Type Selection Flow Component
+function TypeSelectionFlow({ onSelectType }) {
+  const metricTypes = [
+    {
+      type: 'numeric',
+      title: 'Numeric',
+      description: 'Numbers with optional units (e.g., weight, blood pressure)',
+      icon: CalculatorIcon,
+      color: 'blue'
+    },
+    {
+      type: 'text',
+      title: 'Text',
+      description: 'Free-form text responses',
+      icon: TagIcon,
+      color: 'green'
+    },
+    {
+      type: 'boolean',
+      title: 'Boolean',
+      description: 'Yes/No or True/False responses',
+      icon: CheckCircleIcon,
+      color: 'purple'
+    },
+    {
+      type: 'categorical',
+      title: 'Categorical',
+      description: 'Multiple choice with unordered options',
+      icon: ListBulletIcon,
+      color: 'orange'
+    },
+    {
+      type: 'ordinal',
+      title: 'Ordinal',
+      description: 'Multiple choice with ordered options (e.g., pain scales)',
+      icon: NumberedListIcon,
+      color: 'indigo'
+    }
+  ]
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h4 className="text-lg font-medium text-gray-900 mb-2">Select Metric Type</h4>
+        <p className="text-sm text-gray-500">Choose the type of data this metric will collect</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {metricTypes.map((type) => {
+          const IconComponent = type.icon
+          return (
+            <button
+              key={type.type}
+              onClick={() => onSelectType(type.type)}
+              className={`p-4 border-2 border-gray-200 rounded-lg hover:border-${type.color}-300 hover:bg-${type.color}-50 transition-colors text-left`}
+            >
+              <div className="flex items-center mb-2">
+                <IconComponent className={`h-6 w-6 text-${type.color}-600 mr-3`} />
+                <h5 className="font-medium text-gray-900">{type.title}</h5>
+              </div>
+              <p className="text-sm text-gray-600">{type.description}</p>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Template Selection Flow Component
+function TemplateSelectionFlow({ selectedType, onSelectTemplate, onBack }) {
+  return (
+    <div>
+      <div className="mb-6">
+        <button
+          onClick={onBack}
+          className="text-blue-600 hover:text-blue-800 text-sm mb-4"
+        >
+          ← Back to type selection
+        </button>
+        <h4 className="text-lg font-medium text-gray-900 mb-2">Choose Template</h4>
+        <p className="text-sm text-gray-500">
+          Select a pre-configured template or create a custom {selectedType} metric
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <button
+          onClick={() => onSelectTemplate(null)}
+          className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+        >
+          <div className="flex items-center mb-2">
+            <BeakerIcon className="h-6 w-6 text-blue-600 mr-3" />
+            <h5 className="font-medium text-gray-900">Custom {selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}</h5>
+          </div>
+          <p className="text-sm text-gray-600">Create a custom {selectedType} metric from scratch</p>
+        </button>
+
+        {selectedType === 'ordinal' && (
+          <button
+            onClick={() => onSelectTemplate('standardized')}
+            className="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors text-left"
+          >
+            <div className="flex items-center mb-2">
+              <ShieldCheckIcon className="h-6 w-6 text-green-600 mr-3" />
+              <h5 className="font-medium text-gray-900">Standardized Templates</h5>
+            </div>
+            <p className="text-sm text-gray-600">Use pre-configured RTM-compliant ordinal scales</p>
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Standardized Selection Flow Component
+function StandardizedSelectionFlow({ onSelectMetric, onBack }) {
+  // This would typically fetch from an API
+  const standardizedMetrics = [
+    {
+      id: 'pain-scale-0-10',
+      name: 'Pain Scale (0-10)',
+      description: 'Standard numeric pain rating scale',
+      category: 'Pain Management'
+    },
+    {
+      id: 'mood-scale-1-5',
+      name: 'Mood Scale (1-5)',
+      description: 'Simple mood assessment scale',
+      category: 'Mental Health'
+    }
+  ]
+
+  return (
+    <div>
+      <div className="mb-6">
+        <button
+          onClick={onBack}
+          className="text-blue-600 hover:text-blue-800 text-sm mb-4"
+        >
+          ← Back to template selection
+        </button>
+        <h4 className="text-lg font-medium text-gray-900 mb-2">Standardized Metrics</h4>
+        <p className="text-sm text-gray-500">Select from RTM-compliant standardized metrics</p>
+      </div>
+
+      <div className="space-y-3">
+        {standardizedMetrics.map((metric) => (
+          <button
+            key={metric.id}
+            onClick={() => onSelectMetric(metric)}
+            className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h5 className="font-medium text-gray-900">{metric.name}</h5>
+                <p className="text-sm text-gray-600">{metric.description}</p>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                  {metric.category}
+                </span>
+              </div>
+              <ChevronDownIcon className="h-5 w-5 text-gray-400 transform rotate-[-90deg]" />
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

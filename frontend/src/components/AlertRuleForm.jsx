@@ -221,10 +221,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="rule-name" className="block text-sm font-medium text-gray-700 mb-2">
                 Rule Name *
               </label>
               <input
+                id="rule-name"
                 type="text"
                 {...register('name', { required: 'Rule name is required' })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -236,13 +237,15 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="rule-severity" className="block text-sm font-medium text-gray-700 mb-2">
                 Severity *
               </label>
               <select
+                id="rule-severity"
                 {...register('severity', { required: 'Severity is required' })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value="">Select severity...</option>
                 {SEVERITY_OPTIONS.map(option => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -252,10 +255,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="rule-window" className="block text-sm font-medium text-gray-700 mb-2">
                 Evaluation Window *
               </label>
               <select
+                id="rule-window"
                 {...register('window', { required: 'Evaluation window is required' })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -271,10 +275,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="rule-cooldown" className="block text-sm font-medium text-gray-700 mb-2">
                 Cooldown Period
               </label>
               <select
+                id="rule-cooldown"
                 {...register('cooldown')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -314,10 +319,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="expression-condition" className="block text-sm font-medium text-gray-700 mb-2">
                     Condition *
                   </label>
                   <input
+                    id="expression-condition"
                     type="text"
                     {...register('expression.condition', { required: 'Condition is required' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -326,10 +332,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="expression-operator" className="block text-sm font-medium text-gray-700 mb-2">
                     Operator *
                   </label>
                   <input
+                    id="expression-operator"
                     type="text"
                     {...register('expression.operator', { required: 'Operator is required' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -338,10 +345,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="expression-threshold" className="block text-sm font-medium text-gray-700 mb-2">
                     Threshold
                   </label>
                   <input
+                    id="expression-threshold"
                     type="number"
                     step="0.1"
                     {...register('expression.threshold')}
@@ -351,10 +359,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="expression-timeWindow" className="block text-sm font-medium text-gray-700 mb-2">
                     Time Window
                   </label>
                   <input
+                    id="expression-timeWindow"
                     type="text"
                     {...register('expression.timeWindow')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -363,10 +372,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="expression-occurrences" className="block text-sm font-medium text-gray-700 mb-2">
                     Occurrences
                   </label>
                   <input
+                    id="expression-occurrences"
                     type="number"
                     {...register('expression.occurrences')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -454,10 +464,11 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Advanced Settings</h3>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="rule-dedupeKey" className="block text-sm font-medium text-gray-700 mb-2">
               Deduplication Key
             </label>
             <input
+              id="rule-dedupeKey"
               type="text"
               {...register('dedupeKey')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

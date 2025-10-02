@@ -277,6 +277,11 @@ export default function ConditionPresets() {
                           <p className="text-sm text-gray-500">
                             Care Program
                           </p>
+                          {preset.description && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {preset.description}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
