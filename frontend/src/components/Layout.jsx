@@ -81,7 +81,7 @@ export default function Layout({ children }) {
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
             <div className="flex flex-shrink-0 items-center px-4">
-              <h1 className="text-xl font-bold text-gray-900">Pain Management Platform</h1>
+              <h1 className="text-xl font-bold text-gray-900">ClinMetrics Pro</h1>
             </div>
             <nav className="mt-5 flex-1 space-y-1 px-2">
               {navigation.map((item) => (

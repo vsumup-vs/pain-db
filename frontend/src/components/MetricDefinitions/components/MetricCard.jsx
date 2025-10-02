@@ -6,6 +6,30 @@ export const MetricCard = ({ metric, onEdit, onDelete }) => {
   const typeInfo = getMetricTypeInfo(metric.valueType)
   const TypeIcon = typeInfo.icon
 
+  // Helper function to validate range values (same as GroupedMetricsList)
+  const isValidRange = (min, max) => {
+    // More comprehensive validation
+    const isMinValid = min !== null && min !== undefined && 
+                      !isNaN(min) && Number.isFinite(Number(min));
+    const isMaxValid = max !== null && max !== undefined && 
+                      !isNaN(max) && Number.isFinite(Number(max));
+    
+    return isMinValid && isMaxValid;
+  }
+
+  // Helper function to safely format range values (same as GroupedMetricsList)
+  const formatRange = (min, max) => {
+    if (!isValidRange(min, max)) {
+      return null;
+    }
+    
+    // Convert to numbers to ensure proper display
+    const minNum = Number(min);
+    const maxNum = Number(max);
+    
+    return `${minNum} - ${maxNum}`;
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
       {/* Header */}
@@ -67,11 +91,14 @@ export const MetricCard = ({ metric, onEdit, onDelete }) => {
           </div>
         )}
         
-        {metric.valueType === 'numeric' && (metric.minValue !== null || metric.maxValue !== null) && (
-          <div>
-            <span className="font-medium">Range:</span> {metric.minValue ?? '∞'} - {metric.maxValue ?? '∞'}
-          </div>
-        )}
+        {metric.valueType === 'numeric' && (() => {
+          const rangeText = formatRange(metric.scaleMin, metric.scaleMax);
+          return rangeText ? (
+            <div>
+              <span className="font-medium">Range:</span> {rangeText}
+            </div>
+          ) : null;
+        })()}
         
         {(metric.valueType === 'categorical' || metric.valueType === 'ordinal') && metric.options && (
           <div>

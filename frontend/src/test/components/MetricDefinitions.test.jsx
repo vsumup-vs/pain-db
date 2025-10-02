@@ -1,36 +1,13 @@
-// Mock axios before any imports that might use it
-vi.mock('axios', () => {
-  const mockInstance = {
-    get: () => Promise.resolve({ data: [] }),
-    post: () => Promise.resolve({ data: {} }),
-    put: () => Promise.resolve({ data: {} }),
-    delete: () => Promise.resolve({ data: {} }),
-    interceptors: {
-      request: { 
-        use: (successHandler, errorHandler) => {
-          // Store the handlers for potential use
-          mockInstance._requestInterceptor = { successHandler, errorHandler }
-        }
-      },
-      response: { 
-        use: (successHandler, errorHandler) => {
-          // Store the handlers and apply the success handler to responses
-          mockInstance._responseInterceptor = { successHandler, errorHandler }
-        }
-      }
-    }
+// Mock the API service directly instead of axios
+vi.mock('../../../services/api', () => ({
+  api: {
+    getMetricDefinitions: vi.fn(),
+    getAssessmentTemplates: vi.fn(),
+    createMetricDefinition: vi.fn(),
+    updateMetricDefinition: vi.fn(),
+    deleteMetricDefinition: vi.fn(),
   }
-  
-  return {
-    default: {
-      create: () => mockInstance,
-      interceptors: {
-        request: { use: () => {} },
-        response: { use: () => {} }
-      }
-    }
-  }
-})
+}))
 
 import React from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -38,95 +15,61 @@ import { screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '../utils'
 import MetricDefinitions from '../../pages/MetricDefinitions'
-import axios from 'axios'
+import { api } from '../../../services/api'
 
 describe('MetricDefinitions', () => {
-  let mockAxiosInstance
-
   beforeEach(() => {
-    // Get the mocked instance
-    mockAxiosInstance = axios.create()
+    // Reset all mocks
+    vi.clearAllMocks()
     
-    // Reset and configure mocks using vi.fn() which is now available
-    mockAxiosInstance.get = vi.fn()
-    mockAxiosInstance.post = vi.fn()
-    mockAxiosInstance.put = vi.fn()
-    mockAxiosInstance.delete = vi.fn()
-    
-    // Component expects metricDefinitions.data to be an array
-    // The API interceptor extracts response.data, so we need to return the data directly
-    // since the interceptor will extract it and React Query will wrap it again
-    mockAxiosInstance.get.mockImplementation((url, config) => {
-      if (url === '/metric-definitions' || url.includes('metric-definitions')) {
-        const response = {
-          data: [
-            {
-              id: 1,
-              key: 'pain_scale',
-              displayName: 'Pain Scale 0-10',
-              description: 'Patient reported pain level on 0-10 scale',
-              valueType: 'numeric',
-              scaleMin: 0,
-              scaleMax: 10,
-              unit: 'scale',
-              isStandardized: false,
-              coding: null
-            },
-            {
-              id: 2,
-              key: 'medication_adherence',
-              displayName: 'Medication Adherence',
-              description: 'Patient medication compliance assessment',
-              valueType: 'ordinal',
-              ordinalOptions: ['Poor', 'Fair', 'Good', 'Excellent'],
-              isStandardized: true,
-              coding: {
-                primary: { code: 'LA6115-6' },
-                secondary: [{ code: '182840001' }],
-                mappings: { icd10: 'Z91.14' }
-              }
-            }
-          ]
+    // Configure API mocks to return data directly (simulating the response interceptor)
+    api.getMetricDefinitions.mockResolvedValue([
+      {
+        id: 1,
+        key: 'pain_scale',
+        displayName: 'Pain Scale 0-10',
+        description: 'Patient reported pain level on 0-10 scale',
+        valueType: 'numeric',
+        scaleMin: 0,
+        scaleMax: 10,
+        unit: 'scale',
+        isStandardized: false,
+        coding: null
+      },
+      {
+        id: 2,
+        key: 'medication_adherence',
+        displayName: 'Medication Adherence',
+        description: 'Patient medication compliance assessment',
+        valueType: 'ordinal',
+        ordinalOptions: ['Poor', 'Fair', 'Good', 'Excellent'],
+        isStandardized: true,
+        coding: {
+          primary: { code: 'LA6115-6' },
+          secondary: [{ code: '182840001' }],
+          mappings: { icd10: 'Z91.14' }
         }
-        
-        // Simulate the response interceptor behavior
-        if (mockAxiosInstance._responseInterceptor?.successHandler) {
-          return Promise.resolve(mockAxiosInstance._responseInterceptor.successHandler(response))
-        }
-        return Promise.resolve(response)
       }
-      
-      if (url === '/assessment-templates' || url.includes('assessment-templates')) {
-        const response = {
-          data: [
-            {
-              id: 1,
-              name: 'Pain Assessment',
-              description: 'Standard pain assessment template'
-            }
-          ]
-        }
-        
-        // Simulate the response interceptor behavior
-        if (mockAxiosInstance._responseInterceptor?.successHandler) {
-          return Promise.resolve(mockAxiosInstance._responseInterceptor.successHandler(response))
-        }
-        return Promise.resolve(response)
+    ])
+
+    api.getAssessmentTemplates.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Pain Assessment',
+        description: 'Standard pain assessment template'
       }
-      
-      return Promise.resolve({ data: [] })
+    ])
+
+    api.createMetricDefinition.mockResolvedValue({
+      id: 3, key: 'new_metric', displayName: 'New Metric'
     })
 
-    mockAxiosInstance.post.mockResolvedValue({
-      data: { id: 3, key: 'new_metric', displayName: 'New Metric' }
+    api.updateMetricDefinition.mockResolvedValue({
+      id: 1, key: 'pain_scale', displayName: 'Updated Pain Scale'
     })
 
-    mockAxiosInstance.put.mockResolvedValue({
-      data: { id: 1, key: 'pain_scale', displayName: 'Updated Pain Scale' }
-    })
-
-    mockAxiosInstance.delete.mockResolvedValue({
-      data: { success: true }
+    api.deleteMetricDefinition.mockResolvedValue({
+      success: true
     })
   })
 
@@ -134,7 +77,7 @@ describe('MetricDefinitions', () => {
     renderWithProviders(<MetricDefinitions />)
     
     expect(screen.getByText('Metric Definitions')).toBeInTheDocument()
-    expect(screen.getByText('Manage and configure metrics for patient data collection')).toBeInTheDocument()
+    expect(screen.getByText('Manage and configure metric definitions for patient monitoring')).toBeInTheDocument()
     
     await waitFor(() => {
       expect(screen.getByText('Pain Scale 0-10')).toBeInTheDocument()
@@ -145,7 +88,7 @@ describe('MetricDefinitions', () => {
   it('displays search and filter controls', async () => {
     renderWithProviders(<MetricDefinitions />)
     
-    expect(screen.getByPlaceholderText('Search metrics by name, description, or key...')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search metrics by key, name, or description...')).toBeInTheDocument()
     expect(screen.getByDisplayValue('All Types')).toBeInTheDocument()
   })
 
@@ -157,7 +100,7 @@ describe('MetricDefinitions', () => {
       expect(screen.getByText('Pain Scale 0-10')).toBeInTheDocument()
     })
 
-    const searchInput = screen.getByPlaceholderText('Search metrics by name, description, or key...')
+    const searchInput = screen.getByPlaceholderText('Search metrics by key, name, or description...')
     
     await act(async () => {
       await user.type(searchInput, 'pain')
@@ -193,7 +136,7 @@ describe('MetricDefinitions', () => {
     const user = userEvent.setup()
     renderWithProviders(<MetricDefinitions />)
     
-    const addButton = screen.getByText('Add New Metric')
+    const addButton = screen.getByText('Create Metric')
     
     await act(async () => {
       await user.click(addButton)
@@ -238,9 +181,7 @@ describe('MetricDefinitions', () => {
       await user.click(deleteButtons[0])
     })
     
-    expect(mockAxiosInstance.delete).toHaveBeenCalledWith(
-      expect.stringContaining('metric-definitions/1')
-    )
+    expect(api.deleteMetricDefinition).toHaveBeenCalledWith(1)
     
     // Restore original confirm
     window.confirm = originalConfirm
@@ -281,26 +222,20 @@ describe('MetricDefinitions', () => {
 
     // Check for range display
     expect(screen.getByText('Range')).toBeInTheDocument()
-    expect(screen.getByText('0')).toBeInTheDocument()
-    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.getByText('0 - 10')).toBeInTheDocument()
   })
 
   it('shows empty state when no metrics exist', async () => {
     // Override mock to return empty array
-    mockAxiosInstance.get.mockImplementation((url) => {
-      if (url.includes('metric-definitions')) {
-        return Promise.resolve({ data: [] })
-      }
-      return Promise.resolve({ data: [] })
-    })
+    api.getMetricDefinitions.mockResolvedValue([])
 
     renderWithProviders(<MetricDefinitions />)
     
     await waitFor(() => {
-      expect(screen.getByText('No metric definitions yet')).toBeInTheDocument()
+      expect(screen.getByText('No metric definitions')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Create your first metric definition to get started')).toBeInTheDocument()
+    expect(screen.getByText('Get started by creating your first metric definition.')).toBeInTheDocument()
     expect(screen.getByText('Create First Metric')).toBeInTheDocument()
   })
 
@@ -312,7 +247,7 @@ describe('MetricDefinitions', () => {
       expect(screen.getByText('Pain Scale 0-10')).toBeInTheDocument()
     })
 
-    const searchInput = screen.getByPlaceholderText('Search metrics by name, description, or key...')
+    const searchInput = screen.getByPlaceholderText('Search metrics by key, name, or description...')
     
     await act(async () => {
       await user.type(searchInput, 'nonexistent')

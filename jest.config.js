@@ -1,6 +1,8 @@
 module.exports = {
   testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
+  testMatch: ['**/tests/**/*.test.js'],
+  testPathIgnorePatterns: ['/node_modules/', '/e2e/', '/frontend/'],
+  maxWorkers: 1,
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/**/*.test.js',

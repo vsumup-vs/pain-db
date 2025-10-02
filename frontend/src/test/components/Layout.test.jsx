@@ -19,7 +19,7 @@ describe('Layout', () => {
       </Layout>
     )
     
-    expect(screen.getByText('Pain Management')).toBeInTheDocument()
+    expect(screen.getByText('ClinMetrics Pro')).toBeInTheDocument()
   })
 
   it('renders navigation items', () => {

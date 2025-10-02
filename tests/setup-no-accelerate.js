@@ -12,7 +12,7 @@ process.env.PRISMA_ACCELERATE_DISABLE = 'true';
 process.env.PRISMA_DISABLE_ACCELERATE = 'true';
 
 // Override any Accelerate URL with local PostgreSQL
-const localDatabaseUrl = 'postgresql://test_user:test_password@localhost:5432/pain_db_test';
+const localDatabaseUrl = 'postgresql://pain_test_user:test_password@localhost:5432/pain_db_test';
 
 // Create Prisma client with explicit local configuration
 global.prisma = new PrismaClient({

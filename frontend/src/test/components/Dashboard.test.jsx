@@ -123,7 +123,7 @@ describe('Dashboard', () => {
       expect(screen.getByText('Dashboard')).toBeInTheDocument()
     }, { timeout: 3000 })
     
-    expect(screen.getByText('Welcome to the Pain Management Platform - Monitor your patients, clinicians, and alerts at a glance')).toBeInTheDocument()
+    expect(screen.getByText('Welcome to ClinMetrics Pro - Precision Healthcare Analytics. Empower your clinical team with data-driven insights and streamlined patient care')).toBeInTheDocument()
   })
 
   it('displays statistics cards', async () => {
