@@ -36,6 +36,16 @@ const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
 const drugRoutes = require('./src/routes/drugRoutes');
 const patientMedicationRoutes = require('./src/routes/patientMedicationRoutes');
 
+// Import authentication
+const passport = require('passport');
+const authRoutes = require('./src/routes/authRoutes');
+
+// Initialize passport
+app.use(passport.initialize());
+
+// Authentication routes
+app.use('/auth', authRoutes);
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {

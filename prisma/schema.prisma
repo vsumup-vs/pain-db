@@ -59,6 +59,217 @@ enum CPTCode {
   CPT_99458
 }
 
+// New authentication enums
+enum UserRole {
+  SUPER_ADMIN
+  ORG_ADMIN
+  CLINICIAN
+  NURSE
+  PATIENT
+  CAREGIVER
+  RESEARCHER
+  BILLING_ADMIN
+}
+
+enum OrganizationType {
+  HOSPITAL
+  CLINIC
+  PRACTICE
+  HEALTH_SYSTEM
+  RESEARCH
+  INSURANCE
+}
+
+enum SocialProvider {
+  MICROSOFT
+  GOOGLE
+  OKTA
+  AZURE_AD
+}
+
+/* ========== Authentication & Multi-Tenancy ========== */
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  emailVerified     DateTime?
+  firstName         String?
+  lastName          String?
+  avatar            String?
+  isActive          Boolean  @default(true)
+  lastLoginAt       DateTime?
+  
+  // Password authentication (optional - for local accounts)
+  passwordHash      String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  
+  // Multi-factor authentication
+  mfaEnabled        Boolean  @default(false)
+  mfaSecret         String?
+  backupCodes       String[]
+  
+  // Social authentication
+  socialAccounts    SocialAccount[]
+  
+  // Multi-tenancy
+  organizationAccess UserOrganizationAccess[]
+  
+  // Healthcare-specific
+  licenseNumber     String?
+  npiNumber         String?
+  
+  // Audit
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("users")
+}
+
+model SocialAccount {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          SocialProvider
+  providerAccountId String
+  type              String  @default("oauth") // 'oauth', 'saml'
+  scope             String?
+  accessToken       String? @db.Text
+  refreshToken      String? @db.Text
+  idToken           String? @db.Text
+  expiresAt         Int?
+  
+  // Healthcare compliance
+  isVerified        Boolean @default(false)
+  verifiedAt        DateTime?
+  lastUsedAt        DateTime?
+  
+  // Audit trail
+  metadata          Json?
+  
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+  @@map("social_accounts")
+}
+
+model Organization {
+  id                String   @id @default(cuid())
+  name              String
+  domain            String?  @unique
+  type              OrganizationType
+  
+  // Contact information
+  address           Json?
+  phone             String?
+  email             String?
+  website           String?
+  
+  // SSO Configuration
+  ssoEnabled        Boolean  @default(false)
+  ssoProvider       SocialProvider?
+  ssoConfig         Json?
+  
+  // Healthcare compliance
+  hipaaCompliant    Boolean  @default(false)
+  dataRetentionDays Int      @default(2555) // 7 years
+  
+  // Billing & subscription
+  subscriptionTier  String   @default("basic")
+  billingEmail      String?
+  
+  // Settings
+  settings          Json?
+  
+  userAccess        UserOrganizationAccess[]
+  carePrograms      CareProgram[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([domain])
+  @@index([type])
+  @@map("organizations")
+}
+
+model UserOrganizationAccess {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           UserRole
+  
+  // Access control
+  isActive       Boolean  @default(true)
+  permissions    Json?    // Granular permissions
+  
+  // Audit
+  grantedAt      DateTime @default(now())
+  grantedBy      String?  // User ID who granted access
+  revokedAt      DateTime?
+  revokedBy      String?  // User ID who revoked access
+  
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+  @@index([userId, isActive])
+  @@map("user_organization_access")
+}
+
+model CareProgram {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  type           String   // 'RTM', 'CCM', 'RPM', etc.
+  
+  // Program configuration
+  isActive       Boolean  @default(true)
+  settings       Json?
+  
+  // CMS compliance
+  cptCodes       String[] // Supported CPT codes
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([organizationId, name])
+  @@index([type])
+  @@map("care_programs")
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  organizationId String?
+  action         String
+  resource       String?
+  resourceId     String?
+  
+  // Request details
+  ipAddress      String?
+  userAgent      String?
+  
+  // Data
+  oldValues      Json?
+  newValues      Json?
+  metadata       Json?
+  
+  // Compliance
+  hipaaRelevant  Boolean  @default(false)
+  
+  createdAt      DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([action, createdAt])
+  @@index([hipaaRelevant, createdAt])
+  @@map("audit_logs")
+}
+
 /* ========== Core Identities ========== */
 model Patient {
   id              String       @id @default(uuid()) @db.Uuid
@@ -75,6 +286,10 @@ model Patient {
   allergies       Json?
   medications     Json?        // Keep for backward compatibility
   insuranceInfo   Json?
+  
+  // Multi-tenancy support
+  organizationId  String?      // Primary organization
+  
   createdAt       DateTime     @default(now()) @map("created_at")
   enrollments     Enrollment[]
   observations    Observation[]
@@ -84,6 +299,7 @@ model Patient {
   patientMedications PatientMedication[]
   medicationAdherence MedicationAdherence[]
 
+  @@index([organizationId])
   @@map("patients")
 }
 
@@ -100,12 +316,17 @@ model Clinician {
   address         Json?
   emergencyContact Json?    @map("emergency_contact")
   credentials     Json?
+  
+  // Multi-tenancy support
+  organizationId  String?   // Primary organization
+  
   createdAt       DateTime  @default(now()) @map("created_at")
   enrollments     Enrollment[]
   timelogs        TimeLog[]
   // New medication relationship
   prescriptions   PatientMedication[]
 
+  @@index([organizationId])
   @@map("clinicians")
 }
 
