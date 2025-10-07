@@ -3,20 +3,9 @@
 > vite
 
 
-  VITE v4.5.14  ready in 434 ms
+  VITE v4.5.14  ready in 379 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-(node:1444464) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(node:1277113) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
-11:45:42 PM [vite] hmr update /src/pages/EnrollmentDetails.jsx, /src/index.css
-12:08:38 AM [vite] hmr update /src/pages/Patients.jsx, /src/index.css
-12:08:50 AM [vite] hmr update /src/pages/Patients.jsx, /src/index.css
-12:18:53 AM [vite] hmr update /src/pages/ConditionPresets.jsx, /src/index.css
-12:20:23 AM [vite] hmr update /src/pages/ConditionPresets.jsx, /src/index.css
-12:31:50 AM [vite] hmr update /src/pages/ConditionPresets.jsx, /src/index.css
-12:42:38 AM [vite] page reload src/pages/AssessmentTemplates.jsx
-12:47:25 AM [vite] page reload src/pages/AssessmentTemplates.jsx
-12:49:54 AM [vite] page reload src/pages/AssessmentTemplates.jsx
-12:51:36 AM [vite] page reload src/pages/AssessmentTemplates.jsx
-12:53:46 AM [vite] hmr update /src/pages/AssessmentTemplatesEnhanced.jsx, /src/index.css

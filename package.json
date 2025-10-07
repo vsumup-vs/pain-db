@@ -4,6 +4,7 @@
   "description": "ClinMetrics Pro - Clinical Metrics Management Platform",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "seed": "node seed.js",
     "seed:rtm": "node seed-rtm-standard.js",
     "seed:standard": "node seed-rtm-standard.js",

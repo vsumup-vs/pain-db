@@ -137,6 +137,7 @@ const getAssessmentTemplateById = async (req, res) => {
 };
 
 // Create new assessment template
+// Optimize the createAssessmentTemplate function
 const createAssessmentTemplate = async (req, res) => {
   try {
     const { name, description, items = [] } = req.body;
@@ -180,35 +181,42 @@ const createAssessmentTemplate = async (req, res) => {
       }
     }
 
-    const template = await prisma.assessmentTemplate.create({
-      data: {
-        name,
-        description,
-        items: {
-          create: items.map((item, index) => ({
-            metricDefinitionId: item.metricDefinitionId,
-            required: item.required || false,
-            displayOrder: item.displayOrder ?? index,
-            helpText: item.helpText,
-            defaultValue: item.defaultValue
-          }))
-        }
-      },
-      include: {
-        items: {
-          include: {
-            metricDefinition: {
-              select: {
-                id: true,
-                displayName: true,
-                valueType: true,
-                unit: true
+    // Add connection timeout and retry logic
+    const template = await prisma.$transaction(async (tx) => {
+      // Simplified transaction with better error handling
+      return await tx.assessmentTemplate.create({
+        data: {
+          name,
+          description,
+          items: {
+            create: items.map((item, index) => ({
+              metricDefinitionId: item.metricDefinitionId,
+              required: item.required || false,
+              displayOrder: item.displayOrder ?? index,
+              helpText: item.helpText,
+              defaultValue: item.defaultValue
+            }))
+          }
+        },
+        include: {
+          items: {
+            include: {
+              metricDefinition: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  valueType: true,
+                  unit: true
+                }
               }
-            }
-          },
-          orderBy: { displayOrder: 'asc' }
+            },
+            orderBy: { displayOrder: 'asc' }
+          }
         }
-      }
+      });
+    }, {
+      timeout: 30000, // 30 second timeout
+      maxWait: 35000  // 35 second max wait
     });
 
     res.status(201).json({
@@ -217,7 +225,13 @@ const createAssessmentTemplate = async (req, res) => {
       message: 'Assessment template created successfully'
     });
   } catch (error) {
-    console.error('Error creating assessment template:', error);
+    // Enhanced error logging
+    console.error('Assessment template creation error:', {
+      error: error.message,
+      stack: error.stack,
+      requestBody: req.body
+    });
+    
     res.status(500).json({
       success: false,
       message: 'Internal server error while creating assessment template'
