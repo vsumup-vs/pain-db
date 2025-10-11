@@ -1,0 +1,737 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+// Updated ValueType enum to match frontend usage and add missing types
+enum ValueType {
+  numeric
+  text
+  boolean
+  categorical
+  ordinal
+  date
+  time
+  datetime
+  json
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SourceType {
+  MANUAL
+  DEVICE
+  API
+  IMPORT
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  COMPLETED
+  WITHDRAWN
+}
+
+enum AlertStatus {
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum CPTCode {
+  CODE_99201
+  CODE_99202
+  CODE_99203
+  CODE_99204
+  CODE_99205
+  CODE_99211
+  CODE_99212
+  CODE_99213
+  CODE_99214
+  CODE_99215
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_ADMIN
+  CLINICIAN
+  NURSE
+  BILLING_ADMIN
+  PATIENT
+  CAREGIVER
+  RESEARCHER
+}
+
+enum OrganizationType {
+  HOSPITAL
+  CLINIC
+  PRACTICE
+  RESEARCH
+  INSURANCE
+  PHARMACY
+}
+
+enum SocialProvider {
+  GOOGLE
+  FACEBOOK
+  APPLE
+  MICROSOFT
+}
+
+enum ProgramType {
+  PAIN_MANAGEMENT
+  DIABETES
+  HYPERTENSION
+  MENTAL_HEALTH
+  CARDIAC_REHAB
+  GENERAL_WELLNESS
+}
+enum ObservationContext {
+  WELLNESS
+  PROGRAM_ENROLLMENT
+  CLINICAL_MONITORING
+  ROUTINE_FOLLOWUP
+}
+
+enum Permission {
+  // User Management
+  USER_CREATE
+  USER_READ
+  USER_UPDATE
+  USER_DELETE
+  USER_INVITE
+  USER_ROLE_ASSIGN
+  
+  // Patient Management
+  PATIENT_CREATE
+  PATIENT_READ
+  PATIENT_UPDATE
+  PATIENT_DELETE
+  PATIENT_ASSIGN
+  PATIENT_MEDICAL_RECORD_READ
+  
+  // Clinician Management
+  CLINICIAN_CREATE
+  CLINICIAN_READ
+  CLINICIAN_UPDATE
+  CLINICIAN_DELETE
+  CLINICIAN_ASSIGN
+  
+  // Organization Management
+  ORG_CREATE
+  ORG_READ
+  ORG_UPDATE
+  ORG_DELETE
+  ORG_SETTINGS_MANAGE
+  ORG_USERS_MANAGE
+  ORG_BILLING_MANAGE
+  
+  // Program Management
+  PROGRAM_CREATE
+  PROGRAM_READ
+  PROGRAM_UPDATE
+  PROGRAM_DELETE
+  PROGRAM_ASSIGN
+  
+  // Assessment & Metrics
+  ASSESSMENT_CREATE
+  ASSESSMENT_READ
+  ASSESSMENT_UPDATE
+  ASSESSMENT_DELETE
+  METRIC_CREATE
+  METRIC_READ
+  METRIC_UPDATE
+  METRIC_DELETE
+  
+  // Observations & Data
+  OBSERVATION_CREATE
+  OBSERVATION_READ
+  OBSERVATION_UPDATE
+  OBSERVATION_DELETE
+  
+  // Alerts & Notifications
+  ALERT_CREATE
+  ALERT_READ
+  ALERT_UPDATE
+  ALERT_DELETE
+  ALERT_ACKNOWLEDGE
+  
+  // Medications
+  MEDICATION_CREATE
+  MEDICATION_READ
+  MEDICATION_UPDATE
+  MEDICATION_DELETE
+  MEDICATION_PRESCRIBE
+  
+  // Reports & Analytics
+  REPORT_READ
+  REPORT_CREATE
+  ANALYTICS_READ
+  
+  // System Administration
+  SYSTEM_ADMIN
+  AUDIT_READ
+  
+  // Billing & Compliance
+  BILLING_READ
+  BILLING_MANAGE
+  COMPLIANCE_READ
+}
+
+// Authentication Models
+model User {
+  id                    String              @id @default(cuid())
+  email                 String              @unique
+  passwordHash          String?
+  firstName             String?
+  lastName              String?
+  avatar                String?
+  phone                 String?
+  isActive              Boolean             @default(true)
+  emailVerified         DateTime?
+  mfaEnabled            Boolean             @default(false)
+  mfaSecret             String?
+  backupCodes           String[]            @default([])
+  lastLoginAt           DateTime?
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  // Relationships
+  socialAccounts        SocialAccount[]
+  userOrganizations     UserOrganization[]
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]
+  
+  @@map("users")
+}
+
+model Organization {
+  id                String              @id @default(cuid())
+  name              String
+  type              OrganizationType
+  email             String?
+  phone             String?
+  address           String?
+  website           String?
+  isActive          Boolean             @default(true)
+  settings          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relationships
+  userOrganizations UserOrganization[]
+  carePrograms      CareProgram[]
+  patients          Patient[]
+  clinicians        Clinician[]
+  enrollments       Enrollment[]
+  
+  @@map("organizations")
+}
+
+model UserOrganization {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           UserRole
+  permissions    Permission[]
+  isActive       Boolean      @default(true)
+  joinedAt       DateTime     @default(now())
+  
+  // Relationships
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, organizationId])
+  @@map("user_organizations")
+}
+
+model SocialAccount {
+  id           String        @id @default(cuid())
+  userId       String
+  provider     SocialProvider
+  providerId   String
+  email        String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relationships
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerId])
+  @@map("social_accounts")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("refresh_tokens")
+}
+
+model CareProgram {
+  id             String      @id @default(cuid())
+  organizationId String
+  name           String
+  type           ProgramType
+  description    String?
+  isActive       Boolean     @default(true)
+  settings       Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  // Relationships
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrollments    Enrollment[]
+  
+  @@map("care_programs")
+}
+
+model RoleTemplate {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  role        UserRole
+  permissions Permission[]
+  programType ProgramType?
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@map("role_templates")
+}
+
+model AuditLog {
+  id             String    @id @default(cuid())
+  userId         String?
+  organizationId String?
+  action         String
+  resource       String?
+  resourceId     String?
+  ipAddress      String?
+  userAgent      String?
+  oldValues      Json?
+  newValues      Json?
+  metadata       Json?
+  hipaaRelevant  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  
+  // Relationships
+  user           User?     @relation(fields: [userId], references: [id])
+  
+  @@map("audit_logs")
+}
+
+// Core Models
+model Patient {
+  id                  String               @id @default(cuid())
+  organizationId      String
+  firstName           String
+  lastName            String
+  dateOfBirth         DateTime
+  gender              String?
+  email               String?
+  phone               String?
+  address             String?
+  emergencyContact    String?
+  medicalRecordNumber String?              @unique
+  insuranceInfo       Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  
+  // Relationships
+  organization        Organization         @relation(fields: [organizationId], references: [id])
+  enrollments         Enrollment[]
+  observations        Observation[]
+  assessments         Assessment[]
+  timeLogs            TimeLog[]
+  alerts              Alert[]
+  patientMedications  PatientMedication[]
+  
+  @@map("patients")
+}
+
+model Clinician {
+  id               String       @id @default(cuid())
+  organizationId   String
+  firstName        String
+  lastName         String
+  email            String       @unique
+  phone            String?
+  address          String?
+  licenseNumber    String?
+  specialization   String?
+  department       String?
+  credentials      String?
+  emergencyContact String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  
+  // Relationships
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  enrollments      Enrollment[]
+  observations     Observation[]
+  assessments      Assessment[]
+  timeLogs         TimeLog[]
+  alerts           Alert[]
+  
+  @@map("clinicians")
+}
+
+model Enrollment {
+  id               String           @id @default(cuid())
+  organizationId   String
+  patientId        String
+  clinicianId      String
+  careProgramId    String
+  conditionPresetId String?
+  status           EnrollmentStatus @default(PENDING)
+  startDate        DateTime
+  endDate          DateTime?
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  
+  // Relationships
+  organization     Organization     @relation(fields: [organizationId], references: [id])
+  patient          Patient          @relation(fields: [patientId], references: [id])
+  clinician        Clinician        @relation(fields: [clinicianId], references: [id])
+  careProgram      CareProgram      @relation(fields: [careProgramId], references: [id])
+  conditionPreset  ConditionPreset? @relation(fields: [conditionPresetId], references: [id])
+  
+  @@map("enrollments")
+}
+
+model MetricDefinition {
+  id                String        @id @default(cuid())
+  key               String        @unique
+  name              String
+  description       String?
+  unit              String?
+  valueType         ValueType
+  
+  // Numeric type fields
+  scaleMin          Decimal?      // Minimum value for numeric types
+  scaleMax          Decimal?      // Maximum value for numeric types
+  decimalPrecision  Int?          // Decimal precision for numeric types
+  
+  // Categorical/Ordinal type fields
+  options           Json?         // Options for categorical/ordinal types
+  
+  // Existing fields
+  normalRange       Json?
+  isStandardized    Boolean       @default(false)
+  category          String?
+  standardCoding    Json?         // LOINC, SNOMED, ICD-10 codes
+  validationInfo    Json?         // Clinical validation details
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relationships
+  observations      Observation[]
+  templateItems     AssessmentTemplateItem[]
+  
+  @@map("metric_definitions")
+}
+
+model Observation {
+  id               String           @id @default(cuid())
+  patientId        String
+  clinicianId      String?
+  metricId         String
+  value            Json
+  unit             String?
+  source           SourceType       @default(MANUAL)
+  context          ObservationContext @default(CLINICAL_MONITORING)
+  notes            String?
+  recordedAt       DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  
+  // Relationships
+  patient          Patient          @relation(fields: [patientId], references: [id])
+  clinician        Clinician?       @relation(fields: [clinicianId], references: [id])
+  metric           MetricDefinition @relation(fields: [metricId], references: [id])
+  
+  @@map("observations")
+}
+
+model AssessmentTemplate {
+  id                String       @id @default(cuid())
+  name              String
+  description       String?
+  questions         Json
+  scoring           Json?
+  isStandardized    Boolean      @default(false)
+  category          String?
+  standardCoding    Json?        // LOINC, SNOMED, ICD-10 codes
+  validationInfo    Json?        // Clinical validation details
+  scoringInfo       Json?        // Scoring and interpretation guidelines
+  copyrightInfo     String?      // Copyright information for standardized instruments
+  clinicalUse       String?      // Clinical use description
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relationships
+  assessments       Assessment[]
+  conditionPresetTemplates ConditionPresetTemplate[]
+  
+  items             AssessmentTemplateItem[]
+  @@map("assessment_templates")
+}
+
+model AssessmentTemplateItem {
+  id                  String             @id @default(cuid())
+  templateId          String
+  metricDefinitionId  String
+  displayOrder        Int                @default(0)
+  isRequired          Boolean            @default(false)
+  helpText            String?
+  defaultValue        String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  // Relationships
+  template            AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  metricDefinition    MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
+  
+  @@unique([templateId, metricDefinitionId])
+  @@map("assessment_template_items")
+}
+
+model Assessment {
+  id               String             @id @default(cuid())
+  patientId        String
+  clinicianId      String?
+  templateId       String
+  responses        Json
+  score            Json?
+  completedAt      DateTime?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  
+  // Relationships
+  patient          Patient            @relation(fields: [patientId], references: [id])
+  clinician        Clinician?         @relation(fields: [clinicianId], references: [id])
+  template         AssessmentTemplate @relation(fields: [templateId], references: [id])
+  
+  @@map("assessments")
+}
+
+model TimeLog {
+  id               String     @id @default(cuid())
+  patientId        String
+  clinicianId      String
+  activity         String
+  duration         Int        // in minutes
+  cptCode          CPTCode?
+  notes            String?
+  billable         Boolean    @default(true)
+  loggedAt         DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  // Relationships
+  patient          Patient    @relation(fields: [patientId], references: [id])
+  clinician        Clinician  @relation(fields: [clinicianId], references: [id])
+  
+  @@map("time_logs")
+}
+
+model ConditionPreset {
+  id                    String                      @id @default(cuid())
+  name                  String                      @unique
+  defaultProtocolId     String?
+  description           String?
+  isActive              Boolean                     @default(true)
+  isStandardized        Boolean                     @default(false)
+  category              String?
+  standardCoding        Json?                       // ICD-10, SNOMED codes
+  clinicalGuidelines    Json?                       // Clinical practice guidelines
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  
+  // Relationships
+  diagnoses             ConditionPresetDiagnosis[]
+  templates             ConditionPresetTemplate[]
+  alertRules            ConditionPresetAlertRule[]
+  enrollments           Enrollment[]
+  
+  @@map("condition_presets")
+}
+
+model ConditionPresetDiagnosis {
+  id                    String          @id @default(cuid())
+  conditionPresetId     String
+  icd10                 String
+  snomed                String?
+  label                 String
+  isPrimary             Boolean         @default(false)
+  
+  // Relationships
+  conditionPreset       ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  
+  @@map("condition_preset_diagnoses")
+}
+
+model ConditionPresetTemplate {
+  id                    String             @id @default(cuid())
+  conditionPresetId     String
+  templateId            String
+  isRequired            Boolean            @default(true)
+  frequency             String?
+  displayOrder          Int                @default(0)
+  
+  // Relationships
+  conditionPreset       ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  template              AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  @@unique([conditionPresetId, templateId])
+  @@map("condition_preset_templates")
+}
+
+model AlertRule {
+  id                    String                      @id @default(cuid())
+  name                  String
+  description           String?
+  conditions            Json
+  actions               Json
+  isActive              Boolean                     @default(true)
+  isStandardized        Boolean                     @default(false)
+  category              String?
+  severity              Severity?                   // Add severity field that was missing
+  priority              Int                         @default(0)
+  standardCoding        Json?                       // Clinical coding for standardized rules
+  clinicalEvidence      Json?                       // Evidence base for standardized rules
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  
+  // Relationships
+  alerts                Alert[]
+  conditionPresets      ConditionPresetAlertRule[]
+  
+  @@map("alert_rules")
+}
+
+model ConditionPresetAlertRule {
+  id                    String          @id @default(cuid())
+  conditionPresetId     String
+  alertRuleId           String
+  isEnabled             Boolean         @default(true)
+  priority              Int             @default(0)
+  
+  // Relationships
+  conditionPreset       ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  rule                  AlertRule       @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  
+  @@unique([conditionPresetId, alertRuleId])
+  @@map("condition_preset_alert_rules")
+}
+
+model Alert {
+  id          String      @id @default(cuid())
+  ruleId      String
+  patientId   String
+  clinicianId String?
+  severity    Severity
+  status      AlertStatus @default(PENDING)
+  message     String
+  data        Json?
+  triggeredAt DateTime    @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt  DateTime?
+  
+  // Relationships
+  rule        AlertRule   @relation(fields: [ruleId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+  clinician   Clinician?  @relation(fields: [clinicianId], references: [id])
+  
+  @@map("alerts")
+}
+
+model Drug {
+  id                 String              @id @default(cuid())
+  name               String
+  genericName        String?
+  brandName          String?
+  dosageForm         String?
+  strength           String?
+  manufacturer       String?
+  ndcNumber          String?             @unique
+  description        String?
+  sideEffects        String[]
+  contraindications  String[]
+  interactions       String[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  
+  // Relationships
+  patientMedications PatientMedication[]
+  
+  @@map("drugs")
+}
+
+model PatientMedication {
+  id                   String                @id @default(cuid())
+  patientId            String
+  drugId               String
+  prescribedBy         String?
+  dosage               String
+  frequency            String
+  route                String?
+  startDate            DateTime
+  endDate              DateTime?
+  isActive             Boolean               @default(true)
+  instructions         String?
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  
+  // Relationships
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  drug                 Drug                  @relation(fields: [drugId], references: [id])
+  medicationAdherence  MedicationAdherence[]
+  
+  @@map("patient_medications")
+}
+
+model MedicationAdherence {
+  id                   String            @id @default(cuid())
+  patientMedicationId  String
+  takenAt              DateTime
+  doseTaken            String?
+  adherenceScore       Float?
+  notes                String?
+  recordedAt           DateTime          @default(now())
+  
+  // Relationships
+  patientMedication    PatientMedication @relation(fields: [patientMedicationId], references: [id])
+  
+  @@map("medication_adherence")
+}

@@ -55,7 +55,7 @@ class SocialAuthService {
         where: { email },
         include: { 
           socialAccounts: true, 
-          organizationAccess: {
+          userOrganizations: {
             include: { organization: true }
           }
         }
@@ -131,13 +131,13 @@ class SocialAuthService {
   }
 
   async assignUserToOrganization(userId, organizationId, role = 'CLINICIAN') {
-    return await prisma.userOrganizationAccess.create({
+    return await prisma.userOrganization.create({
       data: {
         userId,
         organizationId,
         role,
         isActive: true,
-        grantedAt: new Date()
+        joinedAt: new Date()
       }
     });
   }
@@ -181,7 +181,7 @@ class SocialAuthService {
 
   async performComplianceChecks(user, provider) {
     // Check if user belongs to HIPAA-compliant organization
-    const hipaaOrgs = user.organizationAccess?.filter(
+    const hipaaOrgs = user.userOrganizations?.filter(
       access => access.organization?.hipaaCompliant
     );
 
@@ -217,7 +217,7 @@ class SocialAuthService {
 
   requiresMFA(user, provider) {
     // Require MFA for healthcare organizations
-    return user.organizationAccess?.some(access => 
+    return user.userOrganizations?.some(access => 
       access.organization?.hipaaCompliant
     );
   }
@@ -237,7 +237,7 @@ class SocialAuthService {
       },
       token,
       refreshToken,
-      organizations: user.organizationAccess?.map(access => ({
+      organizations: user.userOrganizations?.map(access => ({
         id: access.organizationId,
         name: access.organization.name,
         role: access.role

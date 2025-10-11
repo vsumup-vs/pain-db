@@ -1,0 +1,45 @@
+// Updated ValueType enum to match frontend usage
+enum ValueType {
+  numeric
+  text
+  boolean
+  categorical
+  ordinal
+  date
+  time
+  datetime
+  json
+}
+
+// Updated MetricDefinition model with missing fields
+model MetricDefinition {
+  id                String        @id @default(cuid())
+  key               String        @unique
+  name              String
+  description       String?
+  unit              String?
+  valueType         ValueType
+  
+  // Numeric type fields
+  scaleMin          Decimal?      // Minimum value for numeric types
+  scaleMax          Decimal?      // Maximum value for numeric types
+  decimalPrecision  Int?          // Decimal precision for numeric types
+  
+  // Categorical/Ordinal type fields
+  options           Json?         // Options for categorical/ordinal types
+  
+  // Existing fields
+  normalRange       Json?
+  isStandardized    Boolean       @default(false)
+  category          String?
+  standardCoding    Json?         // LOINC, SNOMED, ICD-10 codes
+  validationInfo    Json?         // Clinical validation details
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relationships
+  observations      Observation[]
+  templateItems     AssessmentTemplateItem[]
+  
+  @@map("metric_definitions")
+}

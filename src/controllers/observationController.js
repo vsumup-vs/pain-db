@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -39,11 +39,11 @@ const createObservation = async (req, res) => {
       }),
       prisma.metricDefinition.findUnique({
         where: { id: metricDefinitionId },
-        select: { 
-          id: true, 
-          key: true, 
-          displayName: true, 
-          valueType: true, 
+        select: {
+          id: true,
+          key: true,
+          displayName: true,
+          valueType: true,
           unit: true,
           version: true,
           activeFrom: true,
@@ -116,6 +116,7 @@ const createObservation = async (req, res) => {
     // OPTIMIZATION 4: Create observation with minimal includes
     const observation = await prisma.observation.create({
       data: {
+        organizationId,  // SECURITY: Always include organizationId
         patientId: patientId,
         enrollmentId: enrollmentId,
         metricDefinitionId: metricDefinitionId,
@@ -177,8 +178,20 @@ const getAllObservations = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     // Build filter conditions
-    const where = {};
+    const where = {
+      organizationId  // SECURITY: Always filter by organization
+    };
     if (patientId) where.patientId = patientId;
     if (metricDefinitionId) where.metricDefinitionId = metricDefinitionId;
     if (recordedBy) where.recordedBy = recordedBy;
@@ -213,8 +226,8 @@ const getAllObservations = async (req, res) => {
           patient: {
             select: { id: true, firstName: true, lastName: true }
           },
-          metricDefinition: {
-            select: { id: true, displayName: true, valueType: true, unit: true }
+          metric: {
+            select: { id: true, key: true, displayName: true, valueType: true, unit: true }
           }
         }
       }),
@@ -252,12 +265,12 @@ const getObservationById = async (req, res) => {
         patient: {
           select: { id: true, firstName: true, lastName: true, dateOfBirth: true }
         },
-        metricDefinition: {
-          select: { 
-            id: true, 
+        metric: {
+          select: {
+            id: true,
             key: true,
             displayName: true,
-            valueType: true, 
+            valueType: true,
             unit: true,
             scaleMin: true,
             scaleMax: true
@@ -297,7 +310,7 @@ const updateObservation = async (req, res) => {
     const existingObservation = await prisma.observation.findUnique({
       where: { id: parseInt(id) },
       include: {
-        metricDefinition: true
+        metric: true
       }
     });
 
@@ -338,8 +351,8 @@ const updateObservation = async (req, res) => {
         patient: {
           select: { id: true, firstName: true, lastName: true }
         },
-        metricDefinition: {
-          select: { id: true, name: true, dataType: true, unit: true }
+        metric: {
+          select: { id: true, key: true, displayName: true, valueType: true, unit: true }
         }
       }
     });
@@ -436,14 +449,14 @@ const getPatientObservationHistory = async (req, res) => {
       take: parseInt(limit),
       orderBy: { recordedAt: 'desc' },
       include: {
-        metricDefinition: {
-          select: { 
-            id: true, 
-            key: true, 
-            displayName: true, 
-            valueType: true, 
-            scaleMin: true, 
-            scaleMax: true 
+        metric: {
+          select: {
+            id: true,
+            key: true,
+            displayName: true,
+            valueType: true,
+            scaleMin: true,
+            scaleMax: true
           }
         }
       }
@@ -519,8 +532,8 @@ const getObservationStats = async (req, res) => {
           patient: {
             select: { id: true, firstName: true, lastName: true }
           },
-          metricDefinition: {
-            select: { id: true, displayName: true, valueType: true, unit: true }
+          metric: {
+            select: { id: true, key: true, displayName: true, valueType: true, unit: true }
           }
         }
       })
@@ -530,14 +543,14 @@ const getObservationStats = async (req, res) => {
     const metricIds = observationsByMetric.map(item => item.metricDefinitionId);
     const metrics = await prisma.metricDefinition.findMany({
       where: { id: { in: metricIds } },
-      select: { id: true, displayName: true, unit: true }
+      select: { id: true, key: true, displayName: true, unit: true }
     });
 
     const enrichedStats = observationsByMetric.map(stat => {
       const metric = metrics.find(m => m.id === stat.metricDefinitionId);
       return {
         ...stat,
-        metricName: metric?.name || 'Unknown',
+        metricName: metric?.displayName || 'Unknown',
         unit: metric?.unit
       };
     });
@@ -654,8 +667,8 @@ const bulkCreateObservations = async (req, res) => {
             patient: {
               select: { id: true, firstName: true, lastName: true }
             },
-            metricDefinition: {
-              select: { id: true, name: true, dataType: true, unit: true }
+            metric: {
+              select: { id: true, key: true, displayName: true, valueType: true, unit: true }
             }
           }
         })
@@ -732,7 +745,7 @@ function groupObservationsByMetricAndTime(observations, groupBy) {
   const grouped = {};
 
   observations.forEach(obs => {
-    const metricName = obs.metricDefinition.name;
+    const metricName = obs.metric?.displayName || obs.metricDefinition?.displayName || 'Unknown';
     const date = new Date(obs.recordedAt);
     
     let timeKey;
@@ -805,8 +818,8 @@ const getObservationsByEnrollment = async (req, res) => {
         patient: {
           select: { id: true, firstName: true, lastName: true }
         },
-        metricDefinition: {
-          select: { id: true, displayName: true, valueType: true, unit: true }
+        metric: {
+          select: { id: true, key: true, displayName: true, valueType: true, unit: true }
         }
       },
       orderBy: { recordedAt: 'desc' }

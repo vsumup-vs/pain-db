@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 const prisma = global.prisma || new PrismaClient();
 
 // Get all condition presets
@@ -8,6 +8,8 @@ const getAllConditionPresets = async (req, res) => {
       page = 1,
       limit = 50,
       search,
+      category,
+      isStandardized,
       sortBy = 'name',
       sortOrder = 'asc'
     } = req.query;
@@ -17,11 +19,20 @@ const getAllConditionPresets = async (req, res) => {
 
     // Build where clause
     const where = {};
+    
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } }
       ];
+    }
+    
+    if (category) {
+      where.category = category;
+    }
+    
+    if (isStandardized !== undefined) {
+      where.isStandardized = isStandardized === 'true';
     }
 
     const [presets, total] = await Promise.all([
@@ -35,7 +46,9 @@ const getAllConditionPresets = async (req, res) => {
                 select: {
                   id: true,
                   name: true,
-                  description: true
+                  description: true,
+                  isStandardized: true,
+                  category: true
                 }
               }
             }
@@ -46,7 +59,9 @@ const getAllConditionPresets = async (req, res) => {
                 select: {
                   id: true,
                   name: true,
-                  severity: true
+                  description: true,
+                  severity: true,
+                  isStandardized: true
                 }
               }
             }
@@ -150,6 +165,9 @@ const createConditionPreset = async (req, res) => {
   try {
     const {
       name,
+      description,
+      category,
+      isStandardized = false,
       diagnoses = [],
       templateIds = [],
       alertRuleIds = []
@@ -175,7 +193,7 @@ const createConditionPreset = async (req, res) => {
       });
     }
 
-    // Add template validation in createConditionPreset
+    // Validate template IDs if provided
     if (templateIds.length > 0) {
       const existingTemplates = await prisma.assessmentTemplate.findMany({
         where: { id: { in: templateIds } },
@@ -196,11 +214,15 @@ const createConditionPreset = async (req, res) => {
     const preset = await prisma.conditionPreset.create({
       data: {
         name,
+        description,
+        category,
+        isStandardized,
         diagnoses: {
           create: diagnoses.map(diagnosis => ({
             icd10: diagnosis.icd10,
             snomed: diagnosis.snomed,
-            label: diagnosis.label
+            label: diagnosis.label,
+            isPrimary: diagnosis.isPrimary || false
           }))
         },
         templates: {
@@ -210,7 +232,7 @@ const createConditionPreset = async (req, res) => {
         },
         alertRules: {
           create: alertRuleIds.map(ruleId => ({
-            ruleId
+            alertRuleId: ruleId
           }))
         }
       },
@@ -235,7 +257,7 @@ const createConditionPreset = async (req, res) => {
                 id: true,
                 name: true,
                 severity: true,
-                expression: true
+                conditions: true
               }
             }
           }
@@ -261,7 +283,7 @@ const createConditionPreset = async (req, res) => {
 const updateConditionPreset = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, diagnoses, templateIds, alertRuleIds } = req.body;
+    const { name, description, category, isStandardized, diagnoses, templateIds, alertRuleIds } = req.body;
 
     // Check if preset exists
     const existingPreset = await prisma.conditionPreset.findUnique({
@@ -294,20 +316,24 @@ const updateConditionPreset = async (req, res) => {
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (category !== undefined) updateData.category = category;
+    if (isStandardized !== undefined) updateData.isStandardized = isStandardized;
 
-    // Handle diagnoses update with duplicate filtering
+    // Handle diagnoses update
     if (diagnoses !== undefined) {
       // Filter out duplicates by icd10 code
-      const uniqueDiagnoses = diagnoses.filter((diagnosis, index, self) => 
+      const uniqueDiagnoses = diagnoses.filter((diagnosis, index, self) =>
         index === self.findIndex(d => d.icd10 === diagnosis.icd10)
       );
-      
+
       updateData.diagnoses = {
         deleteMany: {},
         create: uniqueDiagnoses.map(diagnosis => ({
           icd10: diagnosis.icd10,
           snomed: diagnosis.snomed,
-          label: diagnosis.label
+          label: diagnosis.label,
+          isPrimary: diagnosis.isPrimary || false
         }))
       };
     }
@@ -327,7 +353,7 @@ const updateConditionPreset = async (req, res) => {
       updateData.alertRules = {
         deleteMany: {},
         create: alertRuleIds.map(ruleId => ({
-          ruleId
+          alertRuleId: ruleId
         }))
       };
     }
@@ -356,7 +382,7 @@ const updateConditionPreset = async (req, res) => {
                 id: true,
                 name: true,
                 severity: true,
-                expression: true
+                conditions: true
               }
             }
           }

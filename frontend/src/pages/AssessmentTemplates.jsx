@@ -429,15 +429,22 @@ export default function AssessmentTemplates() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm text-gray-500">Version {previewingTemplate.version}</span>
+                  <span className="text-sm text-gray-500">
+                    Version {previewingTemplate.version || 'Custom'}
+                  </span>
                   <div className="mt-1">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-                      previewingTemplate.isActive 
-                        ? 'bg-green-50 text-green-700 border-green-200' 
+                      previewingTemplate.isStandardized 
+                        ? 'bg-blue-50 text-blue-700 border-blue-200' 
                         : 'bg-gray-50 text-gray-700 border-gray-200'
                     }`}>
-                      {previewingTemplate.isActive ? 'Active' : 'Inactive'}
+                      {previewingTemplate.isStandardized ? 'Standardized' : 'Custom'}
                     </span>
+                    {previewingTemplate.category && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border-green-200 ml-1">
+                        {previewingTemplate.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -462,7 +469,7 @@ export default function AssessmentTemplates() {
                   <div>
                     <p className="text-sm font-medium text-green-900">Required</p>
                     <p className="text-lg font-semibold text-green-700">
-                      {previewingTemplate.items?.filter(item => item.isRequired).length || 0}
+                      {previewingTemplate.items?.filter(item => item.isRequired || item.required).length || 0}
                     </p>
                   </div>
                 </div>
@@ -473,7 +480,10 @@ export default function AssessmentTemplates() {
                   <div>
                     <p className="text-sm font-medium text-gray-900">Created</p>
                     <p className="text-lg font-semibold text-gray-700">
-                      {new Date(previewingTemplate.createdAt).toLocaleDateString()}
+                      {previewingTemplate.createdAt 
+                        ? new Date(previewingTemplate.createdAt).toLocaleDateString()
+                        : 'Unknown'
+                      }
                     </p>
                   </div>
                 </div>
@@ -511,23 +521,23 @@ export default function AssessmentTemplates() {
                                 <span className="font-medium">Unit:</span> {item.metricDefinition.unit}
                               </p>
                             )}
-                            {item.metricDefinition?.coding && (
+                            {item.metricDefinition?.standardCoding && (
                               <div className="text-sm text-gray-600">
                                 <span className="font-medium">Coding:</span>
                                 <div className="ml-4 mt-1 space-y-1">
-                                  {item.metricDefinition.coding.primary && (
+                                  {item.metricDefinition.standardCoding.primary && (
                                     <div className="text-xs text-blue-700">
-                                      LOINC: {item.metricDefinition.coding.primary.code} - {item.metricDefinition.coding.primary.display}
+                                      LOINC: {item.metricDefinition.standardCoding.primary.code} - {item.metricDefinition.standardCoding.primary.display}
                                     </div>
                                   )}
-                                  {item.metricDefinition.coding.secondary?.[0] && (
+                                  {item.metricDefinition.standardCoding.secondary?.[0] && (
                                     <div className="text-xs text-green-700">
-                                      SNOMED: {item.metricDefinition.coding.secondary[0].code} - {item.metricDefinition.coding.secondary[0].display}
+                                      SNOMED: {item.metricDefinition.standardCoding.secondary[0].code} - {item.metricDefinition.standardCoding.secondary[0].display}
                                     </div>
                                   )}
-                                  {item.metricDefinition.coding.mappings?.icd10 && (
+                                  {item.metricDefinition.standardCoding.mappings?.icd10 && (
                                     <div className="text-xs text-purple-700">
-                                      ICD-10: {item.metricDefinition.coding.mappings.icd10}
+                                      ICD-10: {item.metricDefinition.standardCoding.mappings.icd10}
                                     </div>
                                   )}
                                 </div>

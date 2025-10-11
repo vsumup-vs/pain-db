@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -28,19 +28,33 @@ const createPatient = async (req, res) => {
       });
     }
 
-    // Check if patient with email already exists
-    const existingPatient = await prisma.patient.findUnique({
-      where: { email }
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check if patient with email already exists IN THIS ORGANIZATION
+    const existingPatient = await prisma.patient.findFirst({
+      where: {
+        email,
+        organizationId  // SECURITY: Scope check to current organization
+      }
     });
 
     if (existingPatient) {
       return res.status(409).json({
-        error: 'Patient with this email already exists'
+        error: 'Patient with this email already exists in your organization'
       });
     }
 
     const patient = await prisma.patient.create({
       data: {
+        organizationId,  // SECURITY: Always include organizationId
         firstName,
         lastName,
         email,
@@ -80,12 +94,24 @@ const getAllPatients = async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
     // Build where clause for filtering
-    const where = {};
-    
+    const where = {
+      organizationId  // SECURITY: Always filter by organization
+    };
+
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -93,7 +119,7 @@ const getAllPatients = async (req, res) => {
         { email: { contains: search, mode: 'insensitive' } }
       ];
     }
-    
+
     if (gender) {
       where.gender = gender;
     }
@@ -112,7 +138,6 @@ const getAllPatients = async (req, res) => {
               clinician: {
                 select: {
                   id: true,
-                  npi: true,
                   createdAt: true
                 }
               }
@@ -145,15 +170,27 @@ const getPatientById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const patient = await prisma.patient.findUnique({
-      where: { id },
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    const patient = await prisma.patient.findFirst({
+      where: {
+        id,
+        organizationId  // SECURITY: Verify patient belongs to user's organization
+      },
       include: {
         enrollments: {
           include: {
             clinician: {
               select: {
                 id: true,
-                npi: true,
                 firstName: true,
                 lastName: true,
                 email: true,
@@ -188,7 +225,7 @@ const getPatientById = async (req, res) => {
 
     if (!patient) {
       return res.status(404).json({
-        error: 'Patient not found'
+        error: 'Patient not found or access denied'
       });
     }
 
@@ -209,36 +246,53 @@ const updatePatient = async (req, res) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     // Convert dateOfBirth to Date if provided
     if (updateData.dateOfBirth) {
       updateData.dateOfBirth = new Date(updateData.dateOfBirth);
     }
 
-    // Remove id from update data if present
+    // Remove fields that shouldn't be updated
     delete updateData.id;
     delete updateData.createdAt;
     delete updateData.updatedAt;
+    delete updateData.organizationId;  // SECURITY: Prevent organization switching
 
-    // Check if patient exists
-    const existingPatient = await prisma.patient.findUnique({
-      where: { id }
+    // Check if patient exists and belongs to user's organization
+    const existingPatient = await prisma.patient.findFirst({
+      where: {
+        id,
+        organizationId  // SECURITY: Verify ownership
+      }
     });
 
     if (!existingPatient) {
       return res.status(404).json({
-        error: 'Patient not found'
+        error: 'Patient not found or access denied'
       });
     }
 
     // Check for email uniqueness if email is being updated
     if (updateData.email && updateData.email !== existingPatient.email) {
-      const emailExists = await prisma.patient.findUnique({
-        where: { email: updateData.email }
+      const emailExists = await prisma.patient.findFirst({
+        where: {
+          email: updateData.email,
+          organizationId  // SECURITY: Check within same organization
+        }
       });
 
       if (emailExists) {
         return res.status(409).json({
-          error: 'Email already exists for another patient'
+          error: 'Email already exists for another patient in your organization'
         });
       }
     }
@@ -265,9 +319,22 @@ const deletePatient = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if patient exists
-    const existingPatient = await prisma.patient.findUnique({
-      where: { id },
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check if patient exists and belongs to user's organization
+    const existingPatient = await prisma.patient.findFirst({
+      where: {
+        id,
+        organizationId  // SECURITY: Verify ownership
+      },
       include: {
         enrollments: {
           include: {
@@ -280,7 +347,7 @@ const deletePatient = async (req, res) => {
 
     if (!existingPatient) {
       return res.status(404).json({
-        error: 'Patient not found'
+        error: 'Patient not found or access denied'
       });
     }
 
@@ -432,10 +499,24 @@ const getPatientStats = async (req, res) => {
 // Get general patient statistics (for dashboard)
 const getGeneralPatientStats = async (req, res) => {
   try {
-    // Simplified - only return counts, not recent patients (use separate endpoint for that)
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // SECURITY: Only count patients and observations for current organization
     const [totalPatients, totalObservations] = await Promise.all([
-      prisma.patient.count(),
-      prisma.observation.count()
+      prisma.patient.count({
+        where: { organizationId }
+      }),
+      prisma.observation.count({
+        where: { organizationId }
+      })
     ]);
 
     res.json({
@@ -456,13 +537,24 @@ const getGeneralPatientStats = async (req, res) => {
 const getRecentPatients = async (req, res) => {
   try {
     const { limit = 5 } = req.query;
-    
+
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     const patients = await prisma.patient.findMany({
+      where: { organizationId },  // SECURITY: Filter by organization
       orderBy: { createdAt: 'desc' },
       take: parseInt(limit),
       select: {
         id: true,
-        mrn: true,
+        medicalRecordNumber: true,
         firstName: true,
         lastName: true,
         email: true,

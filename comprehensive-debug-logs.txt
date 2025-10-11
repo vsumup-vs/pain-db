@@ -1,0 +1,1434 @@
+STDERR: prisma:tryLoadEnv Environment variables not found at null +-756ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +1ms
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +2ms
+
+STDERR: prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/node_modules/.prisma/client +1ms
+
+STDERR: prisma:client relativePath ../../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +1ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:02.742Z express:application set "x-powered-by" to true
+
+STDERR: 2025-10-08T06:09:02.743Z express:application set "etag" to 'weak'
+2025-10-08T06:09:02.743Z express:application set "etag fn" to [Function: generateETag]
+2025-10-08T06:09:02.743Z express:application set "env" to 'development'
+2025-10-08T06:09:02.743Z express:application set "query parser" to 'simple'
+
+STDERR: 2025-10-08T06:09:02.744Z express:application set "query parser fn" to [Function: parse]
+
+STDERR: 2025-10-08T06:09:02.744Z express:application set "subdomain offset" to 2
+2025-10-08T06:09:02.744Z express:application set "trust proxy" to false
+
+STDERR: 2025-10-08T06:09:02.745Z express:application set "trust proxy fn" to [Function: trustNone]
+
+STDERR: 2025-10-08T06:09:02.745Z express:application booting in development mode
+
+STDERR: 2025-10-08T06:09:02.745Z express:application set "view" to [Function: View]
+2025-10-08T06:09:02.745Z express:application set "views" to '/home/vsumup/pain-db/views'
+
+STDERR: 2025-10-08T06:09:02.745Z express:application set "jsonp callback name" to 'callback'
+
+STDERR: 2025-10-08T06:09:02.747Z router use '/' helmetMiddleware
+
+STDERR: 2025-10-08T06:09:02.748Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.748Z router use '/' corsMiddleware
+2025-10-08T06:09:02.748Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.749Z router use '/' jsonParser
+2025-10-08T06:09:02.749Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.749Z router use '/' urlencodedParser
+2025-10-08T06:09:02.749Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.749Z router use '/' <anonymous>
+2025-10-08T06:09:02.749Z router:layer new '/'
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +9ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +1ms
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +1ms
+
+STDERR: prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +1ms
+
+STDERR: prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:02.905Z router use '/' <anonymous>
+
+STDERR: 2025-10-08T06:09:02.905Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.905Z router use '/' sanitizeInput
+2025-10-08T06:09:02.905Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.906Z router:route new '/'
+2025-10-08T06:09:02.906Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.906Z router:route post /
+2025-10-08T06:09:02.906Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.906Z router:route post /
+2025-10-08T06:09:02.906Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.906Z router:route new '/'
+2025-10-08T06:09:02.906Z router:layer new '/'
+2025-10-08T06:09:02.906Z router:route get /
+2025-10-08T06:09:02.906Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.906Z router:route get /
+2025-10-08T06:09:02.907Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.907Z router:route get /
+2025-10-08T06:09:02.907Z router:layer new '/'
+2025-10-08T06:09:02.907Z router:route get /
+2025-10-08T06:09:02.907Z router:layer new '/'
+2025-10-08T06:09:02.907Z router:route get /
+2025-10-08T06:09:02.907Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.907Z router:route get /
+2025-10-08T06:09:02.907Z router:layer new '/'
+2025-10-08T06:09:02.907Z router:route get /
+2025-10-08T06:09:02.907Z router:layer new '/'
+2025-10-08T06:09:02.907Z router:route new '/stats'
+2025-10-08T06:09:02.907Z router:layer new '/stats'
+
+STDERR: 2025-10-08T06:09:02.907Z router:route get /stats
+2025-10-08T06:09:02.907Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.916Z router:route new '/recent'
+
+STDERR: 2025-10-08T06:09:02.916Z router:layer new '/recent'
+2025-10-08T06:09:02.916Z router:route get /recent
+2025-10-08T06:09:02.916Z router:layer new '/'
+2025-10-08T06:09:02.917Z router:route new '/:id/stats'
+2025-10-08T06:09:02.917Z router:layer new '/:id/stats'
+
+STDERR: 2025-10-08T06:09:02.917Z router:route get /:id/stats
+
+STDERR: 2025-10-08T06:09:02.917Z router:layer new '/'
+2025-10-08T06:09:02.917Z router:route new '/:id'
+2025-10-08T06:09:02.917Z router:layer new '/:id'
+
+STDERR: 2025-10-08T06:09:02.917Z router:route get /:id
+2025-10-08T06:09:02.917Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.917Z router:route new '/:id'
+2025-10-08T06:09:02.918Z router:layer new '/:id'
+2025-10-08T06:09:02.918Z router:route put /:id
+2025-10-08T06:09:02.918Z router:layer new '/'
+2025-10-08T06:09:02.918Z router:route put /:id
+2025-10-08T06:09:02.918Z router:layer new '/'
+2025-10-08T06:09:02.918Z router:route new '/:id'
+2025-10-08T06:09:02.918Z router:layer new '/:id'
+2025-10-08T06:09:02.918Z router:route delete /:id
+2025-10-08T06:09:02.918Z router:layer new '/'
+2025-10-08T06:09:02.918Z router:route delete /:id
+2025-10-08T06:09:02.918Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +144ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:02.920Z router:route new '/'
+2025-10-08T06:09:02.920Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route post /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route new '/'
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route get /
+2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.920Z router:route get /
+
+STDERR: 2025-10-08T06:09:02.920Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route get /
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route get /
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route get /
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route get /
+2025-10-08T06:09:02.921Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route new '/stats'
+2025-10-08T06:09:02.921Z router:layer new '/stats'
+2025-10-08T06:09:02.921Z router:route get /stats
+2025-10-08T06:09:02.921Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route new '/specialization/:specialization'
+2025-10-08T06:09:02.921Z router:layer new '/specialization/:specialization'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route get /specialization/:specialization
+2025-10-08T06:09:02.921Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route new '/:id'
+2025-10-08T06:09:02.921Z router:layer new '/:id'
+2025-10-08T06:09:02.921Z router:route get /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route new '/:id/stats'
+2025-10-08T06:09:02.921Z router:layer new '/:id/stats'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route get /:id/stats
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route new '/:id'
+2025-10-08T06:09:02.921Z router:layer new '/:id'
+2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route put /:id
+
+STDERR: 2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route put /:id
+2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route put /:id
+
+STDERR: 2025-10-08T06:09:02.921Z router:layer new '/'
+2025-10-08T06:09:02.921Z router:route new '/:id'
+2025-10-08T06:09:02.922Z router:layer new '/:id'
+2025-10-08T06:09:02.922Z router:route delete /:id
+
+STDERR: 2025-10-08T06:09:02.922Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +3ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +1ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+
+STDERR: prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:02.926Z router:route new '/'
+
+STDERR: 2025-10-08T06:09:02.926Z router:layer new '/'
+2025-10-08T06:09:02.926Z router:route post /
+2025-10-08T06:09:02.926Z router:layer new '/'
+2025-10-08T06:09:02.926Z router:route new '/bulk-create'
+2025-10-08T06:09:02.926Z router:layer new '/bulk-create'
+
+STDERR: 2025-10-08T06:09:02.926Z router:route post /bulk-create
+2025-10-08T06:09:02.926Z router:layer new '/'
+2025-10-08T06:09:02.926Z router:route new '/'
+2025-10-08T06:09:02.926Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.926Z router:route get /
+
+STDERR: 2025-10-08T06:09:02.926Z router:layer new '/'
+2025-10-08T06:09:02.926Z router:route new '/stats'
+
+STDERR: 2025-10-08T06:09:02.926Z router:layer new '/stats'
+2025-10-08T06:09:02.926Z router:route get /stats
+2025-10-08T06:09:02.926Z router:layer new '/'
+2025-10-08T06:09:02.926Z router:route new '/:id'
+2025-10-08T06:09:02.926Z router:layer new '/:id'
+
+STDERR: 2025-10-08T06:09:02.926Z router:route get /:id
+2025-10-08T06:09:02.926Z router:layer new '/'
+2025-10-08T06:09:02.926Z router:route new '/:id/filtered-metrics'
+2025-10-08T06:09:02.926Z router:layer new '/:id/filtered-metrics'
+2025-10-08T06:09:02.927Z router:route get /:id/filtered-metrics
+
+STDERR: 2025-10-08T06:09:02.927Z router:layer new '/'
+2025-10-08T06:09:02.927Z router:route new '/:id'
+2025-10-08T06:09:02.927Z router:layer new '/:id'
+2025-10-08T06:09:02.927Z router:route put /:id
+2025-10-08T06:09:02.927Z router:layer new '/'
+2025-10-08T06:09:02.927Z router:route new '/:id'
+2025-10-08T06:09:02.927Z router:layer new '/:id'
+
+STDERR: 2025-10-08T06:09:02.927Z router:route delete /:id
+2025-10-08T06:09:02.927Z router:layer new '/'
+2025-10-08T06:09:02.927Z router:route new '/:id/deactivate'
+2025-10-08T06:09:02.927Z router:layer new '/:id/deactivate'
+
+STDERR: 2025-10-08T06:09:02.927Z router:route put /:id/deactivate
+2025-10-08T06:09:02.927Z router:layer new '/'
+2025-10-08T06:09:02.927Z router:route new '/:id/transfer'
+2025-10-08T06:09:02.927Z router:layer new '/:id/transfer'
+2025-10-08T06:09:02.927Z router:route patch /:id/transfer
+2025-10-08T06:09:02.927Z router:layer new '/'
+2025-10-08T06:09:02.927Z router:route new '/:id/medications'
+2025-10-08T06:09:02.927Z router:layer new '/:id/medications'
+
+STDERR: 2025-10-08T06:09:02.927Z router:route get /:id/medications
+2025-10-08T06:09:02.927Z router:layer new '/'
+2025-10-08T06:09:02.927Z router:route new '/:id/medications'
+2025-10-08T06:09:02.927Z router:layer new '/:id/medications'
+2025-10-08T06:09:02.927Z router:route post /:id/medications
+2025-10-08T06:09:02.927Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +2ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +1ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:02.929Z router:route new '/templates/standardized'
+
+STDERR: 2025-10-08T06:09:02.929Z router:layer new '/templates/standardized'
+2025-10-08T06:09:02.929Z router:route get /templates/standardized
+2025-10-08T06:09:02.929Z router:layer new '/'
+2025-10-08T06:09:02.929Z router:route new '/templates/:templateKey'
+2025-10-08T06:09:02.929Z router:layer new '/templates/:templateKey'
+2025-10-08T06:09:02.930Z router:route get /templates/:templateKey
+2025-10-08T06:09:02.930Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.930Z router:route new '/templates/create'
+2025-10-08T06:09:02.930Z router:layer new '/templates/create'
+2025-10-08T06:09:02.930Z router:route post /templates/create
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route new '/'
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+
+STDERR: 2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route post /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route new '/'
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route get /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route get /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route get /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route get /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route get /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route get /
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route new '/stats'
+2025-10-08T06:09:02.930Z router:layer new '/stats'
+2025-10-08T06:09:02.930Z router:route get /stats
+2025-10-08T06:09:02.930Z router:layer new '/'
+2025-10-08T06:09:02.930Z router:route new '/:id'
+2025-10-08T06:09:02.930Z router:layer new '/:id'
+
+STDERR: 2025-10-08T06:09:02.931Z router:route get /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route get /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route get /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route new '/:id'
+2025-10-08T06:09:02.931Z router:layer new '/:id'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+
+STDERR: 2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route put /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route new '/:id'
+2025-10-08T06:09:02.931Z router:layer new '/:id'
+2025-10-08T06:09:02.931Z router:route delete /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route delete /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route delete /:id
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route new '/:id/validate'
+2025-10-08T06:09:02.931Z router:layer new '/:id/validate'
+
+STDERR: 2025-10-08T06:09:02.931Z router:route post /:id/validate
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route post /:id/validate
+2025-10-08T06:09:02.931Z router:layer new '/'
+2025-10-08T06:09:02.931Z router:route post /:id/validate
+2025-10-08T06:09:02.931Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +3ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +1ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:02.933Z router:route new '/'
+2025-10-08T06:09:02.933Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route post /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/'
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+
+STDERR: 2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route get /
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/stats'
+2025-10-08T06:09:02.934Z router:layer new '/stats'
+2025-10-08T06:09:02.934Z router:route get /stats
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/bulk'
+2025-10-08T06:09:02.934Z router:layer new '/bulk'
+2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route post /bulk
+
+STDERR: 2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route post /bulk
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/:id'
+2025-10-08T06:09:02.934Z router:layer new '/:id'
+2025-10-08T06:09:02.934Z router:route get /:id
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/:id'
+2025-10-08T06:09:02.934Z router:layer new '/:id'
+2025-10-08T06:09:02.934Z router:route put /:id
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/:id'
+2025-10-08T06:09:02.934Z router:layer new '/:id'
+2025-10-08T06:09:02.934Z router:route delete /:id
+2025-10-08T06:09:02.934Z router:layer new '/'
+2025-10-08T06:09:02.934Z router:route new '/patient/:patientId/history'
+2025-10-08T06:09:02.935Z router:layer new '/patient/:patientId/history'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route get /patient/:patientId/history
+2025-10-08T06:09:02.935Z router:layer new '/'
+2025-10-08T06:09:02.935Z router:route new '/enrollment/:enrollmentId'
+2025-10-08T06:09:02.935Z router:layer new '/enrollment/:enrollmentId'
+2025-10-08T06:09:02.935Z router:route get /enrollment/:enrollmentId
+2025-10-08T06:09:02.935Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +3ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+prisma:client dirname /home/vsumup/pain-db/generated/prisma +1ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+prisma:client:libraryEngine internalSetup +0ms
+2025-10-08T06:09:02.937Z router:route new '/'
+2025-10-08T06:09:02.937Z router:layer new '/'
+2025-10-08T06:09:02.937Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route post /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route new '/'
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route new '/stats'
+2025-10-08T06:09:02.938Z router:layer new '/stats'
+2025-10-08T06:09:02.938Z router:route get /stats
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route new '/recent'
+2025-10-08T06:09:02.938Z router:layer new '/recent'
+2025-10-08T06:09:02.938Z router:route get /recent
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route new '/evaluate'
+2025-10-08T06:09:02.938Z router:layer new '/evaluate'
+2025-10-08T06:09:02.938Z router:route post /evaluate
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route new '/:id'
+2025-10-08T06:09:02.938Z router:layer new '/:id'
+2025-10-08T06:09:02.938Z router:route get /:id
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /:id
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route get /:id
+2025-10-08T06:09:02.938Z router:layer new '/'
+2025-10-08T06:09:02.938Z router:route new '/:id'
+2025-10-08T06:09:02.938Z router:layer new '/:id'
+2025-10-08T06:09:02.938Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route put /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route new '/:id'
+2025-10-08T06:09:02.939Z router:layer new '/:id'
+2025-10-08T06:09:02.939Z router:route delete /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route delete /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+2025-10-08T06:09:02.939Z router:route delete /:id
+2025-10-08T06:09:02.939Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +4ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +1ms
+
+STDERR: prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:02.943Z router:route new '/'
+2025-10-08T06:09:02.943Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.943Z router:route get /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route get /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route get /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route get /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route get /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route get /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route new '/stats'
+2025-10-08T06:09:02.943Z router:layer new '/stats'
+2025-10-08T06:09:02.943Z router:route get /stats
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route new '/templates'
+2025-10-08T06:09:02.943Z router:layer new '/templates'
+2025-10-08T06:09:02.943Z router:route get /templates
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route new '/:id'
+2025-10-08T06:09:02.943Z router:layer new '/:id'
+2025-10-08T06:09:02.943Z router:route get /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route get /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.943Z router:route get /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route new '/'
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route post /
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route new '/:id'
+2025-10-08T06:09:02.943Z router:layer new '/:id'
+2025-10-08T06:09:02.943Z router:route put /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route put /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route put /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route new '/:id'
+2025-10-08T06:09:02.943Z router:layer new '/:id'
+2025-10-08T06:09:02.943Z router:route delete /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route delete /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+2025-10-08T06:09:02.943Z router:route delete /:id
+2025-10-08T06:09:02.943Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +3ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +1ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:02.948Z router:route new '/'
+2025-10-08T06:09:02.948Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.948Z router:route get /
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route new '/:id'
+2025-10-08T06:09:02.948Z router:layer new '/:id'
+2025-10-08T06:09:02.948Z router:route get /:id
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route get /:id
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route get /:id
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route new '/'
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route post /
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route post /
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route post /
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.948Z router:route post /
+2025-10-08T06:09:02.948Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route post /
+2025-10-08T06:09:02.949Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.949Z router:route post /
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route post /
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route post /
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route post /
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route post /
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route new '/:id'
+
+STDERR: 2025-10-08T06:09:02.949Z router:layer new '/:id'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+
+STDERR: 2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+
+STDERR: 2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route put /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.949Z router:route new '/:id'
+2025-10-08T06:09:02.949Z router:layer new '/:id'
+2025-10-08T06:09:02.949Z router:route delete /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route delete /:id
+
+STDERR: 2025-10-08T06:09:02.949Z router:layer new '/'
+2025-10-08T06:09:02.949Z router:route delete /:id
+2025-10-08T06:09:02.949Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +4ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +1ms
+
+STDERR: prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:02.952Z router:route new '/'
+
+STDERR: 2025-10-08T06:09:02.952Z router:layer new '/'
+2025-10-08T06:09:02.952Z router:route get /
+2025-10-08T06:09:02.952Z router:layer new '/'
+2025-10-08T06:09:02.952Z router:route new '/standardized'
+2025-10-08T06:09:02.952Z router:layer new '/standardized'
+
+STDERR: 2025-10-08T06:09:02.953Z router:route get /standardized
+2025-10-08T06:09:02.953Z router:layer new '/'
+2025-10-08T06:09:02.953Z router:route new '/custom'
+2025-10-08T06:09:02.953Z router:layer new '/custom'
+2025-10-08T06:09:02.953Z router:route get /custom
+2025-10-08T06:09:02.953Z router:layer new '/'
+2025-10-08T06:09:02.953Z router:route new '/categories'
+2025-10-08T06:09:02.953Z router:layer new '/categories'
+
+STDERR: 2025-10-08T06:09:02.953Z router:route get /categories
+2025-10-08T06:09:02.953Z router:layer new '/'
+2025-10-08T06:09:02.953Z router:route new '/:id'
+2025-10-08T06:09:02.953Z router:layer new '/:id'
+2025-10-08T06:09:02.953Z router:route get /:id
+2025-10-08T06:09:02.953Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +3ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +1ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:02.956Z router:route new '/'
+2025-10-08T06:09:02.956Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.956Z router:route get /
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.956Z router:route get /
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.956Z router:route get /
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.956Z router:route get /
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.956Z router:route get /
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.956Z router:route get /
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.956Z router:route new '/stats'
+2025-10-08T06:09:02.956Z router:layer new '/stats'
+2025-10-08T06:09:02.956Z router:route get /stats
+2025-10-08T06:09:02.956Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route new '/:id'
+2025-10-08T06:09:02.957Z router:layer new '/:id'
+2025-10-08T06:09:02.957Z router:route get /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route get /:id
+
+STDERR: 2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route get /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route new '/'
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route post /
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route new '/:id'
+2025-10-08T06:09:02.957Z router:layer new '/:id'
+2025-10-08T06:09:02.957Z router:route put /:id
+
+STDERR: 2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route put /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route put /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route new '/:id'
+2025-10-08T06:09:02.957Z router:layer new '/:id'
+
+STDERR: 2025-10-08T06:09:02.957Z router:route delete /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route delete /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+2025-10-08T06:09:02.957Z router:route delete /:id
+2025-10-08T06:09:02.957Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +4ms
+
+STDERR: prisma:client checkPlatformCaching:ciName undefined +0ms
+prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+
+STDERR: prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:02.960Z router:route new '/'
+
+STDERR: 2025-10-08T06:09:02.960Z router:layer new '/'
+2025-10-08T06:09:02.960Z router:route get /
+2025-10-08T06:09:02.960Z router:layer new '/'
+2025-10-08T06:09:02.960Z router:route new '/classes'
+2025-10-08T06:09:02.960Z router:layer new '/classes'
+
+STDERR: 2025-10-08T06:09:02.960Z router:route get /classes
+2025-10-08T06:09:02.960Z router:layer new '/'
+2025-10-08T06:09:02.960Z router:route new '/:id'
+2025-10-08T06:09:02.960Z router:layer new '/:id'
+2025-10-08T06:09:02.960Z router:route get /:id
+2025-10-08T06:09:02.960Z router:layer new '/'
+2025-10-08T06:09:02.960Z router:route new '/'
+2025-10-08T06:09:02.960Z router:layer new '/'
+2025-10-08T06:09:02.961Z router:route post /
+2025-10-08T06:09:02.961Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.961Z router:route new '/:id'
+2025-10-08T06:09:02.961Z router:layer new '/:id'
+2025-10-08T06:09:02.961Z router:route put /:id
+2025-10-08T06:09:02.961Z router:layer new '/'
+2025-10-08T06:09:02.961Z router:route new '/:id'
+2025-10-08T06:09:02.961Z router:layer new '/:id'
+
+STDERR: 2025-10-08T06:09:02.961Z router:route delete /:id
+2025-10-08T06:09:02.961Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +2ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/generated/prisma +0ms
+prisma:client relativePath ../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:02.963Z router:route new '/'
+2025-10-08T06:09:02.963Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:02.964Z router:route get /
+2025-10-08T06:09:02.964Z router:layer new '/'
+2025-10-08T06:09:02.964Z router:route new '/patient/:patientId'
+2025-10-08T06:09:02.964Z router:layer new '/patient/:patientId'
+2025-10-08T06:09:02.964Z router:route get /patient/:patientId
+2025-10-08T06:09:02.964Z router:layer new '/'
+2025-10-08T06:09:02.964Z router:route new '/'
+
+STDERR: 2025-10-08T06:09:02.964Z router:layer new '/'
+2025-10-08T06:09:02.964Z router:route post /
+2025-10-08T06:09:02.964Z router:layer new '/'
+2025-10-08T06:09:02.964Z router:route new '/:id'
+2025-10-08T06:09:02.964Z router:layer new '/:id'
+2025-10-08T06:09:02.964Z router:route put /:id
+2025-10-08T06:09:02.964Z router:layer new '/'
+2025-10-08T06:09:02.964Z router:route new '/:id/deactivate'
+2025-10-08T06:09:02.964Z router:layer new '/:id/deactivate'
+
+STDERR: 2025-10-08T06:09:02.964Z router:route patch /:id/deactivate
+2025-10-08T06:09:02.964Z router:layer new '/'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +258ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +1ms
+
+STDERR: prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+
+STDERR: prisma:client dirname /home/vsumup/pain-db/node_modules/.prisma/client +0ms
+prisma:client relativePath ../../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+
+STDERR: prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +1ms
+
+STDERR: 2025-10-08T06:09:03.041Z router:route new '/login'
+2025-10-08T06:09:03.041Z router:layer new '/login'
+
+STDERR: 2025-10-08T06:09:03.041Z router:route post /login
+2025-10-08T06:09:03.041Z router:layer new '/'
+2025-10-08T06:09:03.041Z router:route post /login
+2025-10-08T06:09:03.041Z router:layer new '/'
+2025-10-08T06:09:03.041Z router:route post /login
+2025-10-08T06:09:03.041Z router:layer new '/'
+2025-10-08T06:09:03.041Z router:route post /login
+2025-10-08T06:09:03.041Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:03.042Z router:route new '/register'
+2025-10-08T06:09:03.042Z router:layer new '/register'
+
+STDERR: 2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /register
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route new '/refresh'
+2025-10-08T06:09:03.042Z router:layer new '/refresh'
+2025-10-08T06:09:03.042Z router:route post /refresh
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /refresh
+
+STDERR: 2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route new '/select-organization'
+2025-10-08T06:09:03.042Z router:layer new '/select-organization'
+2025-10-08T06:09:03.042Z router:route post /select-organization
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /select-organization
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route new '/logout'
+
+STDERR: 2025-10-08T06:09:03.042Z router:layer new '/logout'
+2025-10-08T06:09:03.042Z router:route post /logout
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route post /logout
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route new '/me'
+2025-10-08T06:09:03.042Z router:layer new '/me'
+
+STDERR: 2025-10-08T06:09:03.042Z router:route get /me
+2025-10-08T06:09:03.042Z router:layer new '/'
+2025-10-08T06:09:03.042Z router:route get /me
+2025-10-08T06:09:03.042Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:03.043Z router:route new '/profile'
+2025-10-08T06:09:03.043Z router:layer new '/profile'
+2025-10-08T06:09:03.043Z router:route put /profile
+
+STDERR: 2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route put /profile
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route put /profile
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route put /profile
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route put /profile
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route new '/google'
+2025-10-08T06:09:03.043Z router:layer new '/google'
+2025-10-08T06:09:03.043Z router:route get /google
+
+STDERR: 2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route get /google
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route new '/microsoft'
+2025-10-08T06:09:03.043Z router:layer new '/microsoft'
+2025-10-08T06:09:03.043Z router:route get /microsoft
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route get /microsoft
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route new '/google/callback'
+2025-10-08T06:09:03.043Z router:layer new '/google/callback'
+2025-10-08T06:09:03.043Z router:route get /google/callback
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route get /google/callback
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route new '/microsoft/callback'
+2025-10-08T06:09:03.043Z router:layer new '/microsoft/callback'
+2025-10-08T06:09:03.043Z router:route get /microsoft/callback
+
+STDERR: 2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route get /microsoft/callback
+2025-10-08T06:09:03.043Z router:layer new '/'
+2025-10-08T06:09:03.043Z router:route new '/users'
+2025-10-08T06:09:03.044Z router:layer new '/users'
+2025-10-08T06:09:03.044Z router:route get /users
+2025-10-08T06:09:03.044Z router:layer new '/'
+2025-10-08T06:09:03.044Z router:route get /users
+2025-10-08T06:09:03.044Z router:layer new '/'
+2025-10-08T06:09:03.044Z router:route get /users
+2025-10-08T06:09:03.044Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:03.044Z router:route new '/users/:userId/assign-role'
+2025-10-08T06:09:03.044Z router:layer new '/users/:userId/assign-role'
+
+STDERR: 2025-10-08T06:09:03.044Z router:route post /users/:userId/assign-role
+2025-10-08T06:09:03.044Z router:layer new '/'
+2025-10-08T06:09:03.044Z router:route post /users/:userId/assign-role
+2025-10-08T06:09:03.044Z router:layer new '/'
+2025-10-08T06:09:03.044Z router:route post /users/:userId/assign-role
+2025-10-08T06:09:03.044Z router:layer new '/'
+2025-10-08T06:09:03.044Z router:route post /users/:userId/assign-role
+2025-10-08T06:09:03.044Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:03.044Z router:route post /users/:userId/assign-role
+2025-10-08T06:09:03.044Z router:layer new '/'
+
+STDERR: 2025-10-08T06:09:03.044Z router use '/' initialize
+2025-10-08T06:09:03.044Z router:layer new '/'
+2025-10-08T06:09:03.044Z router use '/api/auth' router
+
+STDERR: 2025-10-08T06:09:03.044Z router:layer new '/api/auth'
+
+STDERR: prisma:client checkPlatformCaching:postinstall false +45ms
+prisma:client checkPlatformCaching:ciName undefined +0ms
+
+STDERR: prisma:tryLoadEnv Environment variables not found at null +0ms
+prisma:tryLoadEnv Environment variables loaded from /home/vsumup/pain-db/.env +0ms
+prisma:client dirname /home/vsumup/pain-db/node_modules/.prisma/client +0ms
+
+STDERR: prisma:client relativePath ../../../prisma +0ms
+prisma:client cwd /home/vsumup/pain-db/prisma +0ms
+prisma:client clientVersion 6.16.2 +0ms
+
+STDERR: prisma:client:libraryEngine internalSetup +0ms
+
+STDERR: 2025-10-08T06:09:03.046Z router:route new '/health'
+2025-10-08T06:09:03.046Z router:layer new '/health'
+
+STDERR: 2025-10-08T06:09:03.046Z router:route get /health
+2025-10-08T06:09:03.046Z router:layer new '/'
+2025-10-08T06:09:03.046Z router use '/' router
+2025-10-08T06:09:03.046Z router:layer new '/'
+2025-10-08T06:09:03.046Z router:route new '/health'
+2025-10-08T06:09:03.046Z router:layer new '/health'
+
+STDERR: 2025-10-08T06:09:03.046Z router:route get /health
+2025-10-08T06:09:03.046Z router:layer new '/'
+2025-10-08T06:09:03.046Z router:route new '/api'
+2025-10-08T06:09:03.046Z router:layer new '/api'
+2025-10-08T06:09:03.046Z router:route get /api
+2025-10-08T06:09:03.046Z router:layer new '/'
+2025-10-08T06:09:03.046Z router use '/api/patients' router
+2025-10-08T06:09:03.046Z router:layer new '/api/patients'
+2025-10-08T06:09:03.046Z router use '/api/clinicians' router
+2025-10-08T06:09:03.046Z router:layer new '/api/clinicians'
+2025-10-08T06:09:03.046Z router use '/api/enrollments' router
+2025-10-08T06:09:03.046Z router:layer new '/api/enrollments'
+
+STDERR: 2025-10-08T06:09:03.046Z router use '/api/metric-definitions' router
+2025-10-08T06:09:03.046Z router:layer new '/api/metric-definitions'
+2025-10-08T06:09:03.046Z router use '/api/assessment-templates-v2' router
+2025-10-08T06:09:03.046Z router:layer new '/api/assessment-templates-v2'
+2025-10-08T06:09:03.046Z router use '/api/assessment-templates' router
+2025-10-08T06:09:03.046Z router:layer new '/api/assessment-templates'
+2025-10-08T06:09:03.047Z router use '/api/observations' router
+2025-10-08T06:09:03.047Z router:layer new '/api/observations'
+2025-10-08T06:09:03.047Z router use '/api/alerts' router
+2025-10-08T06:09:03.047Z router:layer new '/api/alerts'
+2025-10-08T06:09:03.047Z router use '/api/alert-rules' router
+
+STDERR: 2025-10-08T06:09:03.047Z router:layer new '/api/alert-rules'
+2025-10-08T06:09:03.047Z router use '/api/condition-presets' router
+2025-10-08T06:09:03.047Z router:layer new '/api/condition-presets'
+2025-10-08T06:09:03.047Z router use '/api/drugs' router
+2025-10-08T06:09:03.047Z router:layer new '/api/drugs'
+2025-10-08T06:09:03.047Z router use '/api/patient-medications' router
+2025-10-08T06:09:03.047Z router:layer new '/api/patient-medications'
+2025-10-08T06:09:03.047Z router use '/' <anonymous>
+2025-10-08T06:09:03.047Z router:layer new '/'
+2025-10-08T06:09:03.047Z router use '/' <anonymous>
+2025-10-08T06:09:03.047Z router:layer new '/'
+
+STDOUT: Server running on port 3000
+
+STDOUT: Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +12ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +1ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +97ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +1ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +1ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +1ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +1ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +1ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +1ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +0ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +1ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +9ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +1ms
+
+STDERR: prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +0ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node +1ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +13ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +1ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +10ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +1ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +4ms
+prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +5ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +4ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +1ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +4ms
+prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +4ms
+prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +5ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +5ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +1ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +4ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +1ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +4ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +5ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +6ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/generated/prisma/libquery_engine-debian-openssl-3.0.x.so.node +0ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +80ms
+
+STDERR: prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node +1ms
+
+STDERR: prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.3 +3ms
+prisma:get-platform The parsed libssl version is: 3.0.x +0ms
+
+STDERR: prisma:client:engines:resolveEnginePath enginePath /home/vsumup/pain-db/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node +0ms

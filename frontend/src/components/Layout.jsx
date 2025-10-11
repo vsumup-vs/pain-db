@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { api } from '../services/api'
 import {
   HomeIcon,
   UserGroupIcon,
@@ -13,6 +14,9 @@ import {
   ClipboardDocumentCheckIcon,
   Bars3Icon,
   XMarkIcon,
+  BuildingOfficeIcon,
+  UsersIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline'
 
 const navigation = [
@@ -28,13 +32,36 @@ const navigation = [
   { name: 'Enrollments', href: '/enrollments', icon: ClipboardDocumentListIcon },
 ]
 
+const adminNavigation = [
+  { name: 'Organizations', href: '/admin/organizations', icon: BuildingOfficeIcon },
+  { name: 'Users', href: '/admin/users', icon: UsersIcon },
+]
+
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
 }
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userRole, setUserRole] = useState(null)
   const location = useLocation()
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const user = await api.getCurrentUserProfile()
+        // Check if user has SUPER_ADMIN or ORG_ADMIN role in any organization
+        const isAdmin = user.organizations?.some(org =>
+          org.role === 'SUPER_ADMIN' || org.role === 'ORG_ADMIN'
+        )
+        setUserRole(isAdmin ? 'ADMIN' : 'USER')
+      } catch (error) {
+        console.error('Error fetching user role:', error)
+        setUserRole('USER')
+      }
+    }
+    fetchUserRole()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,6 +98,30 @@ export default function Layout({ children }) {
                   {item.name}
                 </Link>
               ))}
+
+              {/* Admin Section - Only show for SUPER_ADMIN and ORG_ADMIN */}
+              {userRole === 'ADMIN' && (
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Administration
+                  </h3>
+                  {adminNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={classNames(
+                        location.pathname === item.href
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                        'group flex items-center px-2 py-2 text-base font-medium rounded-md mt-1'
+                      )}
+                    >
+                      <item.icon className="mr-4 h-6 w-6 flex-shrink-0" />
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </nav>
           </div>
         </div>
@@ -99,6 +150,30 @@ export default function Layout({ children }) {
                   {item.name}
                 </Link>
               ))}
+
+              {/* Admin Section - Only show for SUPER_ADMIN and ORG_ADMIN */}
+              {userRole === 'ADMIN' && (
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Administration
+                  </h3>
+                  {adminNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={classNames(
+                        location.pathname === item.href
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                        'group flex items-center px-2 py-2 text-sm font-medium rounded-md mt-1'
+                      )}
+                    >
+                      <item.icon className="mr-3 h-6 w-6 flex-shrink-0" />
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </nav>
           </div>
         </div>

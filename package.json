@@ -8,6 +8,8 @@
     "seed": "node seed.js",
     "seed:rtm": "node seed-rtm-standard.js",
     "seed:standard": "node seed-rtm-standard.js",
+    "seed:enhanced": "node seed-robust-enhanced.js",
+    "seed:robust": "node seed-robust-enhanced.js",
     "dev": "nodemon index.js",
     "dev:ui": "cd frontend && npm run dev",
     "build:ui": "cd frontend && npm run build",
@@ -38,13 +40,16 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "validate-fields": "node validate-field-usage.js"
+    "validate-fields": "node validate-field-usage.js",
+    "schema:enhance": "./apply-schema-enhancements.sh",
+    "schema:verify": "node verify-enhanced-schema.js"
   },
   "devDependencies": {
     "@jest/globals": "^30.1.2",
     "@playwright/test": "^1.55.1",
+    "@types/jest": "^30.0.0",
     "dotenv-cli": "^10.0.0",
-    "jest": "^30.1.3",
+    "jest": "^30.2.0",
     "nodemon": "^3.1.10",
     "prisma": "^6.16.2",
     "supertest": "^7.1.4"
@@ -52,6 +57,7 @@
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "axios": "^1.12.2",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
@@ -68,6 +74,7 @@
     "passport-microsoft": "^2.1.0",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
+    "uuid": "^13.0.0",
     "validator": "^13.15.15",
     "xss": "^1.0.15"
   }

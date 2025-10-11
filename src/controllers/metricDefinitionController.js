@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -46,7 +46,7 @@ const getStandardizedTemplates = async (req, res) => {
       },
       select: {
         key: true,
-        displayName: true,
+        name: true,
         valueType: true,
         coding: true,
         validation: true,
@@ -415,7 +415,7 @@ const getAllMetricDefinitions = async (req, res) => {
       // Convert Prisma Decimal objects to JavaScript numbers
       scaleMin: metric.scaleMin ? Number(metric.scaleMin.toString()) : null,
       scaleMax: metric.scaleMax ? Number(metric.scaleMax.toString()) : null,
-      isStandardized: !!metric.coding,
+      isStandardized: !!metric.standardCoding || metric.isStandardized,
       category: getCategoryFromKey(metric.key)
     }));
 
@@ -475,7 +475,7 @@ const getMetricDefinitionById = async (req, res) => {
       // Convert Prisma Decimal objects to JavaScript numbers
       scaleMin: metricDefinition.scaleMin ? Number(metricDefinition.scaleMin.toString()) : null,
       scaleMax: metricDefinition.scaleMax ? Number(metricDefinition.scaleMax.toString()) : null,
-      isStandardized: !!metricDefinition.coding,
+      isStandardized: !!metricDefinition.standardCoding || metricDefinition.isStandardized,
       category: getCategoryFromKey(metricDefinition.key)
     };
 
@@ -499,6 +499,9 @@ const updateMetricDefinition = async (req, res) => {
     const { id } = req.params;
     const requestData = req.body;
 
+    console.log('Update metric request - ID:', id);
+    console.log('Update metric request - Body:', JSON.stringify(requestData, null, 2));
+
     // Check if metric definition exists
     const existingMetric = await prisma.metricDefinition.findUnique({
       where: { id }
@@ -511,12 +514,14 @@ const updateMetricDefinition = async (req, res) => {
       });
     }
 
+    console.log('Existing metric found:', existingMetric.key);
+
     // Check if this is a standardized metric
-    const isStandardized = !!existingMetric.coding;
+    const isStandardized = !!existingMetric.standardCoding || existingMetric.isStandardized;
     
-    // Define which fields can be updated for standardized metrics
+    // Define which fields can be updated for standardized metrics (only fields that exist in schema)
     const standardizedEditableFields = [
-      'displayName', 'description', 'defaultFrequency', 'requiredDefault'
+      'displayName', 'description'
     ];
     
     // Define all valid fields for custom metrics
@@ -527,7 +532,9 @@ const updateMetricDefinition = async (req, res) => {
     ];
 
     const updateData = {};
-    
+
+    console.log('Is standardized:', isStandardized);
+
     if (isStandardized) {
       // For standardized metrics, only allow editing of specific fields
       standardizedEditableFields.forEach(field => {
@@ -535,12 +542,15 @@ const updateMetricDefinition = async (req, res) => {
           updateData[field] = requestData[field];
         }
       });
-      
+
       // Warn if trying to edit protected fields
       const protectedFields = allValidFields.filter(f => !standardizedEditableFields.includes(f));
       const attemptedProtectedEdits = protectedFields.filter(f => requestData[f] !== undefined);
-      
+
+      console.log('Attempted protected edits:', attemptedProtectedEdits);
+
       if (attemptedProtectedEdits.length > 0) {
+        console.log('VALIDATION ERROR: Cannot modify protected fields');
         return res.status(400).json({
           success: false,
           message: `Cannot modify protected fields in standardized metric: ${attemptedProtectedEdits.join(', ')}`,
@@ -556,6 +566,8 @@ const updateMetricDefinition = async (req, res) => {
         }
       });
     }
+
+    console.log('Update data to send to Prisma:', JSON.stringify(updateData, null, 2));
 
     // Handle empty strings for nullable fields
     if (updateData.unit === '') updateData.unit = null;
@@ -669,9 +681,10 @@ const getMetricDefinitionStats = async (req, res) => {
     const totalMetrics = await prisma.metricDefinition.count();
     const standardizedMetrics = await prisma.metricDefinition.count({
       where: {
-        coding: {
-          not: null
-        }
+        OR: [
+          { standardCoding: { not: null } },
+          { isStandardized: true }
+        ]
       }
     });
 
@@ -701,7 +714,7 @@ const getMetricDefinitionStats = async (req, res) => {
         customMetrics: totalMetrics - standardizedMetrics,
         mostUsedMetrics: mostUsedMetrics.map(metric => ({
           ...metric,
-          isStandardized: !!metric.coding,
+          isStandardized: !!metric.standardCoding || metric.isStandardized,
           category: getCategoryFromKey(metric.key)
         }))
       }

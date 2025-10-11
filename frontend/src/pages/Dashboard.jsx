@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline'
+import ContinuityTestPanel from '../components/ContinuityTestPanel'
 
 const StatCard = ({ title, value, icon: Icon, color = 'blue', trend, isLoading }) => {
   const colorClasses = {
@@ -168,7 +169,10 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Recent Data */}
+        {/* Smart Assessment Continuity Test Panel */}
+        <ContinuityTestPanel />
+
+        {/* Recent Data Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Patients */}
           <RecentItemCard
@@ -273,12 +277,12 @@ export default function Dashboard() {
                       </p>
                       <div className="flex items-center space-x-2">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          alert.rule?.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                          alert.rule?.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                          alert.rule?.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          alert.rule?.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                          alert.rule?.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                          alert.rule?.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-green-100 text-green-800'
                         }`}>
-                          {alert.rule?.severity?.toUpperCase() || 'UNKNOWN'}
+                          {alert.rule?.severity || 'UNKNOWN'}
                         </span>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           alert.status === 'open' ? 'bg-red-100 text-red-800' :

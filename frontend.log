@@ -3,9 +3,11 @@
 > vite
 
 
-  VITE v4.5.14  ready in 379 ms
+  VITE v4.5.14  ready in 757 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-(node:1277113) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(node:659478) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
+10:55:50 AM [vite] hmr update /src/pages/AssessmentTemplatesEnhanced.jsx, /src/index.css
+10:56:00 AM [vite] hmr update /src/pages/AssessmentTemplatesEnhanced.jsx, /src/index.css

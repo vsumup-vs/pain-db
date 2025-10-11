@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -89,8 +89,19 @@ const createEnrollment = async (req, res) => {
     const { setupDailyReminderRule } = require('../services/reminderService');
     
     // In the createEnrollment function, update the enrollment creation:
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     const enrollment = await prisma.enrollment.create({
       data: {
+        organizationId,  // SECURITY: Always include organizationId
         patientId,
         clinicianId,
         presetId,
@@ -160,8 +171,20 @@ const getAllEnrollments = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     // Build where clause for filtering
-    const where = {};
+    const where = {
+      organizationId  // SECURITY: Always filter by organization
+    };
     
     if (status) {
       where.status = status;

@@ -29,6 +29,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Handle unauthorized access
       localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -37,6 +38,24 @@ apiClient.interceptors.response.use(
 
 // Unified API object
 export const api = {
+  // Authentication
+  login: (credentials) => apiClient.post('/auth/login', credentials),
+  register: (userData) => apiClient.post('/auth/register', userData),
+  logout: () => {
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('user')
+    return apiClient.post('/auth/logout')
+  },
+  refreshToken: () => apiClient.post('/auth/refresh'),
+  getCurrentUser: () => {
+    const user = localStorage.getItem('user')
+    return user ? JSON.parse(user) : null
+  },
+  getCurrentUserProfile: () => apiClient.get('/auth/me'),
+  isAuthenticated: () => {
+    return !!localStorage.getItem('authToken')
+  },
+
   // Patients
   getPatients: (params) => apiClient.get('/patients', { params }),
   getRecentPatients: (params) => apiClient.get('/patients/recent', { params }),
@@ -78,7 +97,7 @@ export const api = {
   getStandardizedTemplates: (params) => apiClient.get('/assessment-templates-v2/standardized', { params }),
   getCustomTemplates: (params) => apiClient.get('/assessment-templates-v2/custom', { params }),
   getTemplateCategories: () => apiClient.get('/assessment-templates-v2/categories'),
-  getAssessmentTemplate: (id) => apiClient.get(`/assessment-templates-v2/${id}`),
+  getAssessmentTemplateV2: (id) => apiClient.get(`/assessment-templates-v2/${id}`),
 
   // Condition Presets
   getConditionPresets: (params) => apiClient.get('/condition-presets', { params }),
@@ -86,7 +105,53 @@ export const api = {
   createConditionPreset: (data) => apiClient.post('/condition-presets', data),
   updateConditionPreset: (id, data) => apiClient.put(`/condition-presets/${id}`, data),
   deleteConditionPreset: (id) => apiClient.delete(`/condition-presets/${id}`),
-  getConditionPresetsStats: () => apiClient.get('/condition-presets/stats')
+  getConditionPresetsStats: () => apiClient.get('/condition-presets/stats'),
+
+  // Alert Rules
+  getAlertRules: (params) => apiClient.get('/alert-rules', { params }),
+  getAlertRule: (id) => apiClient.get(`/alert-rules/${id}`),
+  createAlertRule: (data) => apiClient.post('/alert-rules', data),
+  updateAlertRule: (id, data) => apiClient.put(`/alert-rules/${id}`, data),
+  deleteAlertRule: (id) => apiClient.delete(`/alert-rules/${id}`),
+  getAlertRuleStats: () => apiClient.get('/alert-rules/stats'),
+  getAlertRuleTemplates: () => apiClient.get('/alert-rules/templates'),
+
+  // Observations
+  getObservations: (params) => apiClient.get('/observations', { params }),
+  getObservation: (id) => apiClient.get(`/observations/${id}`),
+  createObservation: (data) => apiClient.post('/observations', data),
+  updateObservation: (id, data) => apiClient.put(`/observations/${id}`, data),
+  deleteObservation: (id) => apiClient.delete(`/observations/${id}`),
+  getObservationStats: () => apiClient.get('/observations/stats'),
+  getPatientObservationHistory: (patientId, params) => apiClient.get(`/observations/patient/${patientId}/history`, { params }),
+  getObservationsByEnrollment: (enrollmentId) => apiClient.get(`/observations/enrollment/${enrollmentId}`),
+
+  // Smart Assessment Continuity System
+  // Assessment continuity endpoints
+  createAssessmentWithContinuity: (data) => apiClient.post('/continuity/assessments/with-continuity', data),
+  getContinuitySuggestions: (patientId, params) => apiClient.get(`/continuity/patients/${patientId}/continuity-suggestions`, { params }),
+  getContinuityHistory: (patientId, params) => apiClient.get(`/continuity/patients/${patientId}/continuity-history`, { params }),
+  
+  // Observation context endpoints
+  createObservationWithContext: (data) => apiClient.post('/continuity/observations/with-context', data),
+  getObservationsWithContext: (patientId, params) => apiClient.get(`/continuity/patients/${patientId}/observations/context`, { params }),
+  updateProviderReview: (observationId, data) => apiClient.patch(`/continuity/observations/${observationId}/review`, data),
+
+  // Admin - Organizations (SUPER_ADMIN only)
+  getOrganizations: (params) => apiClient.get('/organizations', { params }),
+  getOrganization: (id) => apiClient.get(`/organizations/${id}`),
+  createOrganization: (data) => apiClient.post('/organizations', data),
+  updateOrganization: (id, data) => apiClient.put(`/organizations/${id}`, data),
+  deleteOrganization: (id) => apiClient.delete(`/organizations/${id}`),
+
+  // Admin - Users (SUPER_ADMIN and ORG_ADMIN)
+  getUsers: (params) => apiClient.get('/auth/users', { params }),
+  getUser: (id) => apiClient.get(`/auth/users/${id}`),
+  createUser: (data) => apiClient.post('/auth/register', data),
+  assignUserRole: (userId, data) => apiClient.post(`/auth/users/${userId}/assign-role`, data),
+
+  // Organization Selection
+  selectOrganization: (organizationId) => apiClient.post('/auth/select-organization', { organizationId })
 }
 
 export default api

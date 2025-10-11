@@ -111,10 +111,10 @@ export default function Alerts() {
 
   const getAlertStats = () => {
     const openAlerts = alerts.filter(a => a.status === 'open').length
-    const criticalAlerts = alerts.filter(a => a.rule?.severity === 'critical').length
+    const criticalAlerts = alerts.filter(a => a.rule?.severity === 'CRITICAL').length
     const acknowledgedAlerts = alerts.filter(a => a.status === 'ack').length
     const resolvedAlerts = alerts.filter(a => a.status === 'resolved').length
-    
+
     return { openAlerts, criticalAlerts, acknowledgedAlerts, resolvedAlerts }
   }
 

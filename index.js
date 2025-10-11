@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { PrismaClient } = require('./generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
@@ -35,6 +35,8 @@ const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
 // Import new routes
 const drugRoutes = require('./src/routes/drugRoutes');
 const patientMedicationRoutes = require('./src/routes/patientMedicationRoutes');
+const continuityRoutes = require('./src/routes/continuityRoutes');
+const organizationRoutes = require('./src/routes/organizationRoutes');
 
 // Import authentication
 const passport = require('passport');
@@ -43,22 +45,30 @@ const authRoutes = require('./src/routes/authRoutes');
 // Initialize passport
 app.use(passport.initialize());
 
-// Authentication routes
-app.use('/auth', authRoutes);
+// Import authentication and organization middleware
+const { requireAuth } = require('./src/middleware/auth');
+const { injectOrganizationContext, auditOrganizationAccess } = require('./src/middleware/organizationContext');
 
-// Health check endpoint
+// Authentication routes (public)
+app.use('/api/auth', authRoutes);
+
+// Add health check routes (public)
+const healthRoutes = require('./src/routes/healthRoutes');
+app.use('/', healthRoutes);
+
+// Health check endpoint (public)
 app.get('/health', async (req, res) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ 
-      status: 'healthy', 
+    res.json({
+      status: 'healthy',
       timestamp: new Date().toISOString(),
       database: 'connected'
     });
   } catch (error) {
-    res.status(500).json({ 
-      status: 'unhealthy', 
+    res.status(500).json({
+      status: 'unhealthy',
       timestamp: new Date().toISOString(),
       database: 'disconnected',
       error: error.message
@@ -66,12 +76,23 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API info endpoint
+// API info endpoint (public)
 app.get('/api', (req, res) => {
   res.json({
     message: 'Pain Management Database API',
     version: '1.0.0',
     endpoints: {
+      // Authentication endpoints
+      auth: '/api/auth',
+      'auth-login': '/api/auth/login',
+      'auth-register': '/api/auth/register',
+      'auth-logout': '/api/auth/logout',
+      'auth-refresh': '/api/auth/refresh',
+      'auth-profile': '/api/auth/me',
+      'auth-social-google': '/api/auth/google',
+      'auth-social-microsoft': '/api/auth/microsoft',
+
+      // Core API endpoints
       patients: '/api/patients',
       clinicians: '/api/clinicians',
       enrollments: '/api/enrollments',
@@ -87,22 +108,28 @@ app.get('/api', (req, res) => {
   });
 });
 
-// Routes
-app.use('/api/patients', patientRoutes);
-app.use('/api/clinicians', clinicianRoutes);
-app.use('/api/enrollments', enrollmentRoutes);
-app.use('/api/metric-definitions', metricDefinitionRoutes);
-// Enhanced assessment template routes with different path to avoid conflicts
-app.use('/api/assessment-templates-v2', assessmentTemplateEnhancedRoutes);
-app.use('/api/assessment-templates', assessmentTemplateRoutes);
-app.use('/api/observations', observationRoutes);
-app.use('/api/alerts', alertRoutes);
-app.use('/api/alert-rules', alertRuleRoutes);
-app.use('/api/condition-presets', conditionPresetRoutes);
+// SECURITY: Apply authentication and organization context to all protected routes
+// This ensures all API endpoints have:
+// 1. Valid authentication (requireAuth)
+// 2. Organization context validation (injectOrganizationContext)
+// 3. Audit logging for security events (auditOrganizationAccess)
+app.use('/api/patients', requireAuth, injectOrganizationContext, auditOrganizationAccess, patientRoutes);
+app.use('/api/clinicians', requireAuth, injectOrganizationContext, auditOrganizationAccess, clinicianRoutes);
+app.use('/api/enrollments', requireAuth, injectOrganizationContext, auditOrganizationAccess, enrollmentRoutes);
+app.use('/api/metric-definitions', requireAuth, injectOrganizationContext, auditOrganizationAccess, metricDefinitionRoutes);
+app.use('/api/assessment-templates-v2', requireAuth, injectOrganizationContext, auditOrganizationAccess, assessmentTemplateEnhancedRoutes);
+app.use('/api/assessment-templates', requireAuth, injectOrganizationContext, auditOrganizationAccess, assessmentTemplateRoutes);
+app.use('/api/observations', requireAuth, injectOrganizationContext, auditOrganizationAccess, observationRoutes);
+app.use('/api/alerts', requireAuth, injectOrganizationContext, auditOrganizationAccess, alertRoutes);
+app.use('/api/alert-rules', requireAuth, injectOrganizationContext, auditOrganizationAccess, alertRuleRoutes);
+app.use('/api/condition-presets', requireAuth, injectOrganizationContext, auditOrganizationAccess, conditionPresetRoutes);
+app.use('/api/drugs', requireAuth, injectOrganizationContext, auditOrganizationAccess, drugRoutes);
+app.use('/api/patient-medications', requireAuth, injectOrganizationContext, auditOrganizationAccess, patientMedicationRoutes);
+app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganizationAccess, continuityRoutes);
 
-// New medication routes
-app.use('/api/drugs', drugRoutes);
-app.use('/api/patient-medications', patientMedicationRoutes);
+// Admin routes (SUPER_ADMIN and ORG_ADMIN)
+// Note: Organizations don't need organization context middleware since they manage organizations themselves
+app.use('/api/organizations', requireAuth, organizationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

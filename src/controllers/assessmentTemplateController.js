@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 const prisma = global.prisma || new PrismaClient();
 
 // Get all assessment templates
@@ -27,30 +27,28 @@ const getAllAssessmentTemplates = async (req, res) => {
     const [templates, total] = await Promise.all([
       prisma.assessmentTemplate.findMany({
         where,
-        include: {
-          items: {
-            include: {
-              metricDefinition: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  valueType: true,
-                  unit: true
-                }
-              }
-            },
-            orderBy: { displayOrder: 'asc' }
-          },
-          _count: {
-            select: {
-              observations: true,
-              presets: true
-            }
-          }
-        },
         skip,
         take,
-        orderBy: { [sortBy]: sortOrder }
+        orderBy: { [sortBy]: sortOrder },
+        include: {
+          assessments: {
+            select: {
+              id: true,
+              completedAt: true
+            }
+          },
+          conditionPresetTemplates: {
+            include: {
+              conditionPreset: {
+                select: {
+                  id: true,
+                  name: true,
+                  isStandardized: true
+                }
+              }
+            }
+          }
+        }
       }),
       prisma.assessmentTemplate.count({ where })
     ]);
@@ -82,26 +80,10 @@ const getAssessmentTemplateById = async (req, res) => {
     const template = await prisma.assessmentTemplate.findUnique({
       where: { id },
       include: {
-        items: {
-          include: {
-            metricDefinition: true
-          },
-          orderBy: { displayOrder: 'asc' }
-        },
-        presets: {
-          include: {
-            preset: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        },
-        observations: {
+        assessments: {
           select: {
             id: true,
-            recordedAt: true,
+            completedAt: true,
             patient: {
               select: {
                 id: true,
@@ -110,8 +92,19 @@ const getAssessmentTemplateById = async (req, res) => {
               }
             }
           },
-          orderBy: { recordedAt: 'desc' },
+          orderBy: { completedAt: 'desc' },
           take: 10
+        },
+        conditionPresetTemplates: {
+          include: {
+            conditionPreset: {
+              select: {
+                id: true,
+                name: true,
+                isStandardized: true
+              }
+            }
+          }
         }
       }
     });
@@ -136,11 +129,22 @@ const getAssessmentTemplateById = async (req, res) => {
   }
 };
 
-// Create new assessment template
-// Optimize the createAssessmentTemplate function
+// Create assessment template
 const createAssessmentTemplate = async (req, res) => {
   try {
-    const { name, description, items = [] } = req.body;
+    const { 
+      name, 
+      description, 
+      questions = {}, 
+      scoring = null,
+      isStandardized = false,
+      category = null,
+      standardCoding = null,
+      validationInfo = null,
+      scoringInfo = null,
+      copyrightInfo = null,
+      clinicalUse = null
+    } = req.body;
 
     // Validate required fields
     if (!name) {
@@ -162,61 +166,35 @@ const createAssessmentTemplate = async (req, res) => {
       });
     }
 
-    // Validate metric definitions exist
-    if (items.length > 0) {
-      const metricIds = items.map(item => item.metricDefinitionId);
-      const existingMetrics = await prisma.metricDefinition.findMany({
-        where: { id: { in: metricIds } },
-        select: { id: true }
-      });
-
-      const existingMetricIds = existingMetrics.map(m => m.id);
-      const invalidMetricIds = metricIds.filter(id => !existingMetricIds.includes(id));
-
-      if (invalidMetricIds.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid metric definition IDs: ${invalidMetricIds.join(', ')}`
-        });
-      }
-    }
-
-    // Add connection timeout and retry logic
-    const template = await prisma.$transaction(async (tx) => {
-      // Simplified transaction with better error handling
-      return await tx.assessmentTemplate.create({
-        data: {
-          name,
-          description,
-          items: {
-            create: items.map((item, index) => ({
-              metricDefinitionId: item.metricDefinitionId,
-              required: item.required || false,
-              displayOrder: item.displayOrder ?? index,
-              helpText: item.helpText,
-              defaultValue: item.defaultValue
-            }))
-          }
-        },
-        include: {
-          items: {
-            include: {
-              metricDefinition: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  valueType: true,
-                  unit: true
-                }
+    // Create template
+    const template = await prisma.assessmentTemplate.create({
+      data: {
+        name,
+        description,
+        questions,
+        scoring,
+        isStandardized,
+        category,
+        standardCoding,
+        validationInfo,
+        scoringInfo,
+        copyrightInfo,
+        clinicalUse
+      },
+      include: {
+        assessments: true,
+        conditionPresetTemplates: {
+          include: {
+            conditionPreset: {
+              select: {
+                id: true,
+                name: true,
+                isStandardized: true
               }
-            },
-            orderBy: { displayOrder: 'asc' }
+            }
           }
         }
-      });
-    }, {
-      timeout: 30000, // 30 second timeout
-      maxWait: 35000  // 35 second max wait
+      }
     });
 
     res.status(201).json({
@@ -225,13 +203,7 @@ const createAssessmentTemplate = async (req, res) => {
       message: 'Assessment template created successfully'
     });
   } catch (error) {
-    // Enhanced error logging
-    console.error('Assessment template creation error:', {
-      error: error.message,
-      stack: error.stack,
-      requestBody: req.body
-    });
-    
+    console.error('Error creating assessment template:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error while creating assessment template'
@@ -243,12 +215,23 @@ const createAssessmentTemplate = async (req, res) => {
 const updateAssessmentTemplate = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, items = [] } = req.body;
+    const { 
+      name, 
+      description, 
+      questions,
+      scoring,
+      isStandardized,
+      category,
+      standardCoding,
+      validationInfo,
+      scoringInfo,
+      copyrightInfo,
+      clinicalUse
+    } = req.body;
 
     // Check if template exists
     const existingTemplate = await prisma.assessmentTemplate.findUnique({
-      where: { id },
-      include: { items: true }
+      where: { id }
     });
 
     if (!existingTemplate) {
@@ -261,7 +244,7 @@ const updateAssessmentTemplate = async (req, res) => {
     // Check if name is being changed and if new name already exists
     if (name && name !== existingTemplate.name) {
       const nameExists = await prisma.assessmentTemplate.findFirst({
-        where: { 
+        where: {
           name,
           id: { not: id }
         }
@@ -275,65 +258,36 @@ const updateAssessmentTemplate = async (req, res) => {
       }
     }
 
-    // Validate metric definitions exist
-    if (items.length > 0) {
-      const metricIds = items.map(item => item.metricDefinitionId);
-      const existingMetrics = await prisma.metricDefinition.findMany({
-        where: { id: { in: metricIds } },
-        select: { id: true }
-      });
-
-      const existingMetricIds = existingMetrics.map(m => m.id);
-      const invalidMetricIds = metricIds.filter(id => !existingMetricIds.includes(id));
-
-      if (invalidMetricIds.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid metric definition IDs: ${invalidMetricIds.join(', ')}`
-        });
-      }
-    }
-
-    // Update template using transaction
-    const updatedTemplate = await prisma.$transaction(async (tx) => {
-      // Delete existing items
-      await tx.assessmentTemplateItem.deleteMany({
-        where: { templateId: id }
-      });
-
-      // Update template and create new items
-      return await tx.assessmentTemplate.update({
-        where: { id },
-        data: {
-          name,
-          description,
-          version: { increment: 1 },
-          items: {
-            create: items.map((item, index) => ({
-              metricDefinitionId: item.metricDefinitionId,
-              required: item.required || false,
-              displayOrder: item.displayOrder ?? index,
-              helpText: item.helpText,
-              defaultValue: item.defaultValue
-            }))
-          }
-        },
-        include: {
-          items: {
-            include: {
-              metricDefinition: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  valueType: true,
-                  unit: true
-                }
+    // Update template
+    const updatedTemplate = await prisma.assessmentTemplate.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+        ...(questions && { questions }),
+        ...(scoring !== undefined && { scoring }),
+        ...(isStandardized !== undefined && { isStandardized }),
+        ...(category !== undefined && { category }),
+        ...(standardCoding !== undefined && { standardCoding }),
+        ...(validationInfo !== undefined && { validationInfo }),
+        ...(scoringInfo !== undefined && { scoringInfo }),
+        ...(copyrightInfo !== undefined && { copyrightInfo }),
+        ...(clinicalUse !== undefined && { clinicalUse })
+      },
+      include: {
+        assessments: true,
+        conditionPresetTemplates: {
+          include: {
+            conditionPreset: {
+              select: {
+                id: true,
+                name: true,
+                isStandardized: true
               }
-            },
-            orderBy: { displayOrder: 'asc' }
+            }
           }
         }
-      });
+      }
     });
 
     res.json({
@@ -359,8 +313,8 @@ const deleteAssessmentTemplate = async (req, res) => {
     const existingTemplate = await prisma.assessmentTemplate.findUnique({
       where: { id },
       include: {
-        observations: { select: { id: true } },
-        presets: { select: { id: true } }
+        assessments: true,
+        conditionPresetTemplates: true
       }
     });
 
@@ -371,22 +325,22 @@ const deleteAssessmentTemplate = async (req, res) => {
       });
     }
 
-    // Check if template is being used
-    if (existingTemplate.observations.length > 0) {
+    // Check if template is in use
+    if (existingTemplate.assessments.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete assessment template that has associated observations'
+        message: 'Cannot delete assessment template that has associated assessments'
       });
     }
 
-    if (existingTemplate.presets.length > 0) {
+    if (existingTemplate.conditionPresetTemplates.length > 0) {
       return res.status(400).json({
         success: false,
         message: 'Cannot delete assessment template that is linked to condition presets'
       });
     }
 
-    // Delete template (items will be deleted due to cascade)
+    // Delete template
     await prisma.assessmentTemplate.delete({
       where: { id }
     });

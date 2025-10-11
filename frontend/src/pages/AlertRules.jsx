@@ -122,17 +122,21 @@ export default function AlertRules() {
 
   const formatExpression = (expression) => {
     if (!expression) return 'No condition'
-    
-    const { condition, operator, threshold, value, timeWindow, occurrences, consecutiveDays, description } = expression
-    
+
+    // Handle both 'condition' and 'metric' field names for backwards compatibility
+    const { condition, metric, operator, threshold, value, timeWindow, duration, occurrences, consecutiveDays, description } = expression
+    const metricName = condition || metric
+
     // If there's a description field, use it
     if (description) {
       return description
     }
-    
+
     // Create human-readable condition names
     const conditionNames = {
       'pain_scale_0_10': 'Pain Scale (0-10)',
+      'blood_glucose': 'Blood Glucose',
+      'mood_rating': 'Mood Rating',
       'medication_adherence_rate': 'Medication Adherence Rate',
       'medication_adherence': 'Medication Adherence',
       'side_effects_severity': 'Side Effects Severity',
@@ -143,7 +147,7 @@ export default function AlertRules() {
       'sleep_quality': 'Sleep Quality',
       'activity_level': 'Activity Level'
     }
-    
+
     // Create human-readable operator names
     const operatorNames = {
       'greater_than': '>',
@@ -158,30 +162,30 @@ export default function AlertRules() {
       'missing_data': 'has missing data',
       'contains': 'contains'
     }
-    
-    const conditionName = conditionNames[condition] || condition || 'Unknown condition'
+
+    const conditionName = conditionNames[metricName] || metricName || 'Unknown condition'
     const operatorName = operatorNames[operator] || operator
     
     // Handle special cases first
-    if (condition === 'no_assessment_for') {
+    if (metricName === 'no_assessment_for') {
       const hours = threshold || 24
       return `No assessment for ${hours}+ hours`
     }
-    
-    if (condition === 'medication_adherence' && operator === 'equals' && value) {
+
+    if (metricName === 'medication_adherence' && operator === 'equals' && value) {
       let result = `${conditionName} = "${value}"`
       if (occurrences) {
         result += ` (${occurrences} times)`
       }
       return result
     }
-    
+
     // Standard formatting
     let formatted = `${conditionName} ${operatorName}`
-    
+
     // Add threshold or value
     if (threshold !== undefined && threshold !== null) {
-      if (condition === 'medication_adherence_rate' && threshold <= 1) {
+      if (metricName === 'medication_adherence_rate' && threshold <= 1) {
         formatted += ` ${(threshold * 100).toFixed(0)}%`
       } else {
         formatted += ` ${threshold}`
@@ -189,10 +193,11 @@ export default function AlertRules() {
     } else if (value !== undefined) {
       formatted += ` "${value}"`
     }
-    
-    // Add time context
-    if (timeWindow) {
-      formatted += ` (over ${timeWindow})`
+
+    // Add time context (handle both 'timeWindow' and 'duration')
+    const timeContext = timeWindow || duration
+    if (timeContext && timeContext !== 'immediate') {
+      formatted += ` (${timeContext})`
     }
     
     // Add occurrence/consecutive day context
@@ -270,7 +275,7 @@ export default function AlertRules() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Critical Rules</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.severityBreakdown?.critical || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.critical || stats.severityBreakdown?.CRITICAL || 0}</p>
             </div>
           </div>
         </div>
@@ -282,7 +287,7 @@ export default function AlertRules() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">High Priority</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.severityBreakdown?.high || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.highPriority || 0}</p>
             </div>
           </div>
         </div>
@@ -371,17 +376,17 @@ export default function AlertRules() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 max-w-xs truncate">
-                      {formatExpression(rule.expression)}
+                      {formatExpression(rule.conditions)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rule.window || 'N/A'}
+                    {rule.conditions?.timeWindow || rule.conditions?.duration || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rule.cooldown || 'None'}
+                    {rule.conditions?.cooldown || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rule.presetLinks?.length || 0} presets
+                    {rule.conditionPresets?.length || 0} preset{rule.conditionPresets?.length !== 1 ? 's' : ''}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">

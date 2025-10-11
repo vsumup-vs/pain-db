@@ -1,12 +1,8 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,664 +10,805 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/* ========== Enums ========== */
+// Enums
 enum ValueType {
-  numeric      // ← lowercase
-  ordinal
-  categorical
-  boolean
+  numeric
   text
+  boolean
+  categorical
+  ordinal
   date
+  time
+  datetime
+  json
 }
 
 enum Severity {
-  low
-  medium
-  high
-  critical
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 enum SourceType {
-  patient
-  device
-  staff
+  MANUAL
+  DEVICE
+  API
+  IMPORT
 }
 
 enum EnrollmentStatus {
-  active
-  paused
-  ended
+  PENDING
+  ACTIVE
+  INACTIVE
+  COMPLETED
+  WITHDRAWN
 }
 
 enum AlertStatus {
-  open
-  ack
-  closed
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
 }
 
 enum CPTCode {
-  CPT_98975
-  CPT_98976
-  CPT_98977
-  CPT_98980
-  CPT_98981
-  CPT_99457
-  CPT_99458
+  CODE_99201
+  CODE_99202
+  CODE_99203
+  CODE_99204
+  CODE_99205
+  CODE_99211
+  CODE_99212
+  CODE_99213
+  CODE_99214
+  CODE_99215
 }
 
-// New authentication enums
 enum UserRole {
   SUPER_ADMIN
   ORG_ADMIN
   CLINICIAN
   NURSE
+  BILLING_ADMIN
   PATIENT
   CAREGIVER
   RESEARCHER
-  BILLING_ADMIN
 }
 
 enum OrganizationType {
   HOSPITAL
   CLINIC
   PRACTICE
-  HEALTH_SYSTEM
   RESEARCH
   INSURANCE
+  PHARMACY
 }
 
 enum SocialProvider {
-  MICROSOFT
   GOOGLE
-  OKTA
-  AZURE_AD
+  FACEBOOK
+  APPLE
+  MICROSOFT
 }
 
-/* ========== Authentication & Multi-Tenancy ========== */
+enum ProgramType {
+  PAIN_MANAGEMENT
+  DIABETES
+  HYPERTENSION
+  MENTAL_HEALTH
+  CARDIAC_REHAB
+  GENERAL_WELLNESS
+}
+
+enum ObservationContext {
+  WELLNESS
+  PROGRAM_ENROLLMENT
+  CLINICAL_MONITORING
+  ROUTINE_FOLLOWUP
+}
+
+enum Permission {
+  USER_CREATE
+  USER_READ
+  USER_UPDATE
+  USER_DELETE
+  USER_INVITE
+  USER_ROLE_ASSIGN
+  PATIENT_CREATE
+  PATIENT_READ
+  PATIENT_UPDATE
+  PATIENT_DELETE
+  PATIENT_ASSIGN
+  PATIENT_MEDICAL_RECORD_READ
+  CLINICIAN_CREATE
+  CLINICIAN_READ
+  CLINICIAN_UPDATE
+  CLINICIAN_DELETE
+  CLINICIAN_ASSIGN
+  ORG_CREATE
+  ORG_READ
+  ORG_UPDATE
+  ORG_DELETE
+  ORG_SETTINGS_MANAGE
+  ORG_USERS_MANAGE
+  ORG_BILLING_MANAGE
+  PROGRAM_CREATE
+  PROGRAM_READ
+  PROGRAM_UPDATE
+  PROGRAM_DELETE
+  PROGRAM_ASSIGN
+  ASSESSMENT_CREATE
+  ASSESSMENT_READ
+  ASSESSMENT_UPDATE
+  ASSESSMENT_DELETE
+  METRIC_CREATE
+  METRIC_READ
+  METRIC_UPDATE
+  METRIC_DELETE
+  OBSERVATION_CREATE
+  OBSERVATION_READ
+  OBSERVATION_UPDATE
+  OBSERVATION_DELETE
+  ALERT_CREATE
+  ALERT_READ
+  ALERT_UPDATE
+  ALERT_DELETE
+  ALERT_ACKNOWLEDGE
+  MEDICATION_CREATE
+  MEDICATION_READ
+  MEDICATION_UPDATE
+  MEDICATION_DELETE
+  MEDICATION_PRESCRIBE
+  REPORT_READ
+  REPORT_CREATE
+  ANALYTICS_READ
+  SYSTEM_ADMIN
+  AUDIT_READ
+  BILLING_READ
+  BILLING_MANAGE
+  COMPLIANCE_READ
+}
+
+// Authentication Models
 model User {
-  id                String   @id @default(cuid())
-  email             String   @unique
-  emailVerified     DateTime?
-  firstName         String?
-  lastName          String?
-  avatar            String?
-  isActive          Boolean  @default(true)
-  lastLoginAt       DateTime?
+  id                    String              @id @default(cuid())
+  email                 String              @unique
+  passwordHash          String?
+  firstName             String?
+  lastName              String?
+  avatar                String?
+  phone                 String?
+  isActive              Boolean             @default(true)
+  emailVerified         DateTime?
+  mfaEnabled            Boolean             @default(false)
+  mfaSecret             String?
+  backupCodes           String[]            @default([])
+  lastLoginAt           DateTime?
+  passwordResetToken    String?             @unique // ENHANCEMENT: Make unique
+  passwordResetExpires  DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
   
-  // Password authentication (optional - for local accounts)
-  passwordHash      String?
-  passwordResetToken String?
-  passwordResetExpires DateTime?
+  // Relationships
+  socialAccounts        SocialAccount[]
+  userOrganizations     UserOrganization[]
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]
   
-  // Multi-factor authentication
-  mfaEnabled        Boolean  @default(false)
-  mfaSecret         String?
-  backupCodes       String[]
-  
-  // Social authentication
-  socialAccounts    SocialAccount[]
-  
-  // Multi-tenancy
-  organizationAccess UserOrganizationAccess[]
-  
-  // Healthcare-specific
-  licenseNumber     String?
-  npiNumber         String?
-  
-  // Audit
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  // ENHANCEMENT: Add indexes for common queries
+  @@index([email])
+  @@index([isActive])
+  @@index([lastLoginAt])
   @@map("users")
 }
 
-model SocialAccount {
-  id                String  @id @default(cuid())
-  userId            String
-  provider          SocialProvider
-  providerAccountId String
-  type              String  @default("oauth") // 'oauth', 'saml'
-  scope             String?
-  accessToken       String? @db.Text
-  refreshToken      String? @db.Text
-  idToken           String? @db.Text
-  expiresAt         Int?
-  
-  // Healthcare compliance
-  isVerified        Boolean @default(false)
-  verifiedAt        DateTime?
-  lastUsedAt        DateTime?
-  
-  // Audit trail
-  metadata          Json?
-  
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-  @@index([provider])
-  @@map("social_accounts")
-}
-
 model Organization {
-  id                String   @id @default(cuid())
-  name              String
-  domain            String?  @unique
+  id                String              @id @default(cuid())
+  name              String              @unique // ENHANCEMENT: Organization names should be unique
   type              OrganizationType
-  
-  // Contact information
-  address           Json?
+  email             String?             @unique // ENHANCEMENT: Organization emails should be unique
   phone             String?
-  email             String?
+  address           String?
   website           String?
-  
-  // SSO Configuration
-  ssoEnabled        Boolean  @default(false)
-  ssoProvider       SocialProvider?
-  ssoConfig         Json?
-  
-  // Healthcare compliance
-  hipaaCompliant    Boolean  @default(false)
-  dataRetentionDays Int      @default(2555) // 7 years
-  
-  // Billing & subscription
-  subscriptionTier  String   @default("basic")
-  billingEmail      String?
-  
-  // Settings
+  isActive          Boolean             @default(true)
   settings          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   
-  userAccess        UserOrganizationAccess[]
+  // Relationships
+  userOrganizations UserOrganization[]
   carePrograms      CareProgram[]
+  patients          Patient[]
+  clinicians        Clinician[]
+  enrollments       Enrollment[]
   
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  @@index([domain])
+  // ENHANCEMENT: Add indexes
+  @@index([name])
   @@index([type])
+  @@index([isActive])
   @@map("organizations")
 }
 
-model UserOrganizationAccess {
-  id             String   @id @default(cuid())
+model UserOrganization {
+  id             String       @id @default(cuid())
   userId         String
   organizationId String
   role           UserRole
+  permissions    Permission[]
+  isActive       Boolean      @default(true)
+  joinedAt       DateTime     @default(now())
   
-  // Access control
-  isActive       Boolean  @default(true)
-  permissions    Json?    // Granular permissions
-  
-  // Audit
-  grantedAt      DateTime @default(now())
-  grantedBy      String?  // User ID who granted access
-  revokedAt      DateTime?
-  revokedBy      String?  // User ID who revoked access
-  
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relationships
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
   @@unique([userId, organizationId])
-  @@index([organizationId, role])
-  @@index([userId, isActive])
-  @@map("user_organization_access")
+  @@index([userId])
+  @@index([organizationId])
+  @@index([role])
+  @@map("user_organizations")
+}
+
+model SocialAccount {
+  id           String        @id @default(cuid())
+  userId       String
+  provider     SocialProvider
+  providerId   String
+  email        String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relationships
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("social_accounts")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model CareProgram {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   organizationId String
   name           String
+  type           ProgramType
   description    String?
-  type           String   // 'RTM', 'CCM', 'RPM', etc.
-  
-  // Program configuration
-  isActive       Boolean  @default(true)
+  isActive       Boolean     @default(true)
   settings       Json?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
   
-  // CMS compliance
-  cptCodes       String[] // Supported CPT codes
-  
+  // Relationships
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrollments    Enrollment[]
   
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  // ENHANCEMENT: Unique program names per organization
   @@unique([organizationId, name])
+  @@index([organizationId])
   @@index([type])
+  @@index([isActive])
   @@map("care_programs")
 }
 
 model AuditLog {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String?
   organizationId String?
   action         String
   resource       String?
   resourceId     String?
-  
-  // Request details
   ipAddress      String?
   userAgent      String?
-  
-  // Data
   oldValues      Json?
   newValues      Json?
   metadata       Json?
+  hipaaRelevant  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
   
-  // Compliance
-  hipaaRelevant  Boolean  @default(false)
+  // Relationships
+  user           User?     @relation(fields: [userId], references: [id])
   
-  createdAt      DateTime @default(now())
-  
-  @@index([userId, createdAt])
-  @@index([organizationId, createdAt])
-  @@index([action, createdAt])
-  @@index([hipaaRelevant, createdAt])
+  // ENHANCEMENT: Add indexes for audit queries
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@index([hipaaRelevant])
   @@map("audit_logs")
 }
 
-/* ========== Core Identities ========== */
+// Core Models
 model Patient {
-  id              String       @id @default(uuid()) @db.Uuid
-  mrn             String?      @unique
-  firstName       String?
-  lastName        String?
-  email           String?      @unique
-  phone           String?
-  dateOfBirth     DateTime?
-  gender          String?
-  address         Json?
-  emergencyContact Json?
-  medicalHistory  Json?
-  allergies       Json?
-  medications     Json?        // Keep for backward compatibility
-  insuranceInfo   Json?
+  id                  String               @id @default(cuid())
+  organizationId      String
+  firstName           String
+  lastName            String
+  dateOfBirth         DateTime
+  gender              String?
+  email               String?
+  phone               String?
+  address             String?
+  emergencyContact    String?
+  medicalRecordNumber String?              @unique
+  insuranceInfo       Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   
-  // Multi-tenancy support
-  organizationId  String?      // Primary organization
+  // Relationships
+  organization        Organization         @relation(fields: [organizationId], references: [id])
+  enrollments         Enrollment[]
+  observations        Observation[]
+  assessments         Assessment[]
+  timeLogs            TimeLog[]
+  alerts              Alert[]
+  patientMedications  PatientMedication[]
   
-  createdAt       DateTime     @default(now()) @map("created_at")
-  enrollments     Enrollment[]
-  observations    Observation[]
-  timelogs        TimeLog[]
-  messages        Message[]
-  // New medication relationships
-  patientMedications PatientMedication[]
-  medicationAdherence MedicationAdherence[]
-
+  // ENHANCEMENT: Add composite unique constraint and indexes
+  @@unique([organizationId, email]) // Unique email per organization
   @@index([organizationId])
+  @@index([firstName, lastName])
+  @@index([dateOfBirth])
+  @@index([email])
   @@map("patients")
 }
 
 model Clinician {
-  id              String    @id @default(uuid()) @db.Uuid
-  npi             String?   @unique
-  firstName       String?
-  lastName        String?
-  email           String?   @unique
-  phone           String?
-  specialization  String?
-  licenseNumber   String?   @map("license_number")
-  department      String?
-  address         Json?
-  emergencyContact Json?    @map("emergency_contact")
-  credentials     Json?
+  id               String       @id @default(cuid())
+  organizationId   String
+  firstName        String
+  lastName         String
+  email            String       @unique
+  phone            String?
+  address          String?
+  licenseNumber    String?      @unique // ENHANCEMENT: License numbers should be unique
+  specialization   String?
+  department       String?
+  credentials      String?
+  emergencyContact String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   
-  // Multi-tenancy support
-  organizationId  String?   // Primary organization
+  // Relationships
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  enrollments      Enrollment[]
+  observations     Observation[]
+  assessments      Assessment[]
+  timeLogs         TimeLog[]
+  alerts           Alert[]
   
-  createdAt       DateTime  @default(now()) @map("created_at")
-  enrollments     Enrollment[]
-  timelogs        TimeLog[]
-  // New medication relationship
-  prescriptions   PatientMedication[]
-
+  // ENHANCEMENT: Add indexes
   @@index([organizationId])
+  @@index([firstName, lastName])
+  @@index([specialization])
+  @@index([department])
   @@map("clinicians")
 }
 
-/* ========== Configuration ========== */
+model Enrollment {
+  id               String           @id @default(cuid())
+  organizationId   String
+  patientId        String
+  clinicianId      String
+  careProgramId    String
+  conditionPresetId String?
+  status           EnrollmentStatus @default(PENDING)
+  startDate        DateTime
+  endDate          DateTime?
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  
+  // Relationships
+  organization     Organization     @relation(fields: [organizationId], references: [id])
+  patient          Patient          @relation(fields: [patientId], references: [id])
+  clinician        Clinician        @relation(fields: [clinicianId], references: [id])
+  careProgram      CareProgram      @relation(fields: [careProgramId], references: [id])
+  conditionPreset  ConditionPreset? @relation(fields: [conditionPresetId], references: [id])
+  
+  // ENHANCEMENT: Prevent duplicate enrollments
+  @@unique([patientId, careProgramId, startDate])
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([clinicianId])
+  @@index([status])
+  @@index([startDate])
+  @@map("enrollments")
+}
+
 model MetricDefinition {
-  id                String    @id @default(uuid()) @db.Uuid
-  key               String
-  displayName       String    @map("display_name")
-  valueType         ValueType @map("value_type")
+  id                String        @id @default(cuid())
+  key               String        @unique
+  displayName       String        @unique // ENHANCEMENT: Display names should be unique
+  description       String?
   unit              String?
-  scaleMin          Decimal?  @map("scale_min") @db.Decimal(10,4)
-  scaleMax          Decimal?  @map("scale_max") @db.Decimal(10,4)
-  decimalPrecision  Int?      @map("decimal_precision")
-  requiredDefault   Boolean   @default(false) @map("required_default")
-  defaultFrequency  String?   @map("default_frequency")
-  coding            Json?
+  valueType         ValueType
+  category          String?
+  isStandardized    Boolean       @default(false)
+  scaleMin          Decimal?
+  scaleMax          Decimal?
+  decimalPrecision  Int?
   options           Json?
-  validation        Json?
-  localeOverrides   Json?     @map("locale_overrides")
-  version           Int       @default(1)
-  activeFrom        DateTime  @default(now()) @map("active_from")
-  activeTo          DateTime? @map("active_to")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @default(now()) @map("updated_at")
-
-  templateItems     AssessmentTemplateItem[]
+  normalRange       Json?
+  standardCoding    Json?
+  validationInfo    Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relationships
   observations      Observation[]
-
-  @@unique([key, version])
+  templateItems     AssessmentTemplateItem[]
+  
+  // ENHANCEMENT: Add indexes
   @@index([key])
-  @@index([activeTo])
+  @@index([displayName])
+  @@index([category])
+  @@index([valueType])
+  @@index([isStandardized])
   @@map("metric_definitions")
 }
 
+model Observation {
+  id               String           @id @default(cuid())
+  organizationId   String
+  patientId        String
+  clinicianId      String?
+  metricId         String
+  value            Json
+  unit             String?
+  source           SourceType       @default(MANUAL)
+  context          ObservationContext @default(CLINICAL_MONITORING)
+  notes            String?
+  recordedAt       DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relationships
+  patient          Patient          @relation(fields: [patientId], references: [id])
+  clinician        Clinician?       @relation(fields: [clinicianId], references: [id])
+  metric           MetricDefinition @relation(fields: [metricId], references: [id])
+
+  // ENHANCEMENT: Add composite unique constraint and indexes
+  @@unique([patientId, metricId, recordedAt]) // Prevent duplicate observations
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([metricId])
+  @@index([recordedAt])
+  @@index([source])
+  @@index([context])
+  @@map("observations")
+}
+
 model AssessmentTemplate {
-  id              String                      @id @default(uuid()) @db.Uuid
-  name            String
-  description     String?
-  version         Int                         @default(1)
-  createdAt       DateTime                    @default(now()) @map("created_at")
-  updatedAt       DateTime                    @default(now()) @map("updated_at")
+  id                String       @id @default(cuid())
+  name              String       @unique // ENHANCEMENT: Template names should be unique
+  description       String?
+  questions         Json
+  scoring           Json?
+  isStandardized    Boolean      @default(false)
+  category          String?
+  standardCoding    Json?
+  validationInfo    Json?
+  scoringInfo       Json?
+  copyrightInfo     String?
+  clinicalUse       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
   
-  // New standardization fields
-  isStandardized  Boolean                     @default(false) @map("is_standardized")
-  category        String?
-  validationInfo  Json?                       @map("validation_info")
-  standardCoding  Json?                       @map("standard_coding")
-  scoringInfo     Json?                       @map("scoring_info")
-  copyrightInfo   String?                     @map("copyright_info")
-  clinicalUse     String?                     @map("clinical_use")
-
-  items       AssessmentTemplateItem[]
-  presets     ConditionPresetTemplate[]
-  observations Observation[]
-
-  @@unique([name, version])
-  @@index([isStandardized])
+  // Relationships
+  assessments       Assessment[]
+  conditionPresetTemplates ConditionPresetTemplate[]
+  items             AssessmentTemplateItem[]
+  
+  // ENHANCEMENT: Add indexes
+  @@index([name])
   @@index([category])
+  @@index([isStandardized])
   @@map("assessment_templates")
 }
 
 model AssessmentTemplateItem {
-  id                   String            @id @default(uuid()) @db.Uuid
-  templateId           String            @map("template_id") @db.Uuid
-  metricDefinitionId   String            @map("metric_definition_id") @db.Uuid
-  required             Boolean           @default(false)
-  displayOrder         Int               @default(0) @map("display_order")
-  helpText             String?           @map("help_text")
-  defaultValue         String?           @map("default_value")
-  createdAt            DateTime          @default(now()) @map("created_at")
-
-  template             AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  metricDefinition     MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
-
+  id                  String             @id @default(cuid())
+  templateId          String
+  metricDefinitionId  String
+  displayOrder        Int                @default(0)
+  isRequired          Boolean            @default(false)
+  helpText            String?
+  defaultValue        String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  // Relationships
+  template            AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  metricDefinition    MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
+  
   @@unique([templateId, metricDefinitionId])
-  @@index([templateId, displayOrder])
+  @@index([templateId])
+  @@index([metricDefinitionId])
+  @@index([displayOrder])
   @@map("assessment_template_items")
 }
 
-/* ========== Presets & Diagnoses ========== */
+model Assessment {
+  id               String             @id @default(cuid())
+  patientId        String
+  clinicianId      String?
+  templateId       String
+  responses        Json
+  score            Json?
+  completedAt      DateTime?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  
+  // Relationships
+  patient          Patient            @relation(fields: [patientId], references: [id])
+  clinician        Clinician?         @relation(fields: [clinicianId], references: [id])
+  template         AssessmentTemplate @relation(fields: [templateId], references: [id])
+  
+  // ENHANCEMENT: Add indexes
+  @@index([patientId])
+  @@index([templateId])
+  @@index([completedAt])
+  @@index([createdAt])
+  @@map("assessments")
+}
+
+model TimeLog {
+  id               String     @id @default(cuid())
+  patientId        String
+  clinicianId      String
+  activity         String
+  duration         Int
+  cptCode          CPTCode?
+  notes            String?
+  billable         Boolean    @default(true)
+  loggedAt         DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  // Relationships
+  patient          Patient    @relation(fields: [patientId], references: [id])
+  clinician        Clinician  @relation(fields: [clinicianId], references: [id])
+  
+  // ENHANCEMENT: Add indexes
+  @@index([patientId])
+  @@index([clinicianId])
+  @@index([loggedAt])
+  @@index([billable])
+  @@index([cptCode])
+  @@map("time_logs")
+}
+
 model ConditionPreset {
-  id                String                        @id @default(uuid()) @db.Uuid
-  name              String
-  defaultProtocolId String?                       @map("default_protocol_id")
-  createdAt         DateTime                      @default(now()) @map("created_at")
-
-  diagnoses         ConditionPresetDiagnosis[]
-  templates         ConditionPresetTemplate[]
-  alertRules        ConditionPresetAlertRule[]
-  enrollments       Enrollment[]
-
+  id                    String                      @id @default(cuid())
+  name                  String                      @unique
+  defaultProtocolId     String?
+  description           String?
+  isActive              Boolean                     @default(true)
+  isStandardized        Boolean                     @default(false)
+  category              String?
+  standardCoding        Json?
+  clinicalGuidelines    Json?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  
+  // Relationships
+  diagnoses             ConditionPresetDiagnosis[]
+  templates             ConditionPresetTemplate[]
+  alertRules            ConditionPresetAlertRule[]
+  enrollments           Enrollment[]
+  
+  // ENHANCEMENT: Add indexes
+  @@index([name])
+  @@index([category])
+  @@index([isStandardized])
+  @@index([isActive])
   @@map("condition_presets")
 }
 
 model ConditionPresetDiagnosis {
-  id        String          @id @default(uuid()) @db.Uuid
-  presetId  String          @map("preset_id") @db.Uuid
-  icd10     String
-  snomed    String?
-  label     String?
-
-  preset    ConditionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
-
-  @@unique([presetId, icd10])
+  id                    String          @id @default(cuid())
+  conditionPresetId     String
+  icd10                 String
+  snomed                String?
+  label                 String
+  isPrimary             Boolean         @default(false)
+  
+  // Relationships
+  conditionPreset       ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  
+  // ENHANCEMENT: Add composite unique constraint
+  @@unique([conditionPresetId, icd10])
+  @@index([conditionPresetId])
+  @@index([icd10])
+  @@index([isPrimary])
   @@map("condition_preset_diagnoses")
 }
 
 model ConditionPresetTemplate {
-  id         String            @id @default(uuid()) @db.Uuid
-  presetId   String            @map("preset_id") @db.Uuid
-  templateId String            @map("template_id") @db.Uuid
-
-  preset     ConditionPreset   @relation(fields: [presetId], references: [id], onDelete: Cascade)
-  template   AssessmentTemplate @relation(fields: [templateId], references: [id])
-
-  @@unique([presetId, templateId])
+  id                    String             @id @default(cuid())
+  conditionPresetId     String
+  templateId            String
+  isRequired            Boolean            @default(true)
+  frequency             String?
+  displayOrder          Int                @default(0)
+  
+  // Relationships
+  conditionPreset       ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  template              AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  @@unique([conditionPresetId, templateId])
+  @@index([conditionPresetId])
+  @@index([templateId])
+  @@index([displayOrder])
   @@map("condition_preset_templates")
 }
 
-/* ========== Alert Rules & Attachments ========== */
 model AlertRule {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  severity  Severity
-  window    String
-  expression Json
-  dedupeKey String?  @map("dedupe_key")
-  cooldown  String?
-  actions   Json
-  createdAt DateTime @default(now()) @map("created_at")
-
-  presetLinks ConditionPresetAlertRule[]
-  alerts      Alert[]
-
+  id                    String                      @id @default(cuid())
+  name                  String                      @unique // ENHANCEMENT: Alert rule names should be unique
+  description           String?
+  conditions            Json
+  actions               Json
+  isActive              Boolean                     @default(true)
+  isStandardized        Boolean                     @default(false)
+  category              String?
+  severity              Severity?
+  priority              Int                         @default(0)
+  standardCoding        Json?
+  clinicalEvidence      Json?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  
+  // Relationships
+  alerts                Alert[]
+  conditionPresets      ConditionPresetAlertRule[]
+  
+  // ENHANCEMENT: Add indexes
+  @@index([name])
+  @@index([category])
+  @@index([isActive])
+  @@index([isStandardized])
+  @@index([severity])
   @@map("alert_rules")
 }
 
 model ConditionPresetAlertRule {
-  id       String        @id @default(uuid()) @db.Uuid
-  presetId String        @map("preset_id") @db.Uuid
-  ruleId   String        @map("rule_id") @db.Uuid
-
-  preset   ConditionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
-  rule     AlertRule       @relation(fields: [ruleId], references: [id])
-
-  @@unique([presetId, ruleId])
+  id                    String          @id @default(cuid())
+  conditionPresetId     String
+  alertRuleId           String
+  isEnabled             Boolean         @default(true)
+  priority              Int             @default(0)
+  
+  // Relationships
+  conditionPreset       ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  rule                  AlertRule       @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  
+  @@unique([conditionPresetId, alertRuleId])
+  @@index([conditionPresetId])
+  @@index([alertRuleId])
   @@map("condition_preset_alert_rules")
 }
 
-/* ========== Enrollment (RTM linkage) ========== */
-model Enrollment {
-  id             String            @id @default(uuid()) @db.Uuid
-  patientId      String            @map("patient_id") @db.Uuid
-  presetId       String            @map("preset_id") @db.Uuid
-  diagnosisCode  String            @map("diagnosis_code")
-  clinicianId    String?           @map("clinician_id") @db.Uuid
-  startDate      DateTime          @map("start_date")
-  endDate        DateTime?         @map("end_date")
-  status         EnrollmentStatus  @default(active)
-  consentAt      DateTime?         @map("consent_at")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @default(now()) @map("updated_at")
-  reminderSettings  Json?             @map("reminder_settings")
-  patient        Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  preset         ConditionPreset   @relation(fields: [presetId], references: [id])
-  clinician      Clinician?        @relation(fields: [clinicianId], references: [id])
-  observations   Observation[]
-  alerts         Alert[]
-  timelogs       TimeLog[]
-  messages       Message[]
-
-  @@index([patientId, status])
-  @@index([diagnosisCode])
-  @@index([startDate])
-  @@index([presetId])
-  @@map("enrollments")
-}
-
-/* ========== Observations (normalized values) ========== */
-model Observation {
-  id                        String           @id @default(uuid()) @db.Uuid
-  patientId                 String           @map("patient_id") @db.Uuid
-  enrollmentId              String           @map("enrollment_id") @db.Uuid
-  templateId                String?          @map("template_id") @db.Uuid
-  metricKey                 String           @map("metric_key")
-  metricDefinitionId        String           @map("metric_definition_id") @db.Uuid
-  metricDefinitionVersion   Int              @default(1) @map("metric_definition_version")
-  recordedAt                DateTime         @map("recorded_at")
-  source                    SourceType       @default(patient)
-
-  // One of the following should be set by app logic; Prisma cannot enforce CHECK constraint
-  valueNumeric              Decimal?         @map("value_numeric") @db.Decimal(14,4)
-  valueText                 String?          @map("value_text")
-  valueCode                 String?          @map("value_code")
-
-  unit                      String?
-  context                   Json?
-  raw                       Json?
-  createdAt                 DateTime         @default(now()) @map("created_at")
-
-  patient                   Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  enrollment                Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  template                  AssessmentTemplate? @relation(fields: [templateId], references: [id])
-  metricDefinition          MetricDefinition @relation(fields: [metricDefinitionId], references: [id])
-
-  @@index([enrollmentId, recordedAt])
-  @@index([metricKey, recordedAt(sort: Desc)])
-  @@index([metricDefinitionId])
-  @@index([valueCode])
-  @@map("observations")
-}
-
-/* ========== Alerts & Time Logs ========== */
 model Alert {
-  id            String      @id @default(uuid()) @db.Uuid
-  ruleId        String      @map("rule_id") @db.Uuid
-  enrollmentId  String      @map("enrollment_id") @db.Uuid
-  triggeredAt   DateTime    @default(now()) @map("triggered_at")
-  facts         Json?
-  status        AlertStatus @default(open)
-  createdAt     DateTime    @default(now()) @map("created_at")
+  id          String      @id @default(cuid())
+  organizationId String
+  ruleId      String
+  patientId   String
+  clinicianId String?
+  severity    Severity
+  status      AlertStatus @default(PENDING)
+  message     String
+  data        Json?
+  triggeredAt DateTime    @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt  DateTime?
 
-  rule          AlertRule   @relation(fields: [ruleId], references: [id])
-  enrollment    Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  // Relationships
+  rule        AlertRule   @relation(fields: [ruleId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+  clinician   Clinician?  @relation(fields: [clinicianId], references: [id])
 
-  @@index([enrollmentId, triggeredAt(sort: Desc)])
-  @@index([status, triggeredAt(sort: Desc)])
+  // ENHANCEMENT: Add indexes
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([ruleId])
+  @@index([status])
+  @@index([severity])
+  @@index([triggeredAt])
   @@map("alerts")
 }
 
-model TimeLog {
-  id            String   @id @default(uuid()) @db.Uuid
-  patientId     String   @map("patient_id") @db.Uuid
-  enrollmentId  String   @map("enrollment_id") @db.Uuid
-  cptCode       CPTCode  @map("cpt_code")
-  minutes       Int
-  startedAt     DateTime @map("started_at")
-  endedAt       DateTime @map("ended_at")
-  actorId       String?  @map("actor_id") @db.Uuid
-  activityRef   String?  @map("activity_ref")
-  audit         Json?
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  patient       Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  actor         Clinician? @relation(fields: [actorId], references: [id])
-
-  @@index([enrollmentId, startedAt])
-  @@index([cptCode, startedAt])
-  @@map("timelogs")
-}
-
-model Message {
-  id            String     @id @default(uuid()) @db.Uuid
-  enrollmentId  String     @map("enrollment_id") @db.Uuid
-  patientId     String     @map("patient_id") @db.Uuid
-  senderType    String     @map("sender_type")
-  body          String
-  createdAt     DateTime   @default(now()) @map("created_at")
-
-  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  patient       Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@map("messages")
-}
-
-/* ========== Medication Management ========== */
 model Drug {
-  id                String    @id @default(uuid()) @db.Uuid
-  name              String    // Generic name (e.g., "Ibuprofen")
-  brandName         String?   // Brand name (e.g., "Advil")
-  activeIngredient  String    // Active ingredient
-  drugClass         String    // Drug classification (e.g., "NSAID", "Opioid")
-  fdaApproved       Boolean   @default(true)
-  controlledSubstance String? // DEA schedule if applicable (I, II, III, IV, V)
-  dosageForm        String    // tablet, capsule, liquid, injection, etc.
-  strength          String    // e.g., "200mg", "5mg/ml"
-  manufacturer      String?
-  ndc               String?   // National Drug Code
-  description       String?
-  sideEffects       Json?     // Array of common side effects
-  contraindications Json?     // Array of contraindications
-  interactions      Json?     // Array of drug interactions
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @default(now()) @map("updated_at")
-
-  prescriptions     PatientMedication[]
-
-  @@unique([name, strength, dosageForm])
-  @@index([drugClass])
+  id                 String              @id @default(cuid())
+  name               String              @unique // ENHANCEMENT: Drug names should be unique
+  genericName        String?
+  brandName          String?
+  dosageForm         String?
+  strength           String?
+  manufacturer       String?
+  ndcNumber          String?             @unique
+  description        String?
+  sideEffects        String[]
+  contraindications  String[]
+  interactions       String[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  
+  // Relationships
+  patientMedications PatientMedication[]
+  
+  // ENHANCEMENT: Add indexes
   @@index([name])
+  @@index([genericName])
+  @@index([brandName])
   @@map("drugs")
 }
 
 model PatientMedication {
-  id                String    @id @default(uuid()) @db.Uuid
-  patientId         String    @map("patient_id") @db.Uuid
-  drugId            String    @map("drug_id") @db.Uuid
-  prescribedBy      String?   @map("prescribed_by") @db.Uuid // Clinician ID
-  dosage            String    // e.g., "200mg"
-  frequency         String    // e.g., "twice daily", "every 8 hours"
-  route             String    // oral, topical, injection, etc.
-  instructions      String?   // Special instructions
-  startDate         DateTime  @map("start_date")
-  endDate           DateTime? @map("end_date")
-  isActive          Boolean   @default(true) @map("is_active")
-  isPRN             Boolean   @default(false) @map("is_prn") // "as needed"
-  maxDailyDose      String?   @map("max_daily_dose")
-  refillsRemaining  Int?      @map("refills_remaining")
-  pharmacyInfo      Json?     @map("pharmacy_info")
-  notes             String?
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @default(now()) @map("updated_at")
-
-  patient           Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  drug              Drug      @relation(fields: [drugId], references: [id])
-  prescriber        Clinician? @relation(fields: [prescribedBy], references: [id])
-  adherenceRecords  MedicationAdherence[]
-
-  @@index([patientId, isActive])
+  id                   String                @id @default(cuid())
+  patientId            String
+  drugId               String
+  prescribedBy         String?
+  dosage               String
+  frequency            String
+  route                String?
+  startDate            DateTime
+  endDate              DateTime?
+  isActive             Boolean               @default(true)
+  instructions         String?
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  
+  // Relationships
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  drug                 Drug                  @relation(fields: [drugId], references: [id])
+  medicationAdherence  MedicationAdherence[]
+  
+  // ENHANCEMENT: Add composite unique constraint and indexes
+  @@unique([patientId, drugId, startDate]) // Prevent duplicate prescriptions
+  @@index([patientId])
   @@index([drugId])
+  @@index([isActive])
   @@index([startDate])
   @@map("patient_medications")
 }
 
 model MedicationAdherence {
-  id                    String            @id @default(uuid()) @db.Uuid
-  patientMedicationId   String            @map("patient_medication_id") @db.Uuid
-  patientId             String            @map("patient_id") @db.Uuid
-  scheduledDate         DateTime          @map("scheduled_date")
-  takenAt               DateTime?         @map("taken_at")
-  dosageTaken           String?           @map("dosage_taken")
-  wasTaken              Boolean           @default(false) @map("was_taken")
-  wasSkipped            Boolean           @default(false) @map("was_skipped")
-  skipReason            String?           @map("skip_reason")
-  sideEffectsReported   Json?             @map("side_effects_reported")
-  notes                 String?
-  reportedBy            String            @default("patient") @map("reported_by") // patient, caregiver, clinician
-  createdAt             DateTime          @default(now()) @map("created_at")
-
-  patientMedication     PatientMedication @relation(fields: [patientMedicationId], references: [id], onDelete: Cascade)
-  patient               Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId, scheduledDate])
-  @@index([patientMedicationId, scheduledDate])
-  @@index([wasTaken, scheduledDate])
+  id                   String            @id @default(cuid())
+  patientMedicationId  String
+  takenAt              DateTime
+  doseTaken            String?
+  adherenceScore       Float?
+  notes                String?
+  recordedAt           DateTime          @default(now())
+  
+  // Relationships
+  patientMedication    PatientMedication @relation(fields: [patientMedicationId], references: [id])
+  
+  // ENHANCEMENT: Add composite unique constraint and indexes
+  @@unique([patientMedicationId, takenAt]) // Prevent duplicate adherence records
+  @@index([patientMedicationId])
+  @@index([takenAt])
+  @@index([adherenceScore])
   @@map("medication_adherence")
 }

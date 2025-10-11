@@ -4,6 +4,10 @@ const { body, param, query, validationResult } = require('express-validator');
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('Validation errors:', JSON.stringify(errors.array(), null, 2));
+    console.log('Request path:', req.path);
+    console.log('Request params:', JSON.stringify(req.params, null, 2));
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
     return res.status(400).json({
       errors: errors.array().map(error => error.msg)
     });
@@ -13,7 +17,18 @@ const handleValidationErrors = (req, res, next) => {
 
 // Common validation rules
 const commonValidations = {
-  id: param('id').isUUID().withMessage('ID must be a valid UUID'),
+  // Accept both UUID and CUID formats
+  id: param('id').custom((value) => {
+    // UUID format: 8-4-4-4-12 characters
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // CUID format: starts with 'c' followed by alphanumeric characters
+    const cuidRegex = /^c[a-z0-9]{24,}$/i;
+
+    if (!uuidRegex.test(value) && !cuidRegex.test(value)) {
+      throw new Error('ID must be a valid UUID or CUID');
+    }
+    return true;
+  }).withMessage('ID must be a valid UUID or CUID'),
   
   pagination: [
     query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),

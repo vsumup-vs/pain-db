@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 class DatabaseService {
   constructor() {
@@ -51,4 +51,10 @@ class DatabaseService {
   }
 }
 
-module.exports = new DatabaseService();
+const dbService = new DatabaseService();
+
+// Export both the service and prisma client for compatibility
+module.exports = {
+  dbService,
+  prisma: dbService.prisma
+};

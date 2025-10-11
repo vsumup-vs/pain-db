@@ -1,0 +1,835 @@
+const express = require('express');
+const passport = require('passport');
+const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcrypt');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
+const { body, validationResult } = require('express-validator');
+
+const { prisma } = require('../services/db');
+const jwtService = require('../services/jwtService');
+const rbacService = require('../services/rbacService');
+const socialAuthService = require('../services/socialAuthService');
+const auditService = require('../services/auditService');
+const { 
+  requireAuth, 
+  requirePermission, 
+  requireRole,
+  requireOrganization,
+  optionalAuth 
+} = require('../middleware/auth');
+
+const router = express.Router();
+
+// Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many authentication attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const strictAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: { error: 'Too many failed attempts, please try again later' }
+});
+
+// ============================================================================
+// AUTHENTICATION ROUTES
+// ============================================================================
+
+/**
+ * POST /auth/login - Local login with email/password
+ */
+router.post('/login', 
+  strictAuthLimiter,
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 8 })
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          error: 'Validation failed', 
+          details: errors.array() 
+        });
+      }
+
+      const { email,
+          passwordHash, password, mfaCode, organizationId } = req.body;
+
+      // Find user with organizations and roles
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          userOrganizations: {
+            include: { 
+              organization: true,
+              roleTemplate: {
+                include: {
+                  permissions: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!user || !user.passwordHash || !user.isActive) {
+        await auditService.log({
+          action: 'LOGIN_FAILED',
+          metadata: { email,
+          passwordHash, reason: 'user_not_found_or_inactive' },
+          ipAddress: req.ip
+        });
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!isValidPassword) {
+        await auditService.log({
+          action: 'LOGIN_FAILED',
+          userId: user.id,
+          metadata: { email,
+          passwordHash, reason: 'invalid_password' },
+          ipAddress: req.ip
+        });
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Check MFA if enabled
+      if (user.mfaEnabled) {
+        if (!mfaCode) {
+          return res.status(200).json({ 
+            requiresMFA: true,
+            userId: user.id // For MFA verification
+          });
+        }
+
+        const isValidMFA = speakeasy.totp.verify({
+          secret: user.mfaSecret,
+          encoding: 'base32',
+          token: mfaCode,
+          window: 2
+        });
+
+        if (!isValidMFA) {
+          await auditService.log({
+            action: 'MFA_FAILED',
+            userId: user.id,
+            ipAddress: req.ip
+          });
+          return res.status(401).json({ error: 'Invalid MFA code' });
+        }
+      }
+
+      // Handle organization selection
+      let selectedOrganization = null;
+      if (organizationId) {
+        selectedOrganization = user.userOrganizations.find(
+          uo => uo.organizationId === organizationId
+        );
+        if (!selectedOrganization) {
+          return res.status(400).json({ 
+            error: 'Invalid organization selection' 
+          });
+        }
+      } else if (user.userOrganizations.length === 1) {
+        selectedOrganization = user.userOrganizations[0];
+      }
+
+      // Generate enhanced JWT token
+      const token = await jwtService.generateUserToken(user, selectedOrganization);
+      const refreshToken = await jwtService.generateRefreshToken(user.id);
+
+      // Store refresh token
+      await prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        }
+      });
+
+      // Update last login
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      });
+
+      // Audit log
+      await auditService.log({
+        action: 'LOGIN_SUCCESS',
+        userId: user.id,
+        organizationId: selectedOrganization?.organizationId,
+        ipAddress: req.ip
+      });
+
+      const response = {
+        token,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+                    firstName: user.firstName,
+          lastName: user.lastName,
+          role: selectedOrganization?.roleTemplate?.name,
+          organizations: user.userOrganizations.map(uo => ({
+            id: uo.organizationId,
+            name: uo.organization.name,
+            role: uo.roleTemplate?.name
+          }))
+        }
+      };
+
+      // If multiple organizations, require organization selection
+      if (!selectedOrganization && user.userOrganizations.length > 1) {
+        response.requiresOrganizationSelection = true;
+        response.availableOrganizations = user.userOrganizations.map(uo => ({
+          id: uo.organizationId,
+          name: uo.organization.name,
+          type: uo.organization.type,
+          role: uo.roleTemplate?.name
+        }));
+      }
+
+      res.json(response);
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Authentication failed' });
+    }
+  }
+);
+
+/**
+ * POST /auth/register - User registration
+ */
+router.post('/register',
+  authLimiter,
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/),
+    body('firstName').trim().isLength({ min: 1 }),
+    body('lastName').trim().isLength({ min: 1 }),
+    body('organizationId').optional().isString(),
+    body('inviteCode').optional().isString()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          error: 'Validation failed', 
+          details: errors.array() 
+        });
+      }
+
+      const { 
+        email,
+        password, 
+        firstName, 
+        lastName, 
+        organizationId, 
+        inviteCode,
+        role = 'PATIENT' // Default role
+      } = req.body;
+
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'User already exists' });
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // Create user
+      const user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash, // FIXED: Added missing passwordHash
+          firstName,
+          lastName,
+          emailVerified: null, // FIXED: Changed from false to null
+          isActive: true
+        }
+      });
+
+      // Handle organization assignment
+      let userOrganization = null;
+      if (organizationId) {
+        // Verify organization exists
+        const organization = await prisma.organization.findUnique({
+          where: { id: organizationId }
+        });
+
+        if (!organization) {
+          // Cleanup created user
+          await prisma.user.delete({ where: { id: user.id } });
+          return res.status(400).json({ error: 'Invalid organization' });
+        }
+
+        // Validate role - use UserRole enum values
+        const validRoles = ['SUPER_ADMIN', 'ORG_ADMIN', 'CLINICIAN', 'NURSE', 'BILLING_ADMIN', 'PATIENT', 'CAREGIVER', 'RESEARCHER'];
+        if (!validRoles.includes(role)) {
+          // Cleanup created user
+          await prisma.user.delete({ where: { id: user.id } });
+          return res.status(400).json({ error: 'Invalid role' });
+        }
+
+        // Assign user to organization - use role directly, not roleTemplateId
+        userOrganization = await prisma.userOrganization.create({
+          data: {
+            userId: user.id,
+            organizationId: organizationId,
+            role: role,
+            permissions: ['USER_READ'], // Add default permissions
+            joinedAt: new Date()
+          },
+          include: {
+            organization: true
+          }
+        });
+      }
+
+      // Generate tokens
+      const token = await jwtService.generateUserToken(user); // FIXED: Removed second parameter
+      const refreshToken = await jwtService.generateRefreshToken(user.id);
+
+      // Store refresh token
+      await prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        }
+      });
+
+      // Audit log
+      await auditService.log({
+        action: 'USER_REGISTERED',
+        userId: user.id,
+        organizationId: userOrganization?.organizationId,
+        metadata: { role },
+        ipAddress: req.ip
+      });
+
+      res.status(201).json({
+        token,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+                    firstName: user.firstName,
+          lastName: user.lastName,
+          role: userOrganization?.role,
+          organization: userOrganization ? {
+            id: userOrganization.organizationId,
+            name: userOrganization.organization.name
+          } : null
+        },
+        requiresEmailVerification: true
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ error: 'Registration failed' });
+    }
+  }
+);
+
+/**
+ * POST /auth/refresh - Refresh JWT token
+ */
+router.post('/refresh', authLimiter, async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token required' });
+    }
+
+    // Verify refresh token
+    const decoded = await jwtService.verifyToken(refreshToken);
+    if (decoded.type !== 'refresh') {
+      return res.status(401).json({ error: 'Invalid token type' });
+    }
+
+    // Check if refresh token exists and is valid
+    const storedToken = await prisma.refreshToken.findFirst({
+      where: {
+        token: refreshToken,
+        userId: decoded.userId,
+        expiresAt: { gt: new Date() }
+      }
+    });
+
+    if (!storedToken) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    // Get user with current context
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        userOrganizations: {
+          include: {
+            organization: true,
+            roleTemplate: { include: { permissions: true } }
+          }
+        }
+      }
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: 'User not found or inactive' });
+    }
+
+    // Generate new tokens
+    const newToken = await jwtService.generateUserToken(user);
+    const newRefreshToken = await jwtService.generateRefreshToken(user.id);
+
+    // Update refresh token
+    await prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: {
+        token: newRefreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    });
+
+    res.json({
+      token: newToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(401).json({ error: 'Token refresh failed' });
+  }
+});
+
+/**
+ * POST /auth/select-organization - Select active organization
+ */
+router.post('/select-organization', requireAuth, async (req, res) => {
+  try {
+    const { organizationId } = req.body;
+
+    if (!organizationId) {
+      return res.status(400).json({ error: 'Organization ID required' });
+    }
+
+    // Verify user has access to this organization
+    const userOrg = await prisma.userOrganization.findFirst({
+      where: {
+        userId: req.user.userId,
+        organizationId: organizationId
+      },
+      include: {
+        organization: true,
+        roleTemplate: { include: { permissions: true } }
+      }
+    });
+
+    if (!userOrg) {
+      return res.status(403).json({ error: 'Access denied to organization' });
+    }
+
+    // Generate new token with organization context
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        userOrganizations: {
+          include: {
+            organization: true,
+            roleTemplate: { include: { permissions: true } }
+          }
+        }
+      }
+    });
+
+    const token = await jwtService.generateUserToken(user, userOrg);
+
+    // Audit log
+    await auditService.log({
+      action: 'ORGANIZATION_SELECTED',
+      userId: req.user.userId,
+      organizationId: organizationId,
+      ipAddress: req.ip
+    });
+
+    res.json({
+      token,
+      organization: {
+        id: userOrg.organizationId,
+        name: userOrg.organization.name,
+        type: userOrg.organization.type,
+        role: userOrg.roleTemplate.name
+      }
+    });
+  } catch (error) {
+    console.error('Organization selection error:', error);
+    res.status(500).json({ error: 'Organization selection failed' });
+  }
+});
+
+/**
+ * POST /auth/logout - Logout user
+ */
+router.post('/logout', requireAuth, async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    // Invalidate refresh token if provided
+    if (refreshToken) {
+      await prisma.refreshToken.deleteMany({
+        where: {
+          token: refreshToken,
+          userId: req.user.userId
+        }
+      });
+    }
+
+    // Audit log
+    await auditService.log({
+      action: 'LOGOUT',
+      userId: req.user.userId,
+      organizationId: req.user.currentOrganization,
+      ipAddress: req.ip
+    });
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
+// ============================================================================
+// USER MANAGEMENT ROUTES
+// ============================================================================
+
+/**
+ * GET /auth/me - Get current user profile
+ */
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        userOrganizations: {
+          include: {
+            organization: true,
+            roleTemplate: {
+              include: { permissions: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+                firstName: user.firstName,
+      lastName: user.lastName,
+      emailVerified: user.emailVerified,
+      mfaEnabled: user.mfaEnabled,
+      lastLoginAt: user.lastLoginAt,
+      organizations: user.userOrganizations.map(uo => ({
+        id: uo.organizationId,
+        name: uo.organization.name,
+        type: uo.organization.type,
+        role: uo.roleTemplate.name,
+        permissions: uo.roleTemplate.permissions.map(p => p.name),
+        joinedAt: uo.joinedAt
+      })),
+      currentOrganization: req.user.currentOrganization,
+      permissions: req.user.permissions || []
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
+  }
+});
+
+/**
+ * PUT /auth/profile - Update user profile
+ */
+router.put('/profile', 
+  requireAuth,
+  [
+    body('firstName').optional().trim().isLength({ min: 1 }),
+    body('lastName').optional().trim().isLength({ min: 1 }),
+    body('email').optional().isEmail().normalizeEmail()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+          error: 'Validation failed', 
+          details: errors.array() 
+        });
+      }
+
+      const { firstName, lastName, email } = req.body;
+      const updateData = {};
+
+      if (firstName) updateData.firstName = firstName;
+      if (lastName) updateData.lastName = lastName;
+      if (email) {
+        // Check if email is already taken
+        const existingUser = await prisma.user.findFirst({
+          where: { 
+            email,
+                      id: { not: req.user.userId }
+          }
+        });
+        
+        if (existingUser) {
+          return res.status(400).json({ error: 'Email already in use' });
+        }
+        
+        updateData.email = email;
+        updateData.emailVerified = false; // Require re-verification
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.userId },
+        data: updateData
+      });
+
+      // Audit log
+      await auditService.log({
+        action: 'PROFILE_UPDATED',
+        userId: req.user.userId,
+        organizationId: req.user.currentOrganization,
+        metadata: { updatedFields: Object.keys(updateData) },
+        ipAddress: req.ip
+      });
+
+      res.json({
+        id: updatedUser.id,
+        email: updatedUser.email,
+                  firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        emailVerified: updatedUser.emailVerified
+      });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ error: 'Profile update failed' });
+    }
+  }
+);
+
+// ============================================================================
+// SOCIAL AUTHENTICATION ROUTES
+// ============================================================================
+
+// Social login initiation routes
+router.get('/google', authLimiter, passport.authenticate('google', {
+  scope: ['openid', 'profile', 'email']
+}));
+
+router.get('/microsoft', authLimiter, passport.authenticate('microsoft', {
+  scope: ['openid', 'profile', 'email']
+}));
+
+// Social login callback routes
+router.get('/google/callback', 
+  passport.authenticate('google', { session: false }),
+  async (req, res) => {
+    try {
+      const loginResponse = await socialAuthService.generateLoginResponse(req.user);
+      
+      // Redirect to frontend with token
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${loginResponse.token}`;
+      res.redirect(redirectUrl);
+    } catch (error) {
+      console.error('Google callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/auth/error`);
+    }
+  }
+);
+
+router.get('/microsoft/callback',
+  passport.authenticate('microsoft', { session: false }),
+  async (req, res) => {
+    try {
+      const loginResponse = await socialAuthService.generateLoginResponse(req.user);
+      
+      // Redirect to frontend with token
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${loginResponse.token}`;
+      res.redirect(redirectUrl);
+    } catch (error) {
+      console.error('Microsoft callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL}/auth/error`);
+    }
+  }
+);
+
+// ============================================================================
+// ADMIN ROUTES
+// ============================================================================
+
+/**
+ * GET /auth/users - List users (Admin only)
+ */
+router.get('/users', 
+  requireAuth, 
+  requirePermission('USER_READ'),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 20, organizationId, role } = req.query;
+      const skip = (page - 1) * limit;
+
+      const where = {};
+      
+      // Filter by organization if specified
+      if (organizationId) {
+        where.userOrganizations = {
+          some: { organizationId }
+        };
+      }
+
+      const users = await prisma.user.findMany({
+        where,
+        include: {
+          userOrganizations: {
+            include: {
+              organization: true,
+              roleTemplate: true
+            }
+          }
+        },
+        skip: parseInt(skip),
+        take: parseInt(limit),
+        orderBy: { createdAt: 'desc' }
+      });
+
+      const total = await prisma.user.count({ where });
+
+      res.json({
+        users: users.map(user => ({
+          id: user.id,
+          email: user.email,
+                    firstName: user.firstName,
+          lastName: user.lastName,
+          isActive: user.isActive,
+          emailVerified: user.emailVerified,
+          lastLoginAt: user.lastLoginAt,
+          createdAt: user.createdAt,
+          organizations: user.userOrganizations.map(uo => ({
+            id: uo.organizationId,
+            name: uo.organization.name,
+            role: uo.roleTemplate.name
+          }))
+        })),
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      console.error('List users error:', error);
+      res.status(500).json({ error: 'Failed to list users' });
+    }
+  }
+);
+
+/**
+ * POST /auth/users/:userId/assign-role - Assign role to user
+ */
+router.post('/users/:userId/assign-role',
+  requireAuth,
+  requirePermission('USER_MANAGE'),
+  [
+    body('organizationId').isString(),
+    body('roleTemplateId').isString()
+  ],
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { organizationId, roleTemplateId } = req.body;
+
+      // Verify user exists
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Verify organization and role template exist
+      const [organization, roleTemplate] = await Promise.all([
+        prisma.organization.findUnique({ where: { id: organizationId } }),
+        prisma.roleTemplate.findUnique({ where: { id: roleTemplateId } })
+      ]);
+
+      if (!organization || !roleTemplate) {
+        return res.status(400).json({ error: 'Invalid organization or role' });
+      }
+
+      // Create or update user organization assignment
+      const userOrg = await prisma.userOrganization.upsert({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId
+          }
+        },
+        update: {
+          roleTemplateId,
+          updatedAt: new Date()
+        },
+        create: {
+          userId,
+          organizationId,
+          roleTemplateId,
+          joinedAt: new Date()
+        },
+        include: {
+          organization: true,
+          roleTemplate: true
+        }
+      });
+
+      // Audit log
+      await auditService.log({
+        action: 'ROLE_ASSIGNED',
+        userId: req.user.userId,
+        organizationId,
+        metadata: { 
+          targetUserId: userId,
+          roleTemplateId,
+          roleName: roleTemplate.name
+        },
+        ipAddress: req.ip
+      });
+
+      res.json({
+        message: 'Role assigned successfully',
+        assignment: {
+          userId,
+          organizationId,
+          organizationName: userOrg.organization.name,
+          role: userOrg.roleTemplate.name
+        }
+      });
+    } catch (error) {
+      console.error('Assign role error:', error);
+      res.status(500).json({ error: 'Failed to assign role' });
+    }
+  }
+);
+
+module.exports = router;

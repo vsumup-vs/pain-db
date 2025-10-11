@@ -92,6 +92,8 @@ export default function MetricDefinitions() {
   }
 
   const openEditModal = (metric) => {
+    console.log('openEditModal - received metric:', metric)
+    console.log('openEditModal - metric.id:', metric?.id)
     setEditingMetric(metric)
     setCurrentFlow('customForm')
     setShowModal(true)
@@ -108,9 +110,16 @@ export default function MetricDefinitions() {
   // Form handlers
   const handleSubmit = async (formData) => {
     try {
+      console.log('handleSubmit - editingMetric:', editingMetric)
+      console.log('handleSubmit - editingMetric.id:', editingMetric?.id)
+      console.log('handleSubmit - formData:', formData)
+
       if (editingMetric) {
-        await updateMetric(editingMetric.id, formData)
+        console.log('Calling updateMetric with ID:', editingMetric.id)
+        // updateMetric expects an object with { id, data } structure
+        await updateMetric({ id: editingMetric.id, data: formData })
       } else {
+        console.log('Calling createMetric')
         await createMetric(formData)
       }
       closeModal()

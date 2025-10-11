@@ -374,7 +374,7 @@ export default function EnrollmentDetails() {
                 {alerts.slice(0, 5).map((alert) => (
                   <div key={alert.id} className="flex items-start space-x-3">
                     <div className="flex-shrink-0">
-                      {alert.severity === 'high' ? (
+                      {alert.rule?.severity === 'CRITICAL' || alert.rule?.severity === 'HIGH' || alert.severity === 'HIGH' || alert.severity === 'high' ? (
                         <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
                       ) : (
                         <CheckCircleIcon className="h-5 w-5 text-yellow-500" />

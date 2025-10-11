@@ -17,13 +17,14 @@ export default function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
     description: metric?.description || '',
     valueType: metric?.valueType || 'numeric',
     unit: metric?.unit || '',
-    minValue: metric?.scaleMin || metric?.minValue || '',
-    maxValue: metric?.scaleMax || metric?.maxValue || '',
-    decimalPrecision: metric?.decimalPrecision || '',
+    // Use ?? (nullish coalescing) instead of || to allow 0 as a valid value
+    minValue: metric?.scaleMin ?? metric?.minValue ?? '',
+    maxValue: metric?.scaleMax ?? metric?.maxValue ?? '',
+    decimalPrecision: metric?.decimalPrecision ?? '',
     requiredDefault: metric?.requiredDefault || false,
     defaultFrequency: metric?.defaultFrequency || '',
     category: metric?.category || 'General',
-    options: metric?.options ? (Array.isArray(metric.options) ? metric.options.map(opt => 
+    options: metric?.options ? (Array.isArray(metric.options) ? metric.options.map(opt =>
       typeof opt === 'object' ? opt.label || opt.value : opt
     ).join('\n') : '') : '',
   })
@@ -53,7 +54,71 @@ export default function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit(formData)
+
+    // Process form data before submitting
+    const processedData = { ...formData }
+
+    // Check if this is a standardized metric (can't edit protected fields)
+    const isStandardized = metric?.isStandardized || metric?.coding || metric?.standardCoding
+
+    if (isStandardized && metric) {
+      // For standardized metrics, only send editable fields that exist in the schema
+      const editableFields = ['displayName', 'description']
+      const filteredData = {}
+
+      editableFields.forEach(field => {
+        if (field === 'displayName' && processedData.name) {
+          filteredData.displayName = processedData.name
+        } else if (processedData[field] !== undefined) {
+          filteredData[field] = processedData[field]
+        }
+      })
+
+      console.log('Standardized metric - only sending editable fields:', filteredData)
+      onSubmit(filteredData)
+      return
+    }
+
+    // For custom (non-standardized) metrics, process all fields
+    // Convert minValue/maxValue to scaleMin/scaleMax for backend
+    if (formData.valueType === 'numeric') {
+      processedData.scaleMin = formData.minValue
+      processedData.scaleMax = formData.maxValue
+      // Remove the frontend field names
+      delete processedData.minValue
+      delete processedData.maxValue
+      // Remove options field for numeric types (it's not applicable)
+      delete processedData.options
+    }
+
+    // Convert options string to array if needed for categorical/ordinal types
+    if (formData.valueType === 'categorical' || formData.valueType === 'ordinal') {
+      if (typeof formData.options === 'string' && formData.options.trim()) {
+        // Split by newlines and filter out empty lines
+        processedData.options = formData.options.split('\n').filter(line => line.trim())
+      } else if (!formData.options) {
+        processedData.options = []
+      }
+    }
+
+    // For text and boolean types, remove options field as well
+    if (formData.valueType === 'text' || formData.valueType === 'boolean') {
+      delete processedData.options
+    }
+
+    // Rename 'name' to 'displayName' for backend
+    if (processedData.name) {
+      processedData.displayName = processedData.name
+      delete processedData.name
+    }
+
+    // Don't send ID in the update payload - it's already in the URL
+    if (metric) {
+      delete processedData.id
+    }
+
+    console.log('Processed data to submit:', processedData)
+    onSubmit(processedData)
   }
 
   const nextStep = () => {
@@ -74,7 +139,11 @@ export default function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
         return formData.name && formData.valueType
       case 2:
         if (formData.valueType === 'numeric') {
-          return formData.minValue !== '' && formData.maxValue !== ''
+          // Check that values are not empty strings AND not undefined/null
+          // Allow 0 as a valid value
+          const hasMinValue = formData.minValue !== '' && formData.minValue !== null && formData.minValue !== undefined
+          const hasMaxValue = formData.maxValue !== '' && formData.maxValue !== null && formData.maxValue !== undefined
+          return hasMinValue && hasMaxValue
         }
         if (formData.valueType === 'categorical' || formData.valueType === 'ordinal') {
           return formData.options.trim().length > 0
@@ -383,56 +452,73 @@ export default function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
                 <div>
                   <h4 className="text-sm font-medium text-green-900">Final Settings</h4>
                   <p className="text-sm text-green-700 mt-1">
-                    Configure additional settings for data collection frequency and requirements.
+                    {metric?.isStandardized || metric?.coding || metric?.standardCoding
+                      ? 'Review settings for this standardized metric.'
+                      : 'Configure additional settings for data collection frequency and requirements.'}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <ClockIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  Collection Settings
-                </h4>
-                
-                <div className="space-y-4">
+            {(metric?.isStandardized || metric?.coding || metric?.standardCoding) ? (
+              <div className="bg-white border border-amber-100 rounded-lg p-6">
+                <div className="flex items-start">
+                  <InformationCircleIcon className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
                   <div>
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        name="requiredDefault"
-                        checked={formData.requiredDefault}
-                        onChange={handleChange}
-                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                      />
-                      <div>
-                        <span className="text-sm font-medium text-gray-700">Required by Default</span>
-                        <p className="text-xs text-gray-500">Patients must provide this metric when submitting data</p>
-                      </div>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Default Collection Frequency</label>
-                    <select
-                      name="defaultFrequency"
-                      value={formData.defaultFrequency}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    >
-                      <option value="">Select frequency...</option>
-                      <option value="daily">📅 Daily</option>
-                      <option value="weekly">📆 Weekly</option>
-                      <option value="monthly">🗓️ Monthly</option>
-                      <option value="as_needed">🔔 As Needed</option>
-                      <option value="custom">⚙️ Custom</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">How often should patients typically report this metric?</p>
+                    <h4 className="text-sm font-medium text-amber-900">Standardized Metric</h4>
+                    <p className="text-sm text-amber-700 mt-1">
+                      This is a standardized metric. Only the display name and description can be edited to maintain consistency and compliance.
+                      Frequency and requirement settings are managed at the assessment template level.
+                    </p>
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <ClockIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                    Collection Settings
+                  </h4>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          name="requiredDefault"
+                          checked={formData.requiredDefault}
+                          onChange={handleChange}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Required by Default</span>
+                          <p className="text-xs text-gray-500">Patients must provide this metric when submitting data</p>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Default Collection Frequency</label>
+                      <select
+                        name="defaultFrequency"
+                        value={formData.defaultFrequency}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                      >
+                        <option value="">Select frequency...</option>
+                        <option value="daily">📅 Daily</option>
+                        <option value="weekly">📆 Weekly</option>
+                        <option value="monthly">🗓️ Monthly</option>
+                        <option value="as_needed">🔔 As Needed</option>
+                        <option value="custom">⚙️ Custom</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">How often should patients typically report this metric?</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -461,8 +547,17 @@ export default function MetricDefinitionForm({ metric, onSubmit, isLoading }) {
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('Next button clicked. Current step:', currentStep)
-                  nextStep()
+                  console.log('Next button clicked')
+                  console.log('Current step:', currentStep)
+                  console.log('Form data:', formData)
+                  console.log('Is step valid:', isStepValid(currentStep))
+                  console.log('Min value:', formData.minValue, 'Type:', typeof formData.minValue)
+                  console.log('Max value:', formData.maxValue, 'Type:', typeof formData.maxValue)
+                  if (isStepValid(currentStep)) {
+                    nextStep()
+                  } else {
+                    console.log('Step validation failed!')
+                  }
                 }}
                 disabled={!isStepValid(currentStep)}
                 className="px-6 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

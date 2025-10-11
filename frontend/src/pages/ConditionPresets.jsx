@@ -81,6 +81,7 @@ export default function ConditionPresets() {
   }
 
   const handleEdit = (preset) => {
+    // The preset data already has the correct field names from the API
     setEditingPreset(preset)
     setIsModalOpen(true)
   }

@@ -9,7 +9,7 @@ class JWTService {
   }
 
   /**
-   * Generate JWT token with user and organization context
+   * Generate JWT token with enhanced user, organization, and program context
    */
   async generateToken(payload) {
     const tokenPayload = {
@@ -19,12 +19,15 @@ class JWTService {
       currentOrganization: payload.currentOrganization || null,
       role: payload.role || null,
       permissions: payload.permissions || [],
+      programAccess: payload.programAccess || [], // New: programs user can access
+      currentProgram: payload.currentProgram || null, // New: currently selected program
+      billingContext: payload.billingContext || null, // New: billing permissions
       type: 'access'
     };
 
     return jwt.sign(tokenPayload, this.secret, { 
       expiresIn: this.expiresIn,
-      issuer: 'pain-management-platform',
+      issuer: 'pain-management-platform', // FIXED: consistent issuer
       audience: 'healthcare-users'
     });
   }
@@ -63,49 +66,110 @@ class JWTService {
    * Generate token with full user context
    */
   async generateUserToken(user) {
-    // Get user's organization access
-    const userWithAccess = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        organizationAccess: {
-          where: { isActive: true },
-          include: {
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                type: true,
-                hipaaCompliant: true
+    try {
+      // Validate user object has required id field
+      if (!user || !user.id) {
+        throw new Error('User object must have an id field');
+      }
+      const userWithOrgs = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          userOrganizations: {
+            where: { isActive: true },
+            include: {
+              organization: {
+                include: {
+                  carePrograms: {
+                    where: { isActive: true }
+                  }
+                }
               }
             }
           }
         }
-      }
-    });
+      });
 
-    if (!userWithAccess) {
-      throw new Error('User not found');
+      if (!userWithOrgs) {
+        throw new Error('User not found');
+      }
+
+      // Build organizations array with enhanced context
+      const organizations = userWithOrgs.userOrganizations.map(access => ({
+        id: access.organization.id,
+        name: access.organization.name,
+        domain: access.organization.domain,
+        isActive: access.organization.isActive,
+        role: access.role,
+        permissions: access.permissions,
+        programAccess: access.programAccess,
+        canBill: access.canBill,
+        billingRate: access.billingRate,
+        availablePrograms: access.organization.carePrograms.map(program => ({
+          id: program.id,
+          name: program.name,
+          type: program.type,
+          cptCodes: program.cptCodes,
+          requiredPermissions: program.requiredPermissions
+        }))
+      }));
+
+      // Default to first organization if available
+      const currentOrganization = organizations.length > 0 ? organizations[0] : null;
+      
+      // Get accessible programs for current organization
+      const accessiblePrograms = currentOrganization?.availablePrograms.filter(program => 
+        currentOrganization.programAccess.includes(program.id) ||
+        this.hasRequiredPermissions(currentOrganization.permissions, program.requiredPermissions)
+      ) || [];
+
+      return this.generateToken({
+        userId: userWithOrgs.id,
+        email: userWithOrgs.email,
+        organizations,
+        currentOrganization,
+        role: currentOrganization?.role,
+        permissions: currentOrganization?.permissions || [],
+        programAccess: accessiblePrograms.map(p => p.id),
+        currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null,
+        billingContext: currentOrganization ? {
+          canBill: currentOrganization.canBill,
+          billingRate: currentOrganization.billingRate
+        } : null
+      });
+    } catch (error) {
+      console.error('Error generating user token:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if user has required permissions
+   */
+  hasRequiredPermissions(userPermissions, requiredPermissions) {
+    if (!requiredPermissions || requiredPermissions.length === 0) return true;
+    if (!userPermissions || userPermissions.length === 0) return false;
+    
+    return requiredPermissions.every(permission => 
+      userPermissions.includes(permission)
+    );
+  }
+
+  /**
+   * Switch to a different program context
+   */
+  async switchProgram(token, programId) {
+    const decoded = await this.verifyToken(token);
+    
+    // Find the program in user's accessible programs
+    const program = decoded.programAccess.find(p => p.id === programId);
+    if (!program) {
+      throw new Error('Program not accessible to user');
     }
 
-    const organizations = userWithAccess.organizationAccess.map(access => ({
-      id: access.organizationId,
-      name: access.organization.name,
-      type: access.organization.type,
-      role: access.role,
-      permissions: access.permissions || [],
-      hipaaCompliant: access.organization.hipaaCompliant
-    }));
-
-    // Use primary organization as current
-    const currentOrganization = organizations[0] || null;
-
+    // Generate new token with updated program context
     return this.generateToken({
-      userId: user.id,
-      email: user.email,
-      organizations,
-      currentOrganization,
-      role: currentOrganization?.role,
-      permissions: currentOrganization?.permissions
+      ...decoded,
+      currentProgram: program
     });
   }
 

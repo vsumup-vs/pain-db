@@ -15,10 +15,10 @@ import RuleTester from './RuleTester'
 import RuleBuilder from './RuleBuilder'
 
 const SEVERITY_OPTIONS = [
-  { value: 'low', label: 'Low', color: 'text-blue-600' },
-  { value: 'medium', label: 'Medium', color: 'text-yellow-600' },
-  { value: 'high', label: 'High', color: 'text-orange-600' },
-  { value: 'critical', label: 'Critical', color: 'text-red-600' }
+  { value: 'LOW', label: 'Low', color: 'text-blue-600' },
+  { value: 'MEDIUM', label: 'Medium', color: 'text-yellow-600' },
+  { value: 'HIGH', label: 'High', color: 'text-orange-600' },
+  { value: 'CRITICAL', label: 'Critical', color: 'text-red-600' }
 ]
 
 const ACTION_TYPES = [
@@ -61,7 +61,7 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
   } = useForm({
     defaultValues: {
       name: '',
-      severity: 'medium',
+      severity: 'MEDIUM',
       window: '1d',
       expression: {
         condition: '',
@@ -71,7 +71,7 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
         occurrences: ''
       },
       dedupeKey: '',
-      cooldown: '1h',
+      cooldown: '',
       actions: {
         notify: [],
         escalate: false,
@@ -90,19 +90,22 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
 
   useEffect(() => {
     if (rule) {
+      // Accept either 'conditions' or 'expression' for backwards compatibility
+      const ruleConditions = rule.conditions || rule.expression || {
+        condition: '',
+        operator: 'greater_than',
+        threshold: '',
+        timeWindow: '',
+        occurrences: ''
+      };
+
       reset({
         name: rule.name || '',
-        severity: rule.severity || 'medium',
+        severity: rule.severity || 'MEDIUM',
         window: rule.window || '1d',
-        expression: rule.expression || {
-          condition: '',
-          operator: 'greater_than',
-          threshold: '',
-          timeWindow: '',
-          occurrences: ''
-        },
+        expression: ruleConditions,
         dedupeKey: rule.dedupeKey || '',
-        cooldown: rule.cooldown || '1h',
+        cooldown: rule.cooldown || rule.conditions?.cooldown || '',
         actions: {
           notify: rule.actions?.notify || [],
           escalate: rule.actions?.escalate || false,
@@ -117,7 +120,8 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
     setValue('name', template.name)
     setValue('severity', template.severity)
     setValue('window', template.window)
-    setValue('expression', template.expression)
+    // Accept either 'conditions' or 'expression' from template
+    setValue('expression', template.conditions || template.expression)
     setValue('cooldown', template.cooldown)
     setValue('actions', template.actions)
     setSelectedTemplate(template)
@@ -195,9 +199,9 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
                         <div className="flex items-center justify-between mb-2">
                           <h5 className="font-medium text-gray-900">{template.name}</h5>
                           <span className={`px-2 py-1 text-xs rounded-full ${
-                            template.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                            template.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                            template.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            template.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                            template.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                            template.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-blue-100 text-blue-800'
                           }`}>
                             {template.severity}
@@ -283,6 +287,7 @@ export default function AlertRuleForm({ rule, onSubmit, onCancel, isLoading }) {
                 {...register('cooldown')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value="">Not set</option>
                 <option value="30m">30 minutes</option>
                 <option value="1h">1 hour</option>
                 <option value="4h">4 hours</option>

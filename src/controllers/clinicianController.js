@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -46,8 +46,19 @@ const createClinician = async (req, res) => {
       });
     }
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     const clinician = await prisma.clinician.create({
       data: {
+        organizationId,  // SECURITY: Always include organizationId
         npi,
         firstName,
         lastName,
@@ -168,8 +179,8 @@ const getOverallClinicianStats = async (req, res) => {
       prisma.$queryRaw`
         SELECT COUNT(DISTINCT c.id) as active_count
         FROM "clinicians" c
-        INNER JOIN "enrollments" e ON c.id = e."clinician_id"
-        WHERE e.status = 'active'
+        INNER JOIN "enrollments" e ON c.id = e."clinicianId"
+        WHERE e.status = 'ACTIVE'
       `,
       prisma.clinician.count(),
       prisma.clinician.groupBy({

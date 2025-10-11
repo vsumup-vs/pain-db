@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -26,8 +26,19 @@ const createAlert = async (req, res) => {
       return res.status(404).json({ error: 'Enrollment not found' });
     }
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     const alert = await prisma.alert.create({
       data: {
+        organizationId,  // SECURITY: Always include organizationId
         ruleId,
         enrollmentId,
         facts: facts || {},
@@ -68,7 +79,19 @@ const getAlerts = async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    const where = {};
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    const where = {
+      organizationId  // SECURITY: Always filter by organization
+    };
     if (enrollmentId) where.enrollmentId = enrollmentId;
     if (ruleId) where.ruleId = ruleId;
     if (status) where.status = status;

@@ -54,10 +54,13 @@ export default function AssessmentTemplatesEnhanced() {
   })
 
   // Fetch categories
-  const { data: categories } = useQuery({
+  const { data: categoriesResponse } = useQuery({
     queryKey: ['template-categories'],
     queryFn: () => api.getTemplateCategories(),
   })
+
+  // Extract category names from the API response
+  const categories = categoriesResponse?.data?.map(cat => cat.category) || []
 
   const { data: metricDefinitions } = useQuery({
     queryKey: ['metric-definitions'],
@@ -107,11 +110,11 @@ export default function AssessmentTemplatesEnhanced() {
   const getTemplatesForTab = () => {
     switch (activeTab) {
       case 'standardized':
-        return standardizedTemplates || []
+        return standardizedTemplates?.data || []
       case 'custom':
-        return customTemplates || []
+        return customTemplates?.data || []
       default:
-        return templatesData?.templates || []
+        return templatesData?.data || []
     }
   }
 
@@ -158,9 +161,10 @@ export default function AssessmentTemplatesEnhanced() {
     try {
       const response = await api.getAssessmentTemplateV2(template.id)
       console.log('V2 API Response:', response)
-      // The enhanced controller returns the template directly, not wrapped in { data: template }
-      // The interceptor returns response.data, so response IS the template
-      setPreviewingTemplate(response)
+      // The API interceptor returns response.data which is { success: true, data: template }
+      // So we need to extract the template from response.data
+      const templateData = response.data || response
+      setPreviewingTemplate(templateData)
       setIsPreviewModalOpen(true)
     } catch (error) {
       console.error('Error in handlePreview:', error)
@@ -271,7 +275,7 @@ export default function AssessmentTemplatesEnhanced() {
               >
                 All Templates
                 <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
-                  {templatesData?.templates?.length || 0}
+                  {templatesData?.data?.length || 0}
                 </span>
               </button>
               <button
@@ -285,7 +289,7 @@ export default function AssessmentTemplatesEnhanced() {
                 <StarIcon className="h-4 w-4 inline mr-1" />
                 Standardized
                 <span className="ml-2 bg-green-100 text-green-900 py-0.5 px-2.5 rounded-full text-xs">
-                  {standardizedTemplates?.length || 0}
+                  {standardizedTemplates?.data?.length || 0}
                 </span>
               </button>
               <button
@@ -299,7 +303,7 @@ export default function AssessmentTemplatesEnhanced() {
                 <CogIcon className="h-4 w-4 inline mr-1" />
                 Custom
                 <span className="ml-2 bg-blue-100 text-blue-900 py-0.5 px-2.5 rounded-full text-xs">
-                  {customTemplates?.length || 0}
+                  {customTemplates?.data?.length || 0}
                 </span>
               </button>
             </nav>
@@ -423,7 +427,7 @@ export default function AssessmentTemplatesEnhanced() {
                             {template.name}
                           </h3>
                           <div className="flex items-center mt-1 space-x-2">
-                            <span className="text-xs text-gray-500">Version {template.version}</span>
+                            <span className="text-xs text-gray-500">Version {template.version || (template.isStandardized ? 'Standard' : 'Custom')}</span>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
                               {statusText}
                             </span>
@@ -567,7 +571,9 @@ export default function AssessmentTemplatesEnhanced() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm text-gray-500">Version {previewingTemplate.version}</span>
+                  <span className="text-sm text-gray-500">
+                    Version {previewingTemplate.version || (previewingTemplate.isStandardized ? 'Standard' : 'Custom')}
+                  </span>
                   <div className="mt-1">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getTemplateStatusColor(previewingTemplate)}`}>
                       {getTemplateStatusText(previewingTemplate)}
@@ -601,7 +607,7 @@ export default function AssessmentTemplatesEnhanced() {
                   <div>
                     <p className="text-sm font-medium text-green-900">Required</p>
                     <p className="text-lg font-semibold text-green-700">
-                      {previewingTemplate.items?.filter(item => item.required).length || 0}
+                      {previewingTemplate.items?.filter(item => item.isRequired === true || item.required === true).length || 0}
                     </p>
                   </div>
                 </div>
@@ -612,7 +618,10 @@ export default function AssessmentTemplatesEnhanced() {
                   <div>
                     <p className="text-sm font-medium text-gray-900">Created</p>
                     <p className="text-lg font-semibold text-gray-700">
-                      {new Date(previewingTemplate.createdAt).toLocaleDateString()}
+                      {previewingTemplate.createdAt && previewingTemplate.createdAt !== 'Invalid Date'
+                        ? new Date(previewingTemplate.createdAt).toLocaleDateString()
+                        : 'Unknown'
+                      }
                     </p>
                   </div>
                 </div>
@@ -630,9 +639,9 @@ export default function AssessmentTemplatesEnhanced() {
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
                             <h5 className="font-medium text-gray-900">
-                              {item.metricDefinition?.displayName || 'Unknown Metric'}
+                              {item.metricDefinition?.displayName || item.metricDefinition?.name || 'Unknown Metric'}
                             </h5>
-                            {item.isRequired && (
+                            {(item.isRequired === true || item.required === true) && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 Required
                               </span>

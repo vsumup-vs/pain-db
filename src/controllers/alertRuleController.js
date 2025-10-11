@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -33,9 +33,9 @@ const getAllAlertRules = async (req, res) => {
       prisma.alertRule.findMany({
         where,
         include: {
-          presetLinks: {
+          conditionPresets: {
             include: {
-              preset: {
+              conditionPreset: {
                 select: {
                   id: true,
                   name: true
@@ -83,9 +83,9 @@ const getAlertRuleById = async (req, res) => {
     const rule = await prisma.alertRule.findUnique({
       where: { id },
       include: {
-        presetLinks: {
+        conditionPresets: {
           include: {
-            preset: {
+            conditionPreset: {
               select: {
                 id: true,
                 name: true
@@ -129,16 +129,20 @@ const createAlertRule = async (req, res) => {
       severity,
       window,
       expression,
+      conditions,
       dedupeKey,
       cooldown,
       actions
     } = req.body;
 
+    // Accept either 'expression' or 'conditions' for backwards compatibility
+    const ruleConditions = conditions || expression;
+
     // Validate required fields
-    if (!name || !severity || !window || !expression) {
+    if (!name || !severity || !ruleConditions) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: name, severity, window, expression'
+        message: 'Missing required fields: name, severity, conditions (or expression)'
       });
     }
 
@@ -167,16 +171,13 @@ const createAlertRule = async (req, res) => {
       data: {
         name,
         severity: severity.toLowerCase(),
-        window,
-        expression,
-        dedupeKey,
-        cooldown,
+        conditions: ruleConditions,
         actions: actions || {}
       },
       include: {
-        presetLinks: {
+        conditionPresets: {
           include: {
-            preset: {
+            conditionPreset: {
               select: {
                 id: true,
                 name: true
@@ -210,10 +211,14 @@ const updateAlertRule = async (req, res) => {
       severity,
       window,
       expression,
+      conditions,
       dedupeKey,
       cooldown,
       actions
     } = req.body;
+
+    // Accept either 'expression' or 'conditions' for backwards compatibility
+    const ruleConditions = conditions || expression;
 
     // Check if rule exists
     const existingRule = await prisma.alertRule.findUnique({ where: { id } });
@@ -238,7 +243,7 @@ const updateAlertRule = async (req, res) => {
     // Check if another rule with same name exists (excluding current rule)
     if (name && name !== existingRule.name) {
       const duplicateRule = await prisma.alertRule.findFirst({
-        where: { 
+        where: {
           name,
           id: { not: id }
         }
@@ -255,19 +260,16 @@ const updateAlertRule = async (req, res) => {
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (severity !== undefined) updateData.severity = severity.toLowerCase();
-    if (window !== undefined) updateData.window = window;
-    if (expression !== undefined) updateData.expression = expression;
-    if (dedupeKey !== undefined) updateData.dedupeKey = dedupeKey;
-    if (cooldown !== undefined) updateData.cooldown = cooldown;
+    if (ruleConditions !== undefined) updateData.conditions = ruleConditions;
     if (actions !== undefined) updateData.actions = actions;
 
     const rule = await prisma.alertRule.update({
       where: { id },
       data: updateData,
       include: {
-        presetLinks: {
+        conditionPresets: {
           include: {
-            preset: {
+            conditionPreset: {
               select: {
                 id: true,
                 name: true
@@ -298,13 +300,13 @@ const deleteAlertRule = async (req, res) => {
     const { id } = req.params;
 
     // Check if rule exists
-    const existingRule = await prisma.alertRule.findUnique({ 
+    const existingRule = await prisma.alertRule.findUnique({
       where: { id },
       include: {
         _count: {
           select: {
             alerts: true,
-            presetLinks: true
+            conditionPresets: true
           }
         }
       }
@@ -353,7 +355,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Pain Management',
         severity: 'high',
         window: '1d',
-        expression: {
+        conditions: {
           condition: 'pain_scale_0_10',
           operator: 'greater_than_or_equal',
           threshold: 8,
@@ -372,7 +374,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Pain Management',
         severity: 'medium',
         window: '5d',
-        expression: {
+        conditions: {
           condition: 'pain_scale_0_10',
           operator: 'greater_than_or_equal',
           threshold: 5,
@@ -392,7 +394,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Pain Management',
         severity: 'medium',
         window: '7d',
-        expression: {
+        conditions: {
           condition: 'pain_scale_0_10',
           operator: 'trend_increasing',
           consecutiveDays: 3,
@@ -411,7 +413,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Pain Management',
         severity: 'high',
         window: '2d',
-        expression: {
+        conditions: {
           condition: 'pain_scale_0_10',
           operator: 'greater_than',
           threshold: 7,
@@ -433,7 +435,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Medication Management',
         severity: 'medium',
         window: '3d',
-        expression: {
+        conditions: {
           condition: 'medication_adherence_rate',
           operator: 'less_than',
           threshold: 0.8,
@@ -452,7 +454,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Medication Management',
         severity: 'high',
         window: '7d',
-        expression: {
+        conditions: {
           condition: 'medication_adherence_rate',
           operator: 'less_than',
           threshold: 0.5,
@@ -472,7 +474,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Medication Management',
         severity: 'high',
         window: '3d',
-        expression: {
+        conditions: {
           condition: 'missed_medication_doses',
           operator: 'greater_than_or_equal',
           threshold: 3,
@@ -493,7 +495,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Medication Management',
         severity: 'medium',
         window: '14d',
-        expression: {
+        conditions: {
           condition: 'medication_effectiveness',
           operator: 'trend_decreasing',
           consecutiveDays: 5,
@@ -514,7 +516,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Side Effects & Safety',
         severity: 'high',
         window: '1d',
-        expression: {
+        conditions: {
           condition: 'side_effects_severity',
           operator: 'greater_than_or_equal',
           threshold: 7,
@@ -533,7 +535,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Side Effects & Safety',
         severity: 'medium',
         window: '7d',
-        expression: {
+        conditions: {
           condition: 'side_effects_severity',
           operator: 'greater_than_or_equal',
           threshold: 4,
@@ -555,7 +557,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Assessment & Monitoring',
         severity: 'medium',
         window: '2d',
-        expression: {
+        conditions: {
           condition: 'no_assessment_for',
           operator: 'greater_than',
           threshold: 24,
@@ -575,7 +577,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Assessment & Monitoring',
         severity: 'high',
         window: '3d',
-        expression: {
+        conditions: {
           condition: 'no_assessment_for',
           operator: 'greater_than',
           threshold: 48,
@@ -596,7 +598,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Assessment & Monitoring',
         severity: 'low',
         window: '7d',
-        expression: {
+        conditions: {
           condition: 'assessment_completion_rate',
           operator: 'less_than',
           threshold: 0.7,
@@ -617,7 +619,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Mood & Mental Health',
         severity: 'medium',
         window: '10d',
-        expression: {
+        conditions: {
           condition: 'mood_scale',
           operator: 'trend_decreasing',
           consecutiveDays: 4,
@@ -636,7 +638,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Mood & Mental Health',
         severity: 'high',
         window: '7d',
-        expression: {
+        conditions: {
           condition: 'mood_scale',
           operator: 'less_than_or_equal',
           threshold: 3,
@@ -658,7 +660,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Sleep & Activity',
         severity: 'medium',
         window: '7d',
-        expression: {
+        conditions: {
           condition: 'sleep_quality',
           operator: 'less_than_or_equal',
           threshold: 3,
@@ -678,7 +680,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Sleep & Activity',
         severity: 'medium',
         window: '14d',
-        expression: {
+        conditions: {
           condition: 'activity_level',
           operator: 'trend_decreasing',
           consecutiveDays: 5,
@@ -699,7 +701,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Emergency & Critical',
         severity: 'critical',
         window: '1d',
-        expression: {
+        conditions: {
           condition: 'pain_scale_0_10',
           operator: 'greater_than_or_equal',
           threshold: 10,
@@ -719,7 +721,7 @@ const getRuleTemplates = async (req, res) => {
         category: 'Emergency & Critical',
         severity: 'critical',
         window: '1d',
-        expression: {
+        conditions: {
           condition: 'side_effects_severity',
           operator: 'greater_than_or_equal',
           threshold: 9,
@@ -750,11 +752,29 @@ const getRuleTemplates = async (req, res) => {
 // Get alert rule statistics
 const getAlertRuleStats = async (req, res) => {
   try {
-    const [totalRules, rulesBySeverity, rulesWithAlerts] = await Promise.all([
+    const [
+      totalRules,
+      activeRules,
+      rulesBySeverity,
+      highPriorityRules,
+      criticalSeverityRules,
+      rulesWithAlerts
+    ] = await Promise.all([
       prisma.alertRule.count(),
+      prisma.alertRule.count({ where: { isActive: true } }),
       prisma.alertRule.groupBy({
         by: ['severity'],
         _count: { severity: true }
+      }),
+      prisma.alertRule.count({
+        where: {
+          priority: { gte: 1 }
+        }
+      }),
+      prisma.alertRule.count({
+        where: {
+          severity: 'CRITICAL'
+        }
       }),
       prisma.alertRule.count({
         where: {
@@ -774,7 +794,10 @@ const getAlertRuleStats = async (req, res) => {
       success: true,
       data: {
         total: totalRules,
-        active: rulesWithAlerts,
+        active: activeRules,
+        highPriority: highPriorityRules,
+        critical: criticalSeverityRules,
+        withAlerts: rulesWithAlerts,
         severityBreakdown
       }
     });
