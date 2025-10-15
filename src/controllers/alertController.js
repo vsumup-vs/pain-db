@@ -405,7 +405,8 @@ const resolveAlert = async (req, res) => {
       followUpTaskTitle,
       followUpTaskDescription,
       followUpTaskDueDate,
-      followUpTaskPriority
+      followUpTaskPriority,
+      followUpTaskAssignedToId
     } = req.body;
 
     const currentUserId = req.user?.userId;
@@ -631,7 +632,7 @@ const resolveAlert = async (req, res) => {
             status: 'PENDING',
             priority: followUpTaskPriority || 'MEDIUM',
             dueDate: new Date(followUpTaskDueDate),
-            assignedToId: currentUserId,
+            assignedToId: followUpTaskAssignedToId || currentUserId, // Use form value or default to current user
             assignedById: currentUserId,
             patientId: alert.patientId,
             alertId: alert.id,

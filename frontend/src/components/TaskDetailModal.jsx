@@ -36,7 +36,7 @@ export default function TaskDetailModal({ isOpen, onClose, taskId }) {
     enabled: showReassignForm
   })
 
-  const task = taskData?.data
+  const task = taskData
   const clinicians = cliniciansData?.data?.clinicians || []
 
   // Complete task mutation
@@ -181,7 +181,7 @@ export default function TaskDetailModal({ isOpen, onClose, taskId }) {
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-500">Task Type: {task.type.replace(/_/g, ' ')}</p>
+                  <p className="text-sm text-gray-500">Task Type: {task.taskType.replace(/_/g, ' ')}</p>
                 </div>
 
                 {/* Description */}

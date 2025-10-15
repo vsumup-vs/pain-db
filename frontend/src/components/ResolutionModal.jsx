@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import {
   XMarkIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline'
+import api from '../services/api'
 
 /**
  * ResolutionModal Component
@@ -23,6 +25,16 @@ import {
  * - followUpTaskType, followUpTaskTitle, followUpTaskDescription, followUpTaskDueDate
  */
 export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLoading }) {
+  // Fetch all users for task assignment (not just clinicians - can be nurses, care coordinators, etc.)
+  const { data: usersResponse } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.getUsers({ limit: 100 }),
+    enabled: isOpen,
+  })
+
+  // Extract users array from response (users API has different structure: { users: [...] })
+  const users = usersResponse?.users || []
+
   const {
     register,
     handleSubmit,
@@ -41,10 +53,13 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
       followUpTaskDescription: '',
       followUpTaskDueDate: '',
       followUpTaskPriority: 'MEDIUM',
+      followUpTaskAssignedToId: '', // User to assign the task to
     },
   })
 
   const createFollowUpTask = watch('createFollowUpTask')
+  const selectedPatientOutcome = watch('patientOutcome')
+  const selectedInterventionType = watch('interventionType')
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -219,7 +234,11 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
                   {patientOutcomes.map((outcome) => (
                     <label
                       key={outcome.value}
-                      className={`relative flex cursor-pointer rounded-lg border p-3 hover:bg-gray-50 focus:outline-none ${outcome.color}`}
+                      className={`relative flex cursor-pointer rounded-lg border p-3 focus:outline-none transition-all ${
+                        selectedPatientOutcome === outcome.value
+                          ? `ring-2 ring-blue-500 ${outcome.color}`
+                          : `hover:bg-gray-50 ${outcome.color}`
+                      }`}
                     >
                       <input
                         type="radio"
@@ -300,6 +319,26 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
                           required: createFollowUpTask ? 'Task title is required' : false,
                         })}
                       />
+                    </div>
+
+                    <div>
+                      <label htmlFor="followUpTaskAssignedToId" className="block text-sm font-medium text-gray-700 mb-1">
+                        Assign To
+                      </label>
+                      <select
+                        id="followUpTaskAssignedToId"
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('followUpTaskAssignedToId', {
+                          required: createFollowUpTask ? 'Please select who to assign this task to' : false,
+                        })}
+                      >
+                        <option value="">Select a user...</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.firstName} {user.lastName} - {user.email}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
