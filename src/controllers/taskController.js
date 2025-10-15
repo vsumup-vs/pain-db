@@ -11,7 +11,9 @@ const getTasks = async (req, res) => {
       patientId,
       status,
       priority,
+      taskType,
       overdue,
+      dueToday,
       page = 1,
       limit = 10,
       sortBy = 'dueDate',
@@ -44,10 +46,21 @@ const getTasks = async (req, res) => {
       where.status = statusArray.length > 1 ? { in: statusArray } : statusArray[0];
     }
     if (priority) where.priority = priority;
+    if (taskType) where.taskType = taskType;
 
     // Filter overdue tasks (due date in past and not completed)
     if (overdue === 'true') {
       where.dueDate = { lt: new Date() };
+      where.status = { not: 'COMPLETED' };
+    }
+
+    // Filter due today tasks
+    if (dueToday === 'true') {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfToday = new Date(startOfToday);
+      endOfToday.setDate(endOfToday.getDate() + 1);
+      where.dueDate = { gte: startOfToday, lt: endOfToday };
       where.status = { not: 'COMPLETED' };
     }
 

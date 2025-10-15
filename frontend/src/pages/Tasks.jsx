@@ -27,6 +27,12 @@ export default function Tasks() {
   const [page, setPage] = useState(1)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState(null)
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false)
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState('')
+  // Advanced filters
+  const [filterTaskType, setFilterTaskType] = useState('')
+  const [filterPriority, setFilterPriority] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
   const limit = 20
 
   const queryClient = useQueryClient()
@@ -43,7 +49,10 @@ export default function Tasks() {
     switch (activeTab) {
       case 'MY_TASKS':
         filters.assignedTo = 'me'
-        filters.status = 'PENDING,IN_PROGRESS'
+        // Only apply tab status filter if no manual status filter is set
+        if (!filterStatus) {
+          filters.status = 'PENDING,IN_PROGRESS'
+        }
         break
       case 'ALL_TASKS':
         // No additional filters
@@ -55,23 +64,39 @@ export default function Tasks() {
         filters.overdue = true
         break
       case 'COMPLETED':
-        filters.status = 'COMPLETED'
+        // Only apply tab status filter if no manual status filter is set
+        if (!filterStatus) {
+          filters.status = 'COMPLETED'
+        }
         break
       default:
         break
     }
+
+    // Apply advanced filters
+    if (filterTaskType) filters.taskType = filterTaskType
+    if (filterPriority) filters.priority = filterPriority
+    if (filterStatus) filters.status = filterStatus
 
     return filters
   }
 
   // Fetch tasks
   const { data: tasksData, isLoading } = useQuery({
-    queryKey: ['tasks', activeTab, sortBy, sortOrder, page],
+    queryKey: ['tasks', activeTab, sortBy, sortOrder, page, filterTaskType, filterPriority, filterStatus],
     queryFn: () => api.getTasks(getFilters())
   })
 
   const tasks = tasksData?.tasks || []
   const pagination = tasksData?.pagination || {}
+
+  // Fetch users for bulk assign
+  const { data: usersResponse } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.getUsers({ limit: 100 }),
+    enabled: isBulkAssignModalOpen
+  })
+  const users = usersResponse?.users || []
 
   // Filter by search term (client-side)
   const filteredTasks = tasks.filter(task => {
@@ -111,6 +136,21 @@ export default function Tasks() {
     }
   })
 
+  // Bulk assign mutation
+  const bulkAssignMutation = useMutation({
+    mutationFn: ({ taskIds, assignedToId }) => api.bulkAssignTasks({ taskIds, assignedToId }),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries(['tasks'])
+      toast.success(response.message || 'Tasks assigned successfully')
+      setSelectedTasks([])
+      setIsBulkAssignModalOpen(false)
+      setSelectedAssigneeId('')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Failed to assign tasks')
+    }
+  })
+
   // Handle sorting
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -144,6 +184,15 @@ export default function Tasks() {
     if (window.confirm(`Complete ${selectedTasks.length} task(s)?`)) {
       bulkCompleteMutation.mutate(selectedTasks)
     }
+  }
+
+  // Handle bulk assign
+  const handleBulkAssign = () => {
+    if (!selectedAssigneeId) {
+      toast.error('Please select a user to assign tasks to')
+      return
+    }
+    bulkAssignMutation.mutate({ taskIds: selectedTasks, assignedToId: selectedAssigneeId })
   }
 
   // Get priority color classes
@@ -269,13 +318,27 @@ export default function Tasks() {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search & Filter Bar */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
           <div className="flex items-center mb-4">
             <FunnelIcon className="h-5 w-5 text-gray-500 mr-2" />
             <h3 className="text-lg font-semibold text-gray-900">Search & Filter</h3>
+            {(filterTaskType || filterPriority || filterStatus) && (
+              <button
+                onClick={() => {
+                  setFilterTaskType('')
+                  setFilterPriority('')
+                  setFilterStatus('')
+                }}
+                className="ml-auto text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
-          <div className="relative">
+
+          {/* Search Input */}
+          <div className="relative mb-4">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
@@ -284,6 +347,74 @@ export default function Tasks() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             />
+          </div>
+
+          {/* Advanced Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="filterTaskType" className="block text-sm font-medium text-gray-700 mb-1">
+                Task Type
+              </label>
+              <select
+                id="filterTaskType"
+                value={filterTaskType}
+                onChange={(e) => {
+                  setFilterTaskType(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Types</option>
+                <option value="FOLLOW_UP_CALL">Follow-up Call</option>
+                <option value="MED_REVIEW">Medication Review</option>
+                <option value="ADHERENCE_CHECK">Adherence Check</option>
+                <option value="LAB_ORDER">Lab Order</option>
+                <option value="REFERRAL">Referral</option>
+                <option value="CUSTOM">Custom</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="filterPriority" className="block text-sm font-medium text-gray-700 mb-1">
+                Priority
+              </label>
+              <select
+                id="filterPriority"
+                value={filterPriority}
+                onChange={(e) => {
+                  setFilterPriority(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Priorities</option>
+                <option value="URGENT">Urgent</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                id="filterStatus"
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -294,6 +425,14 @@ export default function Tasks() {
               {selectedTasks.length} task(s) selected
             </span>
             <div className="flex space-x-2">
+              <button
+                onClick={() => setIsBulkAssignModalOpen(true)}
+                disabled={bulkAssignMutation.isLoading}
+                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+              >
+                <UserIcon className="h-4 w-4 mr-2" />
+                Assign Selected
+              </button>
               <button
                 onClick={handleBulkComplete}
                 disabled={bulkCompleteMutation.isLoading}
@@ -594,6 +733,94 @@ export default function Tasks() {
           onClose={() => setSelectedTaskId(null)}
           taskId={selectedTaskId}
         />
+
+        {/* Bulk Assign Modal */}
+        {isBulkAssignModalOpen && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-screen items-center justify-center p-4">
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 bg-gray-500 bg-opacity-75"
+                onClick={() => {
+                  setIsBulkAssignModalOpen(false)
+                  setSelectedAssigneeId('')
+                }}
+              />
+
+              {/* Modal */}
+              <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Assign {selectedTasks.length} Task{selectedTasks.length > 1 ? 's' : ''}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setIsBulkAssignModalOpen(false)
+                      setSelectedAssigneeId('')
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                  >
+                    <XCircleIcon className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  <label htmlFor="assignee" className="block text-sm font-medium text-gray-700 mb-2">
+                    Assign to <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="assignee"
+                    value={selectedAssigneeId}
+                    onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Select a user...</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} - {user.email}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Selected tasks will be reassigned to this user
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setIsBulkAssignModalOpen(false)
+                      setSelectedAssigneeId('')
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkAssign}
+                    disabled={!selectedAssigneeId || bulkAssignMutation.isLoading}
+                    className="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkAssignMutation.isLoading ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Assigning...
+                      </span>
+                    ) : (
+                      'Assign Tasks'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
