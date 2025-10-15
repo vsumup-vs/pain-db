@@ -18,7 +18,8 @@ import {
   UserGroupIcon,
   ClockIcon,
   TagIcon,
-  EyeIcon
+  EyeIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline'
 import Modal from '../components/Modal'
 import AssessmentTemplateForm from '../components/AssessmentTemplateForm'
@@ -78,6 +79,19 @@ export default function AssessmentTemplates() {
     },
   })
 
+  const customizeMutation = useMutation({
+    mutationFn: (id) => api.customizeAssessmentTemplate(id),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries(['assessment-templates'])
+      const templateName = response.data?.name || response.name || 'Template'
+      toast.success(`Template customized successfully! You can now edit "${templateName}"`)
+    },
+    onError: (error) => {
+      const message = error.response?.data?.message || error.message
+      toast.error(`Failed to customize template: ${message}`)
+    },
+  })
+
   const handleCreate = () => {
     setEditingTemplate(null)
     setIsModalOpen(true)
@@ -91,6 +105,12 @@ export default function AssessmentTemplates() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this assessment template?')) {
       deleteMutation.mutate(id)
+    }
+  }
+
+  const handleCustomize = async (template) => {
+    if (window.confirm(`Create a customizable copy of "${template.name}" for your organization?`)) {
+      customizeMutation.mutate(template.id)
     }
   }
 
@@ -282,9 +302,21 @@ export default function AssessmentTemplates() {
                           <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                            {template.name}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                              {template.name}
+                            </h3>
+                            {template.isStandardized && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                ⭐ Standardized
+                              </span>
+                            )}
+                            {template.isCustomized && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                🏥 Custom
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center mt-1 space-x-2">
                             <span className="text-xs text-gray-500">Version {template.version}</span>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor}`}>
@@ -294,6 +326,15 @@ export default function AssessmentTemplates() {
                         </div>
                       </div>
                       <div className="flex space-x-1">
+                        {template.isStandardized && !template.isCustomized && (
+                          <button
+                            onClick={() => handleCustomize(template)}
+                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            title="Customize for your organization"
+                          >
+                            <DocumentDuplicateIcon className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handlePreview(template)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -301,20 +342,25 @@ export default function AssessmentTemplates() {
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleEdit(template)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Edit template"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(template.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete template"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                        {/* Only show Edit/Delete for customized (org-specific) templates */}
+                        {template.isCustomized && (
+                          <>
+                            <button
+                              onClick={() => handleEdit(template)}
+                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Edit template"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(template.id)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete template"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

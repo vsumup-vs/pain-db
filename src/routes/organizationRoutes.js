@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const organizationController = require('../controllers/organizationController');
-const { requireAuth } = require('../middleware/auth');
 
 /**
  * Organization Management Routes
@@ -46,6 +45,16 @@ const requirePermission = (permission) => {
  */
 router.get('/',
   organizationController.getAllOrganizations
+);
+
+/**
+ * GET /api/organizations/platform-usage
+ * Get platform-wide usage statistics
+ * Access: Platform Admin only
+ * NOTE: Must be before /:id route to avoid matching "platform-usage" as an ID
+ */
+router.get('/platform-usage',
+  organizationController.getPlatformUsageStats
 );
 
 /**

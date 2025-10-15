@@ -11,7 +11,8 @@ const {
   updateAlertRule,
   deleteAlertRule,
   getRuleTemplates,
-  getAlertRuleStats
+  getAlertRuleStats,
+  customizeRule
 } = require('../controllers/alertRuleController');
 
 // Alert rule CRUD routes
@@ -20,6 +21,7 @@ router.get('/stats', getAlertRuleStats);
 router.get('/templates', getRuleTemplates);
 router.get('/:id', commonValidations.id, handleValidationErrors, getAlertRuleById);
 router.post('/', createAlertRule);
+router.post('/:id/customize', commonValidations.id, handleValidationErrors, customizeRule);
 router.put('/:id', commonValidations.id, handleValidationErrors, updateAlertRule);
 router.delete('/:id', commonValidations.id, handleValidationErrors, deleteAlertRule);
 

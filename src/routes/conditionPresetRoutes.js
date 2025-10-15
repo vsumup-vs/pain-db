@@ -10,7 +10,8 @@ const {
   createConditionPreset,
   updateConditionPreset,
   deleteConditionPreset,
-  getConditionPresetStats
+  getConditionPresetStats,
+  customizePreset
 } = require('../controllers/conditionPresetController');
 
 // Condition preset CRUD routes
@@ -18,6 +19,7 @@ router.get('/', commonValidations.pagination, handleValidationErrors, getAllCond
 router.get('/stats', getConditionPresetStats);
 router.get('/:id', commonValidations.id, handleValidationErrors, getConditionPresetById);
 router.post('/', createConditionPreset);
+router.post('/:id/customize', commonValidations.id, handleValidationErrors, customizePreset);
 router.put('/:id', commonValidations.id, handleValidationErrors, updateConditionPreset);
 router.delete('/:id', commonValidations.id, handleValidationErrors, deleteConditionPreset);
 

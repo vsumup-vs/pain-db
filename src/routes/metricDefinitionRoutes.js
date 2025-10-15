@@ -16,7 +16,9 @@ const {
   // New functions for standardized templates
   getStandardizedTemplates,
   createFromTemplate,
-  getTemplateDetails
+  getTemplateDetails,
+  // Multi-tenant customization
+  customizeMetric
 } = require('../controllers/metricDefinitionController');
 
 // Standardized template routes (place before parameterized routes)
@@ -34,5 +36,8 @@ router.delete('/:id', commonValidations.id, handleValidationErrors, deleteMetric
 
 // Utility routes with validation
 router.post('/:id/validate', commonValidations.id, handleValidationErrors, validateMetricValue);
+
+// Multi-tenant customization routes (place before /:id to avoid conflicts)
+router.post('/:id/customize', commonValidations.id, handleValidationErrors, customizeMetric);
 
 module.exports = router;

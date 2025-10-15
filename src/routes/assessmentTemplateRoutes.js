@@ -5,7 +5,8 @@ const {
   getAssessmentTemplateById,
   createAssessmentTemplate,
   updateAssessmentTemplate,
-  deleteAssessmentTemplate
+  deleteAssessmentTemplate,
+  customizeTemplate
 } = require('../controllers/assessmentTemplateController');
 
 const { handleValidationErrors, commonValidations } = require('../middleware/validation');
@@ -58,5 +59,8 @@ router.get('/:id', commonValidations.id, handleValidationErrors, getAssessmentTe
 router.post('/', assessmentTemplateValidations.create, handleValidationErrors, createAssessmentTemplate);
 router.put('/:id', commonValidations.id, assessmentTemplateValidations.update, handleValidationErrors, updateAssessmentTemplate);
 router.delete('/:id', commonValidations.id, handleValidationErrors, deleteAssessmentTemplate);
+
+// Multi-tenant customization route
+router.post('/:id/customize', commonValidations.id, handleValidationErrors, customizeTemplate);
 
 module.exports = router;

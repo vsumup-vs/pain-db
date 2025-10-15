@@ -1,8 +1,8 @@
 import React from 'react'
-import { PencilIcon, TrashIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, TrashIcon, CheckCircleIcon, ExclamationTriangleIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import { getMetricTypeInfo } from '../utils/metricTypeUtils'
 
-export const MetricCard = ({ metric, onEdit, onDelete }) => {
+export const MetricCard = ({ metric, onEdit, onDelete, onCustomize }) => {
   const typeInfo = getMetricTypeInfo(metric.valueType)
   const TypeIcon = typeInfo.icon
 
@@ -39,27 +39,53 @@ export const MetricCard = ({ metric, onEdit, onDelete }) => {
             <TypeIcon className={`h-5 w-5 ${typeInfo.color}`} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{metric.key}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-gray-900">{metric.key}</h3>
+              {metric.isStandardized && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                  ⭐ Standardized
+                </span>
+              )}
+              {metric.isCustomized && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                  🏥 Custom
+                </span>
+              )}
+            </div>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.background} ${typeInfo.color}`}>
               {typeInfo.label}
             </span>
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onEdit(metric)}
-            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="Edit metric"
-          >
-            <PencilIcon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => onDelete(metric.id)}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete metric"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </button>
+          {metric.isStandardized && !metric.isCustomized && onCustomize && (
+            <button
+              onClick={() => onCustomize(metric)}
+              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Customize for your organization"
+            >
+              <DocumentDuplicateIcon className="h-4 w-4" />
+            </button>
+          )}
+          {/* Only show Edit/Delete for customized (org-specific) metrics */}
+          {metric.isCustomized && (
+            <>
+              <button
+                onClick={() => onEdit(metric)}
+                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Edit metric"
+              >
+                <PencilIcon className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onDelete(metric.id)}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete metric"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 

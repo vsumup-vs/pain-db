@@ -29,30 +29,30 @@ global.prisma = new PrismaClient({
 async function cleanDatabase() {
   // Delete in correct order to avoid foreign key constraints
   // Start with tables that have no dependencies (leaf tables)
-  await global.prisma.message.deleteMany({});
+  await global.prisma.task.deleteMany({});
   await global.prisma.timeLog.deleteMany({});
   await global.prisma.observation.deleteMany({});
   await global.prisma.alert.deleteMany({});
-  
+
   // Then tables that depend on enrollments
   await global.prisma.enrollment.deleteMany({});
-  
+
   // Then condition preset related tables
   await global.prisma.conditionPresetAlertRule.deleteMany({});
   await global.prisma.conditionPresetTemplate.deleteMany({});
   await global.prisma.conditionPresetDiagnosis.deleteMany({});
   await global.prisma.conditionPreset.deleteMany({});
-  
+
   // Then assessment template items (depends on metric definitions)
   await global.prisma.assessmentTemplateItem.deleteMany({});
   await global.prisma.assessmentTemplate.deleteMany({});
-  
+
   // Then alert rules
   await global.prisma.alertRule.deleteMany({});
-  
+
   // Then metric definitions
   await global.prisma.metricDefinition.deleteMany({});
-  
+
   // Finally, core entities
   await global.prisma.patient.deleteMany({});
   await global.prisma.clinician.deleteMany({});

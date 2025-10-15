@@ -13,9 +13,20 @@ function injectOrganizationContext(req, res, next) {
       });
     }
 
-    const { currentOrganization, organizations } = req.user;
+    const { currentOrganization, organizations, role, permissions } = req.user;
 
-    // Verify user has access to the current organization
+    // SUPER_ADMIN bypasses organization validation - they can access all organizations
+    const isSuperAdmin = role === 'SUPER_ADMIN' || (permissions && permissions.includes('SYSTEM_ADMIN'));
+
+    if (isSuperAdmin) {
+      // SUPER_ADMIN has access to all organizations - set organizationId to null
+      // Controllers should handle null organizationId to fetch data across all organizations
+      req.organizationId = currentOrganization || null;
+      req.isSuperAdmin = true;
+      return next();
+    }
+
+    // For non-SUPER_ADMIN users, verify organization access
     const hasAccess = organizations.some(
       org => org.organizationId === currentOrganization
     );
@@ -30,6 +41,7 @@ function injectOrganizationContext(req, res, next) {
 
     // Inject organizationId into request for easy access in controllers
     req.organizationId = currentOrganization;
+    req.isSuperAdmin = false;
 
     next();
   } catch (error) {

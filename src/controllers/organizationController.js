@@ -3,7 +3,7 @@ const auditService = require('../services/auditService');
 
 /**
  * Get all organizations
- * SUPER_ADMIN: sees all organizations
+ * Platform Admin: sees all organizations
  * ORG_ADMIN: sees only their organizations
  */
 exports.getAllOrganizations = async (req, res) => {
@@ -12,10 +12,15 @@ exports.getAllOrganizations = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where = {};
+    const where = {
+      // Exclude "Platform Administration" organization (legacy platform-level org no longer needed)
+      name: { not: 'Platform Administration' }
+    };
 
-    // SUPER_ADMIN sees all, others see only their organizations
-    if (req.user.role !== 'SUPER_ADMIN') {
+    // Platform admin sees all, others see only their organizations
+    const isPlatformAdmin = req.user.isPlatformAdmin || false;
+
+    if (!isPlatformAdmin) {
       const userOrgIds = req.user.organizations.map(org => org.organizationId);
       where.id = { in: userOrgIds };
     }
@@ -98,8 +103,10 @@ exports.getOrganization = async (req, res) => {
       });
     }
 
-    // Check access: SUPER_ADMIN or user belongs to this org
-    if (req.user.role !== 'SUPER_ADMIN') {
+    // Check access: Platform admin or user belongs to this org
+    const isPlatformAdmin = req.user.isPlatformAdmin || false;
+
+    if (!isPlatformAdmin) {
       const hasAccess = req.user.organizations.some(
         org => org.organizationId === id
       );
@@ -132,7 +139,7 @@ exports.getOrganization = async (req, res) => {
 };
 
 /**
- * Create organization (SUPER_ADMIN only)
+ * Create organization (Platform Admin only)
  */
 exports.createOrganization = async (req, res) => {
   try {
@@ -238,7 +245,9 @@ exports.updateOrganization = async (req, res) => {
     }
 
     // Check access
-    if (req.user.role !== 'SUPER_ADMIN') {
+    const isPlatformAdmin = req.user.isPlatformAdmin || false;
+
+    if (!isPlatformAdmin) {
       const hasAccess = req.user.organizations.some(
         org => org.organizationId === id && org.role === 'ORG_ADMIN'
       );
@@ -312,7 +321,7 @@ exports.updateOrganization = async (req, res) => {
 };
 
 /**
- * Delete organization (SUPER_ADMIN only)
+ * Delete organization (Platform Admin only)
  * With safeguards - cannot delete if has users, patients, etc.
  */
 exports.deleteOrganization = async (req, res) => {
@@ -397,6 +406,102 @@ exports.deleteOrganization = async (req, res) => {
 };
 
 /**
+ * Get platform-wide usage statistics (Platform Admin only)
+ */
+exports.getPlatformUsageStats = async (req, res) => {
+  try {
+    // Only platform admins can access
+    const isPlatformAdmin = req.user.isPlatformAdmin || false;
+    if (!isPlatformAdmin) {
+      return res.status(403).json({
+        error: 'Access denied',
+        code: 'PLATFORM_ADMIN_REQUIRED'
+      });
+    }
+
+    // Get all organizations with usage stats and last activity
+    // Exclude "Platform Administration" organization (legacy platform-level org no longer needed)
+    const organizations = await prisma.organization.findMany({
+      where: {
+        name: {
+          not: 'Platform Administration'
+        }
+      },
+      include: {
+        _count: {
+          select: {
+            userOrganizations: true,
+            patients: true,
+            clinicians: true,
+            carePrograms: true,
+            enrollments: true
+          }
+        },
+        // Get most recent user login from this org
+        userOrganizations: {
+          include: {
+            user: {
+              select: {
+                lastLoginAt: true
+              }
+            }
+          },
+          orderBy: {
+            user: {
+              lastLoginAt: 'desc'
+            }
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Calculate totals and add last accessed
+    const stats = {
+      totalOrganizations: organizations.length,
+      totalUsers: 0,
+      totalPatients: 0,
+      totalClinicians: 0,
+      totalEnrollments: 0,
+      totalCarePrograms: 0,
+      organizations: organizations.map(org => ({
+        id: org.id,
+        name: org.name,
+        type: org.type,
+        isActive: org.isActive,
+        createdAt: org.createdAt,
+        userCount: org._count.userOrganizations,
+        patientCount: org._count.patients,
+        clinicianCount: org._count.clinicians,
+        enrollmentCount: org._count.enrollments,
+        programCount: org._count.carePrograms,
+        lastAccessed: org.userOrganizations[0]?.user?.lastLoginAt || null
+      }))
+    };
+
+    // Calculate totals
+    stats.organizations.forEach(org => {
+      stats.totalUsers += org.userCount;
+      stats.totalPatients += org.patientCount;
+      stats.totalClinicians += org.clinicianCount;
+      stats.totalEnrollments += org.enrollmentCount;
+      stats.totalCarePrograms += org.programCount;
+    });
+
+    res.json({ data: stats });
+  } catch (error) {
+    console.error('Get platform usage stats error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch platform usage statistics',
+      code: 'PLATFORM_STATS_FAILED'
+    });
+  }
+};
+
+/**
  * Get organization statistics
  */
 exports.getOrganizationStats = async (req, res) => {
@@ -404,7 +509,9 @@ exports.getOrganizationStats = async (req, res) => {
     const { id } = req.params;
 
     // Check access
-    if (req.user.role !== 'SUPER_ADMIN') {
+    const isPlatformAdmin = req.user.isPlatformAdmin || false;
+
+    if (!isPlatformAdmin) {
       const hasAccess = req.user.organizations.some(
         org => org.organizationId === id
       );

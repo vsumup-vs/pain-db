@@ -15,6 +15,7 @@ class JWTService {
     const tokenPayload = {
       userId: payload.userId,
       email: payload.email,
+      isPlatformAdmin: payload.isPlatformAdmin || false,
       organizations: payload.organizations || [],
       currentOrganization: payload.currentOrganization || null,
       role: payload.role || null,
@@ -25,7 +26,7 @@ class JWTService {
       type: 'access'
     };
 
-    return jwt.sign(tokenPayload, this.secret, { 
+    return jwt.sign(tokenPayload, this.secret, {
       expiresIn: this.expiresIn,
       issuer: 'pain-management-platform', // FIXED: consistent issuer
       audience: 'healthcare-users'
@@ -95,7 +96,7 @@ class JWTService {
 
       // Build organizations array with enhanced context
       const organizations = userWithOrgs.userOrganizations.map(access => ({
-        id: access.organization.id,
+        organizationId: access.organization.id, // FIXED: Use organizationId to match middleware expectations
         name: access.organization.name,
         domain: access.organization.domain,
         isActive: access.organization.isActive,
@@ -114,26 +115,28 @@ class JWTService {
       }));
 
       // Default to first organization if available
-      const currentOrganization = organizations.length > 0 ? organizations[0] : null;
-      
+      const firstOrg = organizations.length > 0 ? organizations[0] : null;
+      const currentOrganization = firstOrg?.organizationId || null;
+
       // Get accessible programs for current organization
-      const accessiblePrograms = currentOrganization?.availablePrograms.filter(program => 
-        currentOrganization.programAccess.includes(program.id) ||
-        this.hasRequiredPermissions(currentOrganization.permissions, program.requiredPermissions)
+      const accessiblePrograms = firstOrg?.availablePrograms.filter(program =>
+        firstOrg.programAccess.includes(program.id) ||
+        this.hasRequiredPermissions(firstOrg.permissions, program.requiredPermissions)
       ) || [];
 
       return this.generateToken({
         userId: userWithOrgs.id,
         email: userWithOrgs.email,
+        isPlatformAdmin: userWithOrgs.isPlatformAdmin || false,
         organizations,
         currentOrganization,
-        role: currentOrganization?.role,
-        permissions: currentOrganization?.permissions || [],
+        role: firstOrg?.role,
+        permissions: firstOrg?.permissions || [],
         programAccess: accessiblePrograms.map(p => p.id),
         currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null,
-        billingContext: currentOrganization ? {
-          canBill: currentOrganization.canBill,
-          billingRate: currentOrganization.billingRate
+        billingContext: firstOrg ? {
+          canBill: firstOrg.canBill,
+          billingRate: firstOrg.billingRate
         } : null
       });
     } catch (error) {
@@ -155,11 +158,95 @@ class JWTService {
   }
 
   /**
+   * Switch to a different organization context
+   */
+  async switchOrganization(userId, organizationId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userOrganizations: {
+          where: { isActive: true },
+          include: {
+            organization: {
+              include: {
+                carePrograms: {
+                  where: { isActive: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Verify user has access to this organization
+    const orgAccess = user.userOrganizations.find(
+      uo => uo.organization.id === organizationId
+    );
+
+    if (!orgAccess) {
+      throw new Error('User does not have access to this organization');
+    }
+
+    // Build organizations array
+    const organizations = user.userOrganizations.map(access => ({
+      organizationId: access.organization.id,
+      name: access.organization.name,
+      domain: access.organization.domain,
+      isActive: access.organization.isActive,
+      role: access.role,
+      permissions: access.permissions,
+      programAccess: access.programAccess,
+      canBill: access.canBill,
+      billingRate: access.billingRate,
+      availablePrograms: access.organization.carePrograms.map(program => ({
+        id: program.id,
+        name: program.name,
+        type: program.type,
+        cptCodes: program.cptCodes,
+        requiredPermissions: program.requiredPermissions
+      }))
+    }));
+
+    // Get accessible programs for selected organization
+    const accessiblePrograms = orgAccess.organization.carePrograms.filter(program =>
+      orgAccess.programAccess.includes(program.id) ||
+      this.hasRequiredPermissions(orgAccess.permissions, program.requiredPermissions)
+    ).map(p => ({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      cptCodes: p.cptCodes,
+      requiredPermissions: p.requiredPermissions
+    }));
+
+    return this.generateToken({
+      userId: user.id,
+      email: user.email,
+      isPlatformAdmin: user.isPlatformAdmin || false,
+      organizations,
+      currentOrganization: organizationId,
+      role: orgAccess.role,
+      permissions: orgAccess.permissions || [],
+      programAccess: accessiblePrograms.map(p => p.id),
+      currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null,
+      billingContext: {
+        canBill: orgAccess.canBill,
+        billingRate: orgAccess.billingRate
+      }
+    });
+  }
+
+  /**
    * Switch to a different program context
    */
   async switchProgram(token, programId) {
     const decoded = await this.verifyToken(token);
-    
+
     // Find the program in user's accessible programs
     const program = decoded.programAccess.find(p => p.id === programId);
     if (!program) {

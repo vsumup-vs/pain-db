@@ -470,6 +470,58 @@ router.post('/select-organization', requireAuth, async (req, res) => {
 });
 
 /**
+ * POST /auth/switch-organization - Switch active organization (alias for select-organization)
+ */
+router.post('/switch-organization', requireAuth, async (req, res) => {
+  try {
+    const { organizationId } = req.body;
+
+    if (!organizationId) {
+      return res.status(400).json({ error: 'Organization ID required' });
+    }
+
+    // Verify user has access to this organization
+    const userOrg = await prisma.userOrganization.findFirst({
+      where: {
+        userId: req.user.userId,
+        organizationId: organizationId
+      },
+      include: {
+        organization: true
+      }
+    });
+
+    if (!userOrg) {
+      return res.status(403).json({ error: 'Access denied to organization' });
+    }
+
+    // Generate new token with organization context using switchOrganization method
+    const token = await jwtService.switchOrganization(req.user.userId, organizationId);
+
+    // Audit log
+    await auditService.log({
+      action: 'ORGANIZATION_SWITCHED',
+      userId: req.user.userId,
+      organizationId: organizationId,
+      ipAddress: req.ip
+    });
+
+    res.json({
+      token,
+      organization: {
+        id: userOrg.organizationId,
+        name: userOrg.organization.name,
+        type: userOrg.organization.type,
+        role: userOrg.role
+      }
+    });
+  } catch (error) {
+    console.error('Organization switch error:', error);
+    res.status(500).json({ error: 'Organization switch failed' });
+  }
+});
+
+/**
  * POST /auth/logout - Logout user
  */
 router.post('/logout', requireAuth, async (req, res) => {
@@ -530,10 +582,12 @@ router.get('/me', requireAuth, async (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      isPlatformAdmin: user.isPlatformAdmin || false,
       emailVerified: user.emailVerified,
       mfaEnabled: user.mfaEnabled,
       lastLoginAt: user.lastLoginAt,
       organizations: user.userOrganizations.map(uo => ({
+        organizationId: uo.organizationId, // Add organizationId for Layout component
         id: uo.organizationId,
         name: uo.organization.name,
         type: uo.organization.type,
@@ -682,11 +736,33 @@ router.get('/users',
       const skip = (page - 1) * limit;
 
       const where = {};
-      
-      // Filter by organization if specified
+
+      // Check if user is platform admin
+      const isPlatformAdmin = req.user.isPlatformAdmin || false;
+
+      // Build organization filter
+      const someConditions = {};
+
+      // Non-platform admin users can only see users from their own organizations
+      if (!isPlatformAdmin) {
+        const userOrgIds = req.user.organizations.map(org => org.organizationId);
+        someConditions.organizationId = { in: userOrgIds };
+      }
+
+      // Apply additional filters if specified
       if (organizationId) {
+        // Override with specific organization if provided
+        someConditions.organizationId = organizationId;
+      }
+
+      if (role) {
+        someConditions.role = role;
+      }
+
+      // Apply the filter (always apply for non-platform admin, only when filters specified for platform admin)
+      if (!isPlatformAdmin || organizationId || role) {
         where.userOrganizations = {
-          some: { organizationId }
+          some: someConditions
         };
       }
 

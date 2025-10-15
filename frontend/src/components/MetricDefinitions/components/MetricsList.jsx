@@ -2,11 +2,12 @@ import React from 'react'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { MetricCard } from './MetricCard'
 
-export const MetricsList = ({ 
-  metrics, 
-  onEdit, 
-  onDelete, 
-  onCreateFirst 
+export const MetricsList = ({
+  metrics,
+  onEdit,
+  onDelete,
+  onCustomize,
+  onCreateFirst
 }) => {
   if (metrics.length === 0) {
     return (
@@ -37,6 +38,7 @@ export const MetricsList = ({
           metric={metric}
           onEdit={onEdit}
           onDelete={onDelete}
+          onCustomize={onCustomize}
         />
       ))}
     </div>

@@ -66,6 +66,22 @@ export const useMetricDefinitions = () => {
     }
   })
 
+  // Customize metric definition (clone for organization)
+  const customizeMetricMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await api.customizeMetricDefinition(id)
+      return response.data || response
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['metricDefinitions'])
+      toast.success(`Metric customized successfully! You can now edit "${data.displayName || data.key}"`)
+    },
+    onError: (error) => {
+      const message = error.response?.data?.message || error.message
+      toast.error(`Failed to customize metric: ${message}`)
+    }
+  })
+
   return {
     metricDefinitions,
     isLoading,
@@ -74,8 +90,10 @@ export const useMetricDefinitions = () => {
     createMetric: createMetricMutation.mutate,
     updateMetric: updateMetricMutation.mutate,
     deleteMetric: deleteMetricMutation.mutate,
+    customizeMetric: customizeMetricMutation.mutate,
     isCreating: createMetricMutation.isLoading,
     isUpdating: updateMetricMutation.isLoading,
-    isDeleting: deleteMetricMutation.isLoading
+    isDeleting: deleteMetricMutation.isLoading,
+    isCustomizing: customizeMetricMutation.isLoading
   }
 }

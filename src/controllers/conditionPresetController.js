@@ -17,28 +17,56 @@ const getAllConditionPresets = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
-    // Build where clause
-    const where = {};
-    
+    // Get current organization from auth middleware
+    const currentOrgId = req.user?.currentOrganization || null;
+
+    // Build where clause with org-aware filtering
+    const where = {
+      AND: [
+        // Show standardized presets + org-specific presets
+        {
+          OR: [
+            { organizationId: null, isStandardized: true }, // Platform standardized
+            { organizationId: currentOrgId }                 // Org-specific custom
+          ]
+        }
+      ]
+    };
+
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
-      ];
+      where.AND.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ]
+      });
     }
-    
+
     if (category) {
-      where.category = category;
+      where.AND.push({ category });
     }
-    
+
     if (isStandardized !== undefined) {
-      where.isStandardized = isStandardized === 'true';
+      where.AND.push({ isStandardized: isStandardized === 'true' });
     }
 
     const [presets, total] = await Promise.all([
       prisma.conditionPreset.findMany({
         where,
         include: {
+          organization: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          sourcePreset: {
+            select: {
+              id: true,
+              name: true,
+              isStandardized: true
+            }
+          },
           diagnoses: true,
           templates: {
             include: {
@@ -79,9 +107,15 @@ const getAllConditionPresets = async (req, res) => {
       prisma.conditionPreset.count({ where })
     ]);
 
+    // Enrich with computed fields
+    const enrichedPresets = presets.map(preset => ({
+      ...preset,
+      isCustomized: !!preset.organizationId // True if org-specific
+    }));
+
     res.json({
       success: true,
-      data: presets,
+      data: enrichedPresets,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -297,6 +331,19 @@ const updateConditionPreset = async (req, res) => {
       });
     }
 
+    // BLOCK: Prevent direct editing of standardized presets
+    if (existingPreset.isStandardized && !existingPreset.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot directly edit standardized presets. Please use the "Customize" feature to create an editable copy for your organization first.',
+        hint: 'Click the "Customize" button to clone this preset for your organization',
+        standardizedPreset: {
+          id: existingPreset.id,
+          name: existingPreset.name
+        }
+      });
+    }
+
     // Check for duplicate name (excluding current preset)
     if (name && name !== existingPreset.name) {
       const duplicateName = await prisma.conditionPreset.findFirst({
@@ -435,6 +482,18 @@ const deleteConditionPreset = async (req, res) => {
       });
     }
 
+    // BLOCK: Prevent deletion of standardized presets
+    if (existingPreset.isStandardized && !existingPreset.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete standardized presets. These are platform-level resources shared across all organizations.',
+        standardizedPreset: {
+          id: existingPreset.id,
+          name: existingPreset.name
+        }
+      });
+    }
+
     // Check if preset is being used in enrollments
     if (existingPreset._count.enrollments > 0) {
       return res.status(400).json({
@@ -505,11 +564,151 @@ const getConditionPresetStats = async (req, res) => {
   }
 };
 
+// Customize/clone a standardized preset for organization
+const customizePreset = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentOrgId = req.user?.currentOrganization;
+
+    if (!currentOrgId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization context required for customization'
+      });
+    }
+
+    // Get the source preset
+    const sourcePreset = await prisma.conditionPreset.findUnique({
+      where: { id },
+      include: {
+        diagnoses: true,
+        templates: true,
+        alertRules: true
+      }
+    });
+
+    if (!sourcePreset) {
+      return res.status(404).json({
+        success: false,
+        message: 'Condition preset not found'
+      });
+    }
+
+    // Check if preset is customizable (must be standardized or belong to this org)
+    if (sourcePreset.organizationId && sourcePreset.organizationId !== currentOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot customize presets from other organizations'
+      });
+    }
+
+    // Check if already customized by this organization
+    const existingCustom = await prisma.conditionPreset.findFirst({
+      where: {
+        organizationId: currentOrgId,
+        sourcePresetId: id
+      }
+    });
+
+    if (existingCustom) {
+      return res.status(400).json({
+        success: false,
+        message: 'This preset has already been customized for your organization',
+        data: existingCustom
+      });
+    }
+
+    // Clone the preset for this organization
+    const customPreset = await prisma.conditionPreset.create({
+      data: {
+        organizationId: currentOrgId,
+        sourcePresetId: id,
+        name: sourcePreset.name, // Same name, unique per org
+        description: sourcePreset.description,
+        category: sourcePreset.category,
+        isStandardized: false, // Custom versions are not standardized
+        standardCoding: sourcePreset.standardCoding,
+        clinicalGuidelines: sourcePreset.clinicalGuidelines,
+        diagnoses: {
+          create: sourcePreset.diagnoses.map(d => ({
+            icd10: d.icd10,
+            snomed: d.snomed,
+            label: d.label,
+            isPrimary: d.isPrimary
+          }))
+        },
+        templates: {
+          create: sourcePreset.templates.map(t => ({
+            templateId: t.templateId,
+            isRequired: t.isRequired,
+            frequency: t.frequency,
+            displayOrder: t.displayOrder
+          }))
+        },
+        alertRules: {
+          create: sourcePreset.alertRules.map(ar => ({
+            alertRuleId: ar.alertRuleId,
+            isEnabled: ar.isEnabled,
+            priority: ar.priority
+          }))
+        }
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true }
+        },
+        sourcePreset: {
+          select: { id: true, name: true, isStandardized: true }
+        },
+        diagnoses: true,
+        templates: {
+          include: {
+            template: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                isStandardized: true
+              }
+            }
+          }
+        },
+        alertRules: {
+          include: {
+            rule: {
+              select: {
+                id: true,
+                name: true,
+                severity: true,
+                conditions: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: customPreset,
+      message: 'Condition preset customized successfully. You can now modify it for your organization.'
+    });
+  } catch (error) {
+    console.error('Error customizing condition preset:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while customizing condition preset',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllConditionPresets,
   getConditionPresetById,
   createConditionPreset,
   updateConditionPreset,
   deleteConditionPreset,
-  getConditionPresetStats
+  getConditionPresetStats,
+  customizePreset
 };

@@ -44,9 +44,13 @@ export default function Observations() {
   const observations = observationsResponse?.data || []
 
   const getObservationValue = (observation) => {
-    if (observation.valueNumeric !== null && observation.valueNumeric !== undefined) return observation.valueNumeric
-    if (observation.valueCode !== null && observation.valueCode !== undefined) return observation.valueCode
-    if (observation.valueText !== null && observation.valueText !== undefined) return observation.valueText
+    if (observation.value !== null && observation.value !== undefined) {
+      // value is a Json field, could be a number, string, or object
+      if (typeof observation.value === 'object' && observation.value !== null) {
+        return JSON.stringify(observation.value)
+      }
+      return observation.value
+    }
     return 'N/A'
   }
 
@@ -98,10 +102,10 @@ export default function Observations() {
 
   const getValueSeverityColor = (observation) => {
     const value = getObservationValue(observation)
-    const metricKey = observation.metricDefinition?.key || observation.metricKey
-    
+    const metricKey = observation.metric?.key || observation.metricKey
+
     // Pain scale indicators
-    if (metricKey?.includes('pain') && observation.metricDefinition?.valueType === 'numeric') {
+    if (metricKey?.includes('pain') && observation.metric?.valueType === 'numeric') {
       const numValue = parseFloat(value)
       if (numValue >= 7) return 'text-red-600 bg-red-50'
       if (numValue >= 4) return 'text-yellow-600 bg-yellow-50'
@@ -142,10 +146,10 @@ export default function Observations() {
   }
 
   const filteredObservations = observations.filter(observation =>
-    !searchTerm || 
+    !searchTerm ||
     observation.patient?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     observation.patient?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    observation.metricDefinition?.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
+    observation.metric?.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const clearFilters = () => {
@@ -297,19 +301,19 @@ export default function Observations() {
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {observation.metricDefinition?.displayName}
+                          {observation.metric?.displayName}
                         </h3>
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getMetricTypeColor(observation.metricDefinition?.valueType)}`}>
-                          {observation.metricDefinition?.valueType}
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getMetricTypeColor(observation.metric?.valueType)}`}>
+                          {observation.metric?.valueType}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between mb-3">
                         <div className={`text-3xl font-bold px-3 py-2 rounded-lg ${valueSeverityColor}`}>
                           {getObservationValue(observation)}
-                          {observation.metricDefinition?.unit && (
+                          {observation.metric?.unit && (
                             <span className="text-lg text-gray-500 ml-1">
-                              {observation.metricDefinition.unit}
+                              {observation.metric.unit}
                             </span>
                           )}
                         </div>
@@ -409,19 +413,19 @@ export default function Observations() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-sm font-medium text-gray-700">Metric:</span>
-                      <div className="text-sm text-gray-900">{selectedObservation.metricDefinition?.displayName}</div>
+                      <div className="text-sm text-gray-900">{selectedObservation.metric?.displayName}</div>
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-700">Type:</span>
-                      <div className="text-sm text-gray-900">{selectedObservation.metricDefinition?.valueType}</div>
+                      <div className="text-sm text-gray-900">{selectedObservation.metric?.valueType}</div>
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-700">Value:</span>
                       <div className="text-lg font-bold text-gray-900">
                         {getObservationValue(selectedObservation)}
-                        {selectedObservation.metricDefinition?.unit && (
+                        {selectedObservation.metric?.unit && (
                           <span className="text-sm text-gray-500 ml-1">
-                            {selectedObservation.metricDefinition.unit}
+                            {selectedObservation.metric.unit}
                           </span>
                         )}
                       </div>

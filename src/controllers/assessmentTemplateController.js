@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = global.prisma || new PrismaClient();
 
-// Get all assessment templates
+// Get all assessment templates (org-aware: shows standardized + org-specific)
 const getAllAssessmentTemplates = async (req, res) => {
   try {
     const {
@@ -15,13 +15,30 @@ const getAllAssessmentTemplates = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
-    // Build where clause
-    const where = {};
+    // Get current organization from auth middleware
+    const currentOrgId = req.user?.currentOrganization || null;
+
+    // Build where clause with org-aware filtering
+    const where = {
+      AND: [
+        // Show standardized templates + org-specific templates
+        {
+          OR: [
+            { organizationId: null, isStandardized: true }, // Platform standardized
+            { organizationId: currentOrgId }                 // Org-specific custom
+          ]
+        }
+      ]
+    };
+
+    // Add search filter if provided
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } }
-      ];
+      where.AND.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } }
+        ]
+      });
     }
 
     const [templates, total] = await Promise.all([
@@ -29,8 +46,24 @@ const getAllAssessmentTemplates = async (req, res) => {
         where,
         skip,
         take,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: [
+          { isStandardized: 'desc' }, // Standardized first
+          { [sortBy]: sortOrder }
+        ],
         include: {
+          organization: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          sourceTemplate: {
+            select: {
+              id: true,
+              name: true,
+              isStandardized: true
+            }
+          },
           assessments: {
             select: {
               id: true,
@@ -47,15 +80,28 @@ const getAllAssessmentTemplates = async (req, res) => {
                 }
               }
             }
+          },
+          _count: {
+            select: {
+              assessments: true,
+              conditionPresetTemplates: true
+            }
           }
         }
       }),
       prisma.assessmentTemplate.count({ where })
     ]);
 
+    // Enrich with computed fields
+    const enrichedTemplates = templates.map(template => ({
+      ...template,
+      isCustomized: !!template.organizationId, // True if org-specific
+      usageCount: template._count.assessments
+    }));
+
     res.json({
       success: true,
-      data: templates,
+      data: enrichedTemplates,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -241,6 +287,19 @@ const updateAssessmentTemplate = async (req, res) => {
       });
     }
 
+    // BLOCK: Prevent direct editing of standardized templates
+    if (existingTemplate.isStandardized && !existingTemplate.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot directly edit standardized templates. Please use the "Customize" feature to create an editable copy for your organization first.',
+        hint: 'Click the "Customize" button to clone this template for your organization',
+        standardizedTemplate: {
+          id: existingTemplate.id,
+          name: existingTemplate.name
+        }
+      });
+    }
+
     // Check if name is being changed and if new name already exists
     if (name && name !== existingTemplate.name) {
       const nameExists = await prisma.assessmentTemplate.findFirst({
@@ -325,6 +384,18 @@ const deleteAssessmentTemplate = async (req, res) => {
       });
     }
 
+    // BLOCK: Prevent deletion of standardized templates
+    if (existingTemplate.isStandardized && !existingTemplate.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete standardized templates. These are platform-level resources shared across all organizations.',
+        standardizedTemplate: {
+          id: existingTemplate.id,
+          name: existingTemplate.name
+        }
+      });
+    }
+
     // Check if template is in use
     if (existingTemplate.assessments.length > 0) {
       return res.status(400).json({
@@ -358,10 +429,109 @@ const deleteAssessmentTemplate = async (req, res) => {
   }
 };
 
+// Customize/clone a standardized template for organization
+const customizeTemplate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentOrgId = req.user?.currentOrganization;
+
+    if (!currentOrgId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization context required for customization'
+      });
+    }
+
+    // Get the source template
+    const sourceTemplate = await prisma.assessmentTemplate.findUnique({
+      where: { id }
+    });
+
+    if (!sourceTemplate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assessment template not found'
+      });
+    }
+
+    // Check if template is customizable (must be standardized or belong to this org)
+    if (sourceTemplate.organizationId && sourceTemplate.organizationId !== currentOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot customize templates from other organizations'
+      });
+    }
+
+    // Check if already customized by this organization
+    const existingCustom = await prisma.assessmentTemplate.findFirst({
+      where: {
+        organizationId: currentOrgId,
+        sourceTemplateId: id
+      }
+    });
+
+    if (existingCustom) {
+      return res.status(400).json({
+        success: false,
+        message: 'This template has already been customized for your organization',
+        data: existingCustom
+      });
+    }
+
+    // Clone the template for this organization
+    const customTemplate = await prisma.assessmentTemplate.create({
+      data: {
+        organizationId: currentOrgId,
+        sourceTemplateId: id,
+        name: sourceTemplate.name, // Same name, unique per org
+        description: sourceTemplate.description,
+        questions: sourceTemplate.questions,
+        scoring: sourceTemplate.scoring,
+        isStandardized: false, // Custom versions are not standardized
+        category: sourceTemplate.category,
+        standardCoding: sourceTemplate.standardCoding,
+        validationInfo: sourceTemplate.validationInfo,
+        scoringInfo: sourceTemplate.scoringInfo,
+        copyrightInfo: sourceTemplate.copyrightInfo,
+        clinicalUse: sourceTemplate.clinicalUse
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        sourceTemplate: {
+          select: {
+            id: true,
+            name: true,
+            isStandardized: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: customTemplate,
+      message: 'Assessment template customized successfully. You can now modify it for your organization.'
+    });
+  } catch (error) {
+    console.error('Error customizing assessment template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while customizing assessment template',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllAssessmentTemplates,
   getAssessmentTemplateById,
   createAssessmentTemplate,
   updateAssessmentTemplate,
-  deleteAssessmentTemplate
+  deleteAssessmentTemplate,
+  customizeTemplate
 };

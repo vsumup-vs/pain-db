@@ -14,6 +14,7 @@ import { api } from '../services/api';
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -35,9 +36,35 @@ const AdminUsers = () => {
     role: ''
   });
 
+  // Check if user is platform admin
+  const isPlatformAdmin = currentUser?.isPlatformAdmin || false;
+
   useEffect(() => {
     fetchData();
   }, [filters]);
+
+  useEffect(() => {
+    // Fetch current user info
+    const fetchCurrentUser = async () => {
+      try {
+        const userProfile = await api.getCurrentUserProfile();
+        setCurrentUser(userProfile);
+
+        // If not platform admin and no filter set, default to first organization
+        const isPAdmin = userProfile.isPlatformAdmin || false;
+        if (!isPAdmin && !filters.organizationId && userProfile.organizations?.length > 0) {
+          setFilters(prev => ({
+            ...prev,
+            organizationId: userProfile.organizations[0].id
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -175,7 +202,7 @@ const AdminUsers = () => {
               onChange={handleFilterChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
-              <option value="">All Organizations</option>
+              {isPlatformAdmin && <option value="">All Organizations</option>}
               {organizations.map(org => (
                 <option key={org.id} value={org.id}>{org.name}</option>
               ))}
@@ -194,7 +221,6 @@ const AdminUsers = () => {
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             >
               <option value="">All Roles</option>
-              <option value="SUPER_ADMIN">Super Admin</option>
               <option value="ORG_ADMIN">Org Admin</option>
               <option value="CLINICIAN">Clinician</option>
               <option value="NURSE">Nurse</option>
@@ -407,8 +433,7 @@ const AdminUsers = () => {
                         <option value="ORG_ADMIN">Org Admin</option>
                         <option value="BILLING_ADMIN">Billing Admin</option>
                         <option value="PATIENT">Patient</option>
-                        <option value="SUPER_ADMIN">Super Admin</option>
-                      </select>
+                                </select>
                     </div>
                   </div>
 

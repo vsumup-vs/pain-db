@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { 
-  PlusIcon, 
-  PencilIcon, 
-  TrashIcon, 
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
   MagnifyingGlassIcon,
   BellIcon,
   ExclamationTriangleIcon,
@@ -13,7 +13,8 @@ import {
   ChartBarIcon,
   DocumentTextIcon,
   FunnelIcon,
-  XMarkIcon
+  XMarkIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
@@ -81,6 +82,18 @@ export default function AlertRules() {
     },
   })
 
+  const customizeMutation = useMutation({
+    mutationFn: (id) => api.customizeAlertRule(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['alert-rules'])
+      queryClient.invalidateQueries(['alert-rules-stats'])
+      toast.success('Alert rule customized successfully! You can now edit it.')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to customize alert rule')
+    },
+  })
+
   const handleSubmit = (data) => {
     if (editingRule) {
       updateMutation.mutate({ id: editingRule.id, data })
@@ -97,6 +110,12 @@ export default function AlertRules() {
   const handleDelete = (rule) => {
     if (window.confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
       deleteMutation.mutate(rule.id)
+    }
+  }
+
+  const handleCustomize = (rule) => {
+    if (window.confirm(`Create a customizable copy of "${rule.name}" for your organization? You will be able to modify the customized version.`)) {
+      customizeMutation.mutate(rule.id)
     }
   }
 
@@ -363,7 +382,19 @@ export default function AlertRules() {
                     <div className="flex items-center">
                       <BellIcon className="h-5 w-5 text-gray-400 mr-3" />
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{rule.name}</div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900">{rule.name}</span>
+                          {rule.isStandardized && !rule.isCustomized && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              ⭐ Standardized
+                            </span>
+                          )}
+                          {rule.isCustomized && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              🏥 Custom
+                            </span>
+                          )}
+                        </div>
                         <div className="text-sm text-gray-500">ID: {rule.id}</div>
                       </div>
                     </div>
@@ -390,20 +421,36 @@ export default function AlertRules() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(rule)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Edit rule"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(rule)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete rule"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
+                      {/* Show Customize button for standardized (non-customized) items */}
+                      {rule.isStandardized && !rule.isCustomized && (
+                        <button
+                          onClick={() => handleCustomize(rule)}
+                          className="text-purple-600 hover:text-purple-900"
+                          title="Customize for your organization"
+                        >
+                          <DocumentDuplicateIcon className="h-4 w-4" />
+                        </button>
+                      )}
+
+                      {/* Only show Edit/Delete for customized (org-specific) items */}
+                      {rule.isCustomized && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(rule)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit rule"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rule)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete rule"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

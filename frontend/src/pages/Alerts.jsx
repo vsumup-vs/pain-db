@@ -21,7 +21,7 @@ export default function Alerts() {
 
   const { data: alertsResponse, isLoading } = useQuery({
     queryKey: ['alerts', statusFilter, severityFilter],
-    queryFn: () => api.getAlerts({ 
+    queryFn: () => api.getAlerts({
       status: statusFilter !== 'all' ? statusFilter : undefined,
       severity: severityFilter !== 'all' ? severityFilter : undefined,
     }),
@@ -36,9 +36,9 @@ export default function Alerts() {
     const searchLower = searchTerm.toLowerCase()
     return (
       alert.rule?.name?.toLowerCase().includes(searchLower) ||
-      alert.enrollment?.patient?.firstName?.toLowerCase().includes(searchLower) ||
-      alert.enrollment?.patient?.lastName?.toLowerCase().includes(searchLower) ||
-      alert.facts?.trigger?.toLowerCase().includes(searchLower)
+      alert.patient?.firstName?.toLowerCase().includes(searchLower) ||
+      alert.patient?.lastName?.toLowerCase().includes(searchLower) ||
+      alert.message?.toLowerCase().includes(searchLower)
     )
   })
 
@@ -76,14 +76,15 @@ export default function Alerts() {
   }
 
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'open':
+    switch (status) {
+      case 'PENDING':
         return 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 border border-red-300'
-      case 'ack':
-      case 'acknowledged':
+      case 'ACKNOWLEDGED':
         return 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 border border-yellow-300'
-      case 'resolved':
+      case 'RESOLVED':
         return 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-300'
+      case 'DISMISSED':
+        return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300'
       default:
         return 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300'
     }
@@ -105,15 +106,18 @@ export default function Alerts() {
   }
 
   const formatStatus = (status) => {
-    if (status === 'ack') return 'Acknowledged'
-    return status?.charAt(0).toUpperCase() + status?.slice(1) || 'Unknown'
+    if (status === 'ACKNOWLEDGED') return 'Acknowledged'
+    if (status === 'PENDING') return 'Pending'
+    if (status === 'RESOLVED') return 'Resolved'
+    if (status === 'DISMISSED') return 'Dismissed'
+    return status || 'Unknown'
   }
 
   const getAlertStats = () => {
-    const openAlerts = alerts.filter(a => a.status === 'open').length
-    const criticalAlerts = alerts.filter(a => a.rule?.severity === 'CRITICAL').length
-    const acknowledgedAlerts = alerts.filter(a => a.status === 'ack').length
-    const resolvedAlerts = alerts.filter(a => a.status === 'resolved').length
+    const openAlerts = alerts.filter(a => a.status === 'PENDING').length
+    const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL').length
+    const acknowledgedAlerts = alerts.filter(a => a.status === 'ACKNOWLEDGED').length
+    const resolvedAlerts = alerts.filter(a => a.status === 'RESOLVED').length
 
     return { openAlerts, criticalAlerts, acknowledgedAlerts, resolvedAlerts }
   }
@@ -233,9 +237,9 @@ export default function Alerts() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               >
                 <option value="all">All Statuses</option>
-                <option value="open">Open</option>
-                <option value="ack">Acknowledged</option>
-                <option value="resolved">Resolved</option>
+                <option value="PENDING">Pending</option>
+                <option value="ACKNOWLEDGED">Acknowledged</option>
+                <option value="RESOLVED">Resolved</option>
               </select>
             </div>
             
@@ -246,10 +250,10 @@ export default function Alerts() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               >
                 <option value="all">All Severities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
               </select>
             </div>
           </div>
@@ -274,20 +278,20 @@ export default function Alerts() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
-                        {getSeverityIcon(alert.rule?.severity)}
+                        {getSeverityIcon(alert.severity)}
                         <h3 className="text-xl font-semibold text-gray-900">
                           {alert.rule?.name || 'Alert'}
                         </h3>
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getSeverityColor(alert.rule?.severity)}`}>
-                          {alert.rule?.severity || 'Unknown'}
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getSeverityColor(alert.severity)}`}>
+                          {alert.severity || 'Unknown'}
                         </span>
                         <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(alert.status)}`}>
                           {formatStatus(alert.status)}
                         </span>
                       </div>
-                      
+
                       <p className="text-gray-600 mb-4 text-lg">
-                        {alert.facts?.trigger || 'No description available'}
+                        {alert.message || 'No description available'}
                       </p>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -295,7 +299,7 @@ export default function Alerts() {
                           <UserIcon className="h-4 w-4" />
                           <div>
                             <span className="font-medium">Patient:</span>
-                            <p className="text-sm">{alert.enrollment?.patient?.firstName} {alert.enrollment?.patient?.lastName}</p>
+                            <p className="text-sm">{alert.patient?.firstName} {alert.patient?.lastName}</p>
                           </div>
                         </div>
                         
@@ -319,15 +323,15 @@ export default function Alerts() {
                         
                         <div className="flex items-center space-x-2 text-gray-600">
                           <span className="font-medium">MRN:</span>
-                          <p className="text-sm">{alert.facts?.patientMrn || alert.enrollment?.patient?.mrn}</p>
+                          <p className="text-sm">{alert.patient?.medicalRecordNumber}</p>
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex flex-col space-y-2 ml-6">
-                      {alert.status === 'open' && (
+                      {alert.status === 'PENDING' && (
                         <button
-                          onClick={() => handleStatusChange(alert.id, 'ack')}
+                          onClick={() => handleStatusChange(alert.id, 'ACKNOWLEDGED')}
                           className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-sm font-medium rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
                           disabled={updateAlertMutation.isLoading}
                         >
@@ -335,9 +339,9 @@ export default function Alerts() {
                           Acknowledge
                         </button>
                       )}
-                      {alert.status !== 'resolved' && (
+                      {alert.status !== 'RESOLVED' && alert.status !== 'DISMISSED' && (
                         <button
-                          onClick={() => handleStatusChange(alert.id, 'resolved')}
+                          onClick={() => handleStatusChange(alert.id, 'RESOLVED')}
                           className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
                           disabled={updateAlertMutation.isLoading}
                         >

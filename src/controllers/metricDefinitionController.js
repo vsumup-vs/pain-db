@@ -367,30 +367,44 @@ const createMetricDefinition = async (req, res) => {
   }
 };
 
-// Get all metric definitions with filtering
+// Get all metric definitions with filtering (org-aware)
 const getAllMetricDefinitions = async (req, res) => {
   try {
     const {
       isActive,
       category,
-      valueType,     // Fix: was 'dataType'
+      valueType,
       page = 1,
-      limit = 10,
+      limit = 100,  // Increased default limit
       search
     } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
-    // Build filter conditions
-    const where = {};
+    // Get current organization from auth middleware
+    const currentOrgId = req.user?.currentOrganization || null;
+
+    // Build filter conditions - show standardized + org-specific
+    const where = {
+      OR: [
+        { organizationId: null, isStandardized: true }, // Platform standardized
+        { organizationId: currentOrgId }                 // Org-specific custom
+      ]
+    };
+
+    // Add additional filters
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (category) where.category = category;
-    if (valueType) where.valueType = valueType;  // Fix: was 'dataType'
+    if (valueType) where.valueType = valueType;
     if (search) {
-      where.OR = [
-        { displayName: { contains: search, mode: 'insensitive' } },
-        { key: { contains: search, mode: 'insensitive' } }
+      where.AND = [
+        {
+          OR: [
+            { displayName: { contains: search, mode: 'insensitive' } },
+            { key: { contains: search, mode: 'insensitive' } }
+          ]
+        }
       ];
     }
 
@@ -399,8 +413,17 @@ const getAllMetricDefinitions = async (req, res) => {
         where,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { isStandardized: 'desc' }, // Standardized first
+          { createdAt: 'desc' }
+        ],
         include: {
+          organization: {
+            select: { id: true, name: true }
+          },
+          sourceMetric: {
+            select: { id: true, key: true, displayName: true }
+          },
           _count: {
             select: { observations: true }
           }
@@ -409,13 +432,13 @@ const getAllMetricDefinitions = async (req, res) => {
       prisma.metricDefinition.count({ where })
     ]);
 
-    // Add standardization info to each metric and convert Decimal values to numbers
+    // Add standardization info and convert Decimal values
     const enrichedMetrics = metricDefinitions.map(metric => ({
       ...metric,
-      // Convert Prisma Decimal objects to JavaScript numbers
       scaleMin: metric.scaleMin ? Number(metric.scaleMin.toString()) : null,
       scaleMax: metric.scaleMax ? Number(metric.scaleMax.toString()) : null,
-      isStandardized: !!metric.standardCoding || metric.isStandardized,
+      isStandardized: metric.isStandardized || !!metric.standardCoding,
+      isCustomized: !!metric.organizationId,  // True if org-specific
       category: getCategoryFromKey(metric.key)
     }));
 
@@ -518,6 +541,21 @@ const updateMetricDefinition = async (req, res) => {
 
     // Check if this is a standardized metric
     const isStandardized = !!existingMetric.standardCoding || existingMetric.isStandardized;
+
+    // BLOCK: Prevent direct editing of standardized metrics
+    // User must use the customize endpoint first to create an org-specific copy
+    if (isStandardized && !existingMetric.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot directly edit standardized metrics. Please use the "Customize" feature to create an editable copy for your organization first.',
+        hint: 'Click the "Customize" button to clone this metric for your organization',
+        standardizedMetric: {
+          id: existingMetric.id,
+          key: existingMetric.key,
+          displayName: existingMetric.displayName
+        }
+      });
+    }
     
     // Define which fields can be updated for standardized metrics (only fields that exist in schema)
     const standardizedEditableFields = [
@@ -625,6 +663,20 @@ const deleteMetricDefinition = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Metric definition not found'
+      });
+    }
+
+    // BLOCK: Prevent deletion of standardized metrics
+    const isStandardized = !!existingMetric.standardCoding || existingMetric.isStandardized;
+    if (isStandardized && !existingMetric.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete standardized metrics. These are platform-level resources shared across all organizations.',
+        standardizedMetric: {
+          id: existingMetric.id,
+          key: existingMetric.key,
+          displayName: existingMetric.displayName
+        }
       });
     }
 
@@ -812,6 +864,90 @@ const validateMetricValue = async (req, res) => {
   }
 };
 
+// Customize/Clone a standardized metric for organization
+const customizeMetric = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentOrgId = req.user?.currentOrganization;
+
+    if (!currentOrgId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current organization not found'
+      });
+    }
+
+    // Get the source metric
+    const sourceMetric = await prisma.metricDefinition.findUnique({
+      where: { id }
+    });
+
+    if (!sourceMetric) {
+      return res.status(404).json({
+        success: false,
+        message: 'Metric definition not found'
+      });
+    }
+
+    // Check if already customized by this org
+    const existingCustom = await prisma.metricDefinition.findFirst({
+      where: {
+        organizationId: currentOrgId,
+        sourceMetricId: id
+      }
+    });
+
+    if (existingCustom) {
+      return res.status(400).json({
+        success: false,
+        message: 'This metric has already been customized for your organization',
+        data: existingCustom
+      });
+    }
+
+    // Clone the metric for this organization
+    const customMetric = await prisma.metricDefinition.create({
+      data: {
+        organizationId: currentOrgId,
+        sourceMetricId: id,
+        key: sourceMetric.key,  // Same key, but unique per org
+        displayName: `${sourceMetric.displayName} (Custom)`,
+        description: sourceMetric.description,
+        unit: sourceMetric.unit,
+        valueType: sourceMetric.valueType,
+        category: sourceMetric.category,
+        isStandardized: false,  // No longer standardized
+        scaleMin: sourceMetric.scaleMin,
+        scaleMax: sourceMetric.scaleMax,
+        decimalPrecision: sourceMetric.decimalPrecision,
+        options: sourceMetric.options,
+        normalRange: sourceMetric.normalRange,
+        standardCoding: sourceMetric.standardCoding,  // Preserve coding reference
+        validationInfo: sourceMetric.validationInfo
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Metric customized for your organization. You can now edit it.',
+      data: {
+        ...customMetric,
+        scaleMin: customMetric.scaleMin ? Number(customMetric.scaleMin.toString()) : null,
+        scaleMax: customMetric.scaleMax ? Number(customMetric.scaleMax.toString()) : null,
+        isCustomized: true,
+        category: getCategoryFromKey(customMetric.key)
+      }
+    });
+  } catch (error) {
+    console.error('Error customizing metric:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   createMetricDefinition,
   getAllMetricDefinitions,
@@ -820,7 +956,8 @@ module.exports = {
   deleteMetricDefinition,
   getMetricDefinitionStats,
   validateMetricValue,
-  // New functions for standardized templates
+  customizeMetric,  // New customize endpoint
+  // Functions for standardized templates
   getStandardizedTemplates,
   createFromTemplate,
   getTemplateDetails

@@ -65,32 +65,34 @@ function requirePermission(permission) {
   return async (req, res, next) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: 'Authentication required',
           code: 'AUTH_REQUIRED'
         });
       }
 
-      const hasPermission = await rbacService.hasPermission(
-        req.user.userId,
-        permission,
-        req.user.currentOrganization
-      );
+      // Get user's permissions from JWT token
+      const userPermissions = req.user.permissions || [];
+
+      // Check if user has the required permission or SYSTEM_ADMIN (which grants all permissions)
+      const hasPermission = rbacService.hasPermission(userPermissions, permission);
 
       if (!hasPermission) {
         await auditService.log({
           action: 'ACCESS_DENIED',
           userId: req.user.userId,
           organizationId: req.user.currentOrganization,
-          metadata: { 
+          metadata: {
             permission,
             endpoint: req.path,
-            method: req.method
+            method: req.method,
+            userPermissions
           },
-          ipAddress: req.ip
+          ipAddress: req.ip,
+          hipaaRelevant: false
         });
 
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Insufficient permissions',
           code: 'PERMISSION_DENIED',
           required: permission
@@ -100,7 +102,7 @@ function requirePermission(permission) {
       next();
     } catch (error) {
       console.error('Permission check error:', error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Permission verification failed',
         code: 'PERMISSION_CHECK_ERROR'
       });
@@ -115,7 +117,7 @@ function requireProgramAccess(programId = null) {
   return async (req, res, next) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: 'Authentication required',
           code: 'AUTH_REQUIRED'
         });
@@ -123,33 +125,32 @@ function requireProgramAccess(programId = null) {
 
       // Use programId from parameter or request body/params
       const targetProgramId = programId || req.body.programId || req.params.programId;
-      
+
       if (!targetProgramId) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Program ID required',
           code: 'PROGRAM_ID_MISSING'
         });
       }
 
-      const hasAccess = await rbacService.hasProgramAccess(
-        req.user.userId,
-        targetProgramId,
-        req.user.currentOrganization
-      );
+      // Check if user has program access (from JWT token)
+      const programAccess = req.user.programAccess || [];
+      const hasAccess = programAccess.includes(targetProgramId) || req.user.isPlatformAdmin;
 
       if (!hasAccess) {
         await auditService.log({
           action: 'PROGRAM_ACCESS_DENIED',
           userId: req.user.userId,
           organizationId: req.user.currentOrganization,
-          metadata: { 
+          metadata: {
             programId: targetProgramId,
             endpoint: req.path
           },
-          ipAddress: req.ip
+          ipAddress: req.ip,
+          hipaaRelevant: true
         });
 
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Program access denied',
           code: 'PROGRAM_ACCESS_DENIED',
           programId: targetProgramId
@@ -160,7 +161,7 @@ function requireProgramAccess(programId = null) {
       next();
     } catch (error) {
       console.error('Program access check error:', error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Program access verification failed',
         code: 'PROGRAM_ACCESS_ERROR'
       });
@@ -175,31 +176,31 @@ function requireRole(role) {
   return async (req, res, next) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: 'Authentication required',
           code: 'AUTH_REQUIRED'
         });
       }
 
-      const hasRole = await rbacService.hasRole(
-        req.user.userId,
-        role,
-        req.user.currentOrganization
-      );
+      // Check if user has the required role (from JWT token)
+      const userRole = req.user.role;
+      const hasRole = userRole === role || req.user.isPlatformAdmin; // Platform admin has access to everything
 
       if (!hasRole) {
         await auditService.log({
           action: 'ROLE_ACCESS_DENIED',
           userId: req.user.userId,
           organizationId: req.user.currentOrganization,
-          metadata: { 
+          metadata: {
             requiredRole: role,
+            userRole,
             endpoint: req.path
           },
-          ipAddress: req.ip
+          ipAddress: req.ip,
+          hipaaRelevant: false
         });
 
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Role access denied',
           code: 'ROLE_ACCESS_DENIED',
           required: role
@@ -209,7 +210,7 @@ function requireRole(role) {
       next();
     } catch (error) {
       console.error('Role check error:', error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Role verification failed',
         code: 'ROLE_CHECK_ERROR'
       });

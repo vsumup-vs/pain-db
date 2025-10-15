@@ -18,21 +18,51 @@ const getAllAlertRules = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
-    // Build where clause
-    const where = {};
+    // Get current organization from auth middleware
+    const currentOrgId = req.user?.currentOrganization || null;
+
+    // Build where clause with org-aware filtering
+    const where = {
+      AND: [
+        // Show standardized rules + org-specific rules
+        {
+          OR: [
+            { organizationId: null, isStandardized: true }, // Platform standardized
+            { organizationId: currentOrgId }                 // Org-specific custom
+          ]
+        }
+      ]
+    };
+
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } }
-      ];
+      where.AND.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } }
+        ]
+      });
     }
+
     if (severity) {
-      where.severity = severity.toLowerCase();
+      where.AND.push({ severity: severity.toLowerCase() });
     }
 
     const [rules, total] = await Promise.all([
       prisma.alertRule.findMany({
         where,
         include: {
+          organization: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          sourceRule: {
+            select: {
+              id: true,
+              name: true,
+              isStandardized: true
+            }
+          },
           conditionPresets: {
             include: {
               conditionPreset: {
@@ -56,9 +86,15 @@ const getAllAlertRules = async (req, res) => {
       prisma.alertRule.count({ where })
     ]);
 
+    // Enrich with computed fields
+    const enrichedRules = rules.map(rule => ({
+      ...rule,
+      isCustomized: !!rule.organizationId // True if org-specific
+    }));
+
     res.json({
       success: true,
-      data: rules,
+      data: enrichedRules,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -229,6 +265,19 @@ const updateAlertRule = async (req, res) => {
       });
     }
 
+    // BLOCK: Prevent direct editing of standardized rules
+    if (existingRule.isStandardized && !existingRule.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot directly edit standardized alert rules. Please use the "Customize" feature to create an editable copy for your organization first.',
+        hint: 'Click the "Customize" button to clone this rule for your organization',
+        standardizedRule: {
+          id: existingRule.id,
+          name: existingRule.name
+        }
+      });
+    }
+
     // Validate severity if provided
     if (severity) {
       const validSeverities = ['low', 'medium', 'high', 'critical'];
@@ -316,6 +365,18 @@ const deleteAlertRule = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Alert rule not found'
+      });
+    }
+
+    // BLOCK: Prevent deletion of standardized rules
+    if (existingRule.isStandardized && !existingRule.organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot delete standardized alert rules. These are platform-level resources shared across all organizations.',
+        standardizedRule: {
+          id: existingRule.id,
+          name: existingRule.name
+        }
       });
     }
 
@@ -810,6 +871,106 @@ const getAlertRuleStats = async (req, res) => {
   }
 };
 
+// Customize/clone a standardized rule for organization
+const customizeRule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentOrgId = req.user?.currentOrganization;
+
+    if (!currentOrgId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization context required for customization'
+      });
+    }
+
+    // Get the source rule
+    const sourceRule = await prisma.alertRule.findUnique({
+      where: { id }
+    });
+
+    if (!sourceRule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alert rule not found'
+      });
+    }
+
+    // Check if rule is customizable (must be standardized or belong to this org)
+    if (sourceRule.organizationId && sourceRule.organizationId !== currentOrgId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot customize rules from other organizations'
+      });
+    }
+
+    // Check if already customized by this organization
+    const existingCustom = await prisma.alertRule.findFirst({
+      where: {
+        organizationId: currentOrgId,
+        sourceRuleId: id
+      }
+    });
+
+    if (existingCustom) {
+      return res.status(400).json({
+        success: false,
+        message: 'This rule has already been customized for your organization',
+        data: existingCustom
+      });
+    }
+
+    // Clone the rule for this organization
+    const customRule = await prisma.alertRule.create({
+      data: {
+        organizationId: currentOrgId,
+        sourceRuleId: id,
+        name: sourceRule.name, // Same name, unique per org
+        description: sourceRule.description,
+        conditions: sourceRule.conditions,
+        actions: sourceRule.actions,
+        category: sourceRule.category,
+        severity: sourceRule.severity,
+        priority: sourceRule.priority,
+        isStandardized: false, // Custom versions are not standardized
+        standardCoding: sourceRule.standardCoding,
+        clinicalEvidence: sourceRule.clinicalEvidence
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true }
+        },
+        sourceRule: {
+          select: { id: true, name: true, isStandardized: true }
+        },
+        conditionPresets: {
+          include: {
+            conditionPreset: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: customRule,
+      message: 'Alert rule customized successfully. You can now modify it for your organization.'
+    });
+  } catch (error) {
+    console.error('Error customizing alert rule:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while customizing alert rule',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllAlertRules,
   getAlertRuleById,
@@ -817,5 +978,6 @@ module.exports = {
   updateAlertRule,
   deleteAlertRule,
   getRuleTemplates,
-  getAlertRuleStats
+  getAlertRuleStats,
+  customizeRule
 };

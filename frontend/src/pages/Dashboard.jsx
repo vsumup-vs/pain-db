@@ -118,7 +118,7 @@ export default function Dashboard() {
   const cliniciansStats = cliniciansStatsResponse?.data || {}
   const alertsStats = alertsStatsResponse?.data || {}
   const recentPatients = recentPatientsResponse?.data || []
-  const recentAlerts = recentAlertsResponse?.alerts || []
+  const recentAlerts = recentAlertsResponse?.data?.alerts || []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -237,7 +237,7 @@ export default function Dashboard() {
             title="Recent Alerts"
             viewAllLink="/alerts"
             icon={ExclamationTriangleIcon}
-            count={recentAlerts.filter(a => a.status === 'open').length}
+            count={recentAlerts.filter(a => a.status === 'PENDING').length}
           >
             {recentAlertsLoading ? (
               <div className="space-y-3">
@@ -264,8 +264,8 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
                         <div className={`h-2 w-2 rounded-full ${
-                          alert.status === 'open' ? 'bg-red-500' :
-                          alert.status === 'ack' ? 'bg-yellow-500' :
+                          alert.status === 'PENDING' ? 'bg-red-500' :
+                          alert.status === 'ACKNOWLEDGED' ? 'bg-yellow-500' :
                           'bg-green-500'
                         }`}></div>
                         <p className="font-semibold text-gray-900">
@@ -273,30 +273,30 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <p className="text-sm text-gray-600 mb-2">
-                        Patient: {alert.enrollment?.patient?.firstName} {alert.enrollment?.patient?.lastName}
+                        Patient: {alert.patient?.firstName} {alert.patient?.lastName}
                       </p>
                       <div className="flex items-center space-x-2">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          alert.rule?.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
-                          alert.rule?.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
-                          alert.rule?.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                          alert.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                          alert.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                          alert.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-green-100 text-green-800'
                         }`}>
-                          {alert.rule?.severity || 'UNKNOWN'}
+                          {alert.severity || 'UNKNOWN'}
                         </span>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          alert.status === 'open' ? 'bg-red-100 text-red-800' :
-                          alert.status === 'ack' ? 'bg-yellow-100 text-yellow-800' :
+                          alert.status === 'PENDING' ? 'bg-red-100 text-red-800' :
+                          alert.status === 'ACKNOWLEDGED' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-green-100 text-green-800'
                         }`}>
-                          {alert.status === 'ack' ? 'ACKNOWLEDGED' : alert.status?.toUpperCase()}
+                          {alert.status}
                         </span>
                       </div>
                     </div>
                     <div className="text-right ml-4">
                       <div className="flex items-center space-x-1 text-sm text-gray-500">
                         <ClockIcon className="h-4 w-4" />
-                        <span>{new Date(alert.createdAt).toLocaleDateString()}</span>
+                        <span>{new Date(alert.triggeredAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>

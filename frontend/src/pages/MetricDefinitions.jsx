@@ -63,9 +63,11 @@ export default function MetricDefinitions() {
     createMetric,
     updateMetric,
     deleteMetric,
+    customizeMetric,
     isCreating,
     isUpdating,
-    isDeleting
+    isDeleting,
+    isCustomizing
   } = useMetricDefinitions()
 
   const {
@@ -134,6 +136,16 @@ export default function MetricDefinitions() {
         await deleteMetric(metric.id)
       } catch (error) {
         console.error('Error deleting metric:', error)
+      }
+    }
+  }
+
+  const handleCustomize = async (metric) => {
+    if (window.confirm(`Create a customizable copy of "${metric.displayName || metric.key}" for your organization?`)) {
+      try {
+        await customizeMetric(metric.id)
+      } catch (error) {
+        console.error('Error customizing metric:', error)
       }
     }
   }
@@ -236,6 +248,7 @@ export default function MetricDefinitions() {
           metrics={filteredMetrics}
           onEdit={openEditModal}
           onDelete={handleDelete}
+          onCustomize={handleCustomize}
           onCreateFirst={openCreateModal}
         />
       ) : (
@@ -243,6 +256,7 @@ export default function MetricDefinitions() {
           metrics={filteredMetrics}
           onEdit={openEditModal}
           onDelete={handleDelete}
+          onCustomize={handleCustomize}
           onCreateFirst={openCreateModal}
         />
       )}
