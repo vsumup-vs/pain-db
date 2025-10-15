@@ -33,31 +33,161 @@ The following features have been implemented:
 - [x] **Bulk Operations** - CSV import/export for enrollments with BulkEnrollmentUpload component `Completed`
 - [x] **Comprehensive Testing** - Jest backend tests, Vitest frontend tests, Playwright E2E tests with coverage reporting `Completed`
 
-## Phase 1: Clinical Workflow Stabilization (Current - Q4 2025)
+## Phase 1: Clinical Workflow Optimization & Stabilization (Current - Q4 2025)
 
-**Goal:** Stabilize core clinical workflows, complete authentication testing, and prepare for pilot clinic deployment
-**Success Criteria:** All clinical review workflows functional, authentication system fully tested, initial pilot clinic ready for onboarding
+**Goal:** Transform ClinMetrics Pro into a complete workflow optimizer by adding operational efficiency features, stabilize core clinical workflows, and prepare for pilot clinic deployment
+**Success Criteria:** Care managers can triage, document, and resolve alerts in <20 minutes; billing readiness >90%; authentication system fully tested; pilot clinic ready for onboarding
+**Estimated Timeline:** 8-10 weeks (split into Phase 1a and 1b)
 
-### Must-Have Features
+---
 
-- [ ] **Authentication System Verification** - Complete testing of registration, login, social auth, MFA, password reset flows on feature/auth-testing branch `M`
-- [ ] **Daily Clinical Review Dashboard** - Comprehensive dashboard for clinicians to review patient status, pending assessments, active alerts, recent observations `M`
-- [ ] **Bulk Configuration Tools** - Enable rapid program setup with bulk import of condition presets, assessment templates, alert rules, metric definitions `L`
-- [ ] **Enhanced Notification System** - Email notifications for alerts, assessment reminders, enrollment changes using Nodemailer with customizable templates `M`
-- [ ] **Scheduled Reminder Generation** - Automated assessment reminders based on program frequency requirements using node-cron scheduler `M`
-- [ ] **Standards Traceability UI** - Interface to view and manage linkage between condition presets/metrics/templates and authoritative standards sources `L`
+### Phase 1a: Workflow Optimizer Features (Priority: P0 - 6 weeks)
 
-### Should-Have Features
+**Rationale:** These features transform ClinMetrics Pro from a "monitoring platform" to a "workflow optimizer" by adding operational efficiency tools that drive care manager productivity. Based on RPM Workflow Optimizer analysis showing 40-50% reduction in alert resolution time.
 
-- [ ] **Clinician Workflow Analytics** - Time spent per patient, assessment completion rates, alert response times for workflow optimization `M`
-- [ ] **Patient Engagement Metrics** - Track assessment adherence, medication adherence trends, observation submission patterns `M`
-- [ ] **Advanced Search & Filtering** - Global search across patients, observations, assessments with saved filter presets `S`
+#### Must-Have Workflow Features
+
+- [ ] **Prioritized Triage Queue with Risk Scoring** - Single, unified queue with risk-based prioritization (0-10 risk score), color-coded alerts (Critical/High/Medium/Low), patient claiming to prevent collisions, SLA breach indicators `XL` (8-10 days)
+  - Risk algorithm: `(vitals_deviation * 0.5) + (trend_velocity * 0.3) + (adherence_penalty * 0.2) * alert_severity_multiplier`
+  - Update Alert model: add `riskScore`, `priorityRank`, `slaBreachTime`, `claimedById`, `claimedAt`
+  - Frontend: new TriageQueue.jsx component with filterable, sortable queue
+  - **Success Metric**: Median alert resolution time <20 minutes (vs current ~30 min baseline)
+
+- [ ] **Task Management System** - Comprehensive task tracking with assignments, due dates, priorities, and status workflows (Pending, In Progress, Completed, Cancelled) `L` (6-8 days)
+  - New Task model: taskType (FOLLOW_UP_CALL, MED_REVIEW, ADHERENCE_CHECK, LAB_ORDER, REFERRAL, CUSTOM), assignedTo, dueDate, priority, linkedAlert, linkedAssessment
+  - Frontend: new Tasks.jsx page with filters (my tasks, due today, overdue), bulk actions (assign, complete, reschedule)
+  - Integration: auto-create tasks from alert resolution (e.g., "Follow up in 3 days")
+  - **Success Metric**: >80% of follow-up actions tracked as tasks (vs current 0%)
+
+- [ ] **Patient Context Panel** - Unified right-side drawer with comprehensive patient info (vitals trends 7/30/90 days, active meds with adherence %, conditions, recent assessments, contact info, device status) `M` (5-6 days)
+  - New backend endpoint: GET /api/patients/:id/context (consolidated query)
+  - Frontend: PatientContextPanel.jsx component (drawer or modal)
+  - Features: inline trend charts, medication adherence %, last reading timestamp, click-to-call contact
+  - **Success Metric**: Reduce clicks-to-context from ~5 (current) to 1
+
+- [ ] **Smart Documentation Templates & Encounter Notes** - Auto-populated encounter notes with vitals snapshot, assessment summary, editable clinical fields (subjective, objective, assessment, plan), physician attestation workflow `M` (4-5 days)
+  - New EncounterNote model: encounterType (RPM, RTM, CCM, TCM, GENERAL), autoPopulated fields (vitalsSnapshot, assessmentSummary), clinician-editable fields, attestation (attestedBy, attestedAt, isLocked)
+  - Template generation: auto-fill from alert context, recent vitals, assessment scores
+  - Frontend: EncounterNoteEditor.jsx with inline editing, autosave drafts, "Finalize & Lock" button
+  - **Success Metric**: Documentation time reduced by 50% (from ~10 min to ~5 min per encounter)
+
+- [ ] **Monthly Billing Readiness Dashboard** - Compliance tracking dashboard showing which patients meet CMS billing requirements (CCM: 20+ min, RPM: 16+ days readings, RTM: 20+ min + 16+ days) with exportable billing packages `S` (3-4 days)
+  - Backend: calculateBillingReadiness() function analyzing TimeLog and Observation data
+  - Frontend: BillingReadiness.jsx with month/year selector, patient eligibility table (🟢 Eligible, 🟡 Close, 🔴 Not Eligible), CSV export
+  - **Success Metric**: >95% billing package readiness by month 3 (vs current manual process)
+
+#### Must-Have Supporting Features
+
+- [ ] **Alert Evaluation Engine (Active Monitoring)** - Background service that evaluates new observations against alert rules and triggers alerts automatically `XL` (8-12 days - can run in parallel with workflow features)
+  - New alertEvaluationService.js: evaluateObservation(), evaluateConditions(), executeActions(), checkCooldown()
+  - Hook into observationController.js: trigger evaluation on new observation creation
+  - Scheduled jobs: hourly missed assessment checks, 6-hour medication adherence checks, daily trend evaluation
+  - **Success Metric**: 100% of threshold breaches trigger alerts automatically (vs current 0% - manual only)
+  - **Note**: See /docs/clinical-monitoring-gap-analysis.md for full specification
+
+- [ ] **Auto-Start/Stop Time Tracking** - Timers automatically start when engaging with patient (alert click, task start) and stop on disposition with optional manual adjustments `S` (2-3 days)
+  - Update TimeLog model: add `autoStarted`, `source` (AUTO, MANUAL, ADJUSTED)
+  - Frontend: timer widget in Patient Context Panel, prominent timer display, "Stop & Document" button
+  - **Success Metric**: >90% of clinical time captured automatically (vs current manual entry)
+
+---
+
+### Phase 1b: Clinical Stabilization & Polish (2-3 weeks)
+
+**Focus:** Complete authentication testing, add supporting features, prepare for pilot deployment
+
+#### Must-Have Features
+
+- [ ] **Authentication System Verification** - Complete testing of registration, login, social auth, MFA, password reset flows on feature/auth-testing branch `M` (3-4 days)
+- [ ] **Enhanced Notification System** - Email notifications for alerts, assessment reminders, enrollment changes using Nodemailer with customizable templates `M` (3-4 days)
+  - Alert notifications with severity-based channels (LOW: in-app, MEDIUM: email, HIGH: email+SMS, CRITICAL: email+SMS+phone)
+  - Escalation notifications if alert not acknowledged within SLA
+- [ ] **Scheduled Reminder Generation** - Automated assessment reminders based on program frequency requirements using node-cron scheduler `S` (2 days)
+- [ ] **Real-Time Alert Updates** - WebSocket or Server-Sent Events (SSE) for instant alert delivery to clinician dashboard (no page refresh) `M` (3-4 days)
+  - Optional but high-value: reduces perceived latency, improves UX
+
+#### Should-Have Features
+
+- [ ] **Alert Snooze & Suppress with Reason Codes** - Allow care managers to temporarily snooze non-actionable alerts or suppress repeated alerts with documented reason `S` (2-3 days)
+  - Update Alert model: add `snoozedUntil`, `suppressReason`, `suppressedBy`
+- [ ] **SLA Timers & Escalation Logic** - Track time-to-acknowledge and time-to-resolve with automatic escalation if SLAs breached `M` (3-4 days)
+  - Alert model already has `slaBreachTime` from triage queue work
+  - Add escalation job: notify supervisor if alert unacknowledged >2 hours (configurable per severity)
+- [ ] **Bulk Alert Actions** - Multi-select alerts for bulk acknowledge, resolve, snooze, assign (restricted to coordinators) `S` (2 days)
+- [ ] **Clinician Workflow Analytics** - Dashboard showing time per patient, alerts resolved per day, average resolution time, task completion rate `M` (3-4 days)
+- [ ] **Patient Engagement Metrics** - Track assessment adherence %, medication adherence trends, observation submission patterns with intervention triggers `S` (2-3 days)
+
+#### Nice-to-Have (Defer to Phase 2 if time-constrained)
+
+- [ ] **Saved Views & Filters** - Allow users to save custom patient lists/filters (e.g., "AM Hypertension Round", "High-Risk Diabetics") `S` (2 days)
+- [ ] **Daily Wrap-Up Report** - End-of-day email summary (alerts handled, resolution times, patients needing follow-up tomorrow) `S` (2 days)
+- [ ] **Standards Traceability UI** - Interface to view and manage linkage between condition presets/metrics/templates and authoritative standards sources `M` (3-4 days)
+- [ ] **Bulk Configuration Tools** - Enable rapid program setup with bulk import of condition presets, assessment templates, alert rules, metric definitions `L` (5-6 days)
+
+---
+
+### Phase 1 Success Metrics
+
+**Operational Efficiency**:
+- [ ] Median alert resolution time: <20 minutes (target: 40% reduction)
+- [ ] Alerts resolved per care manager per day: +50% increase
+- [ ] Documentation time per encounter: <5 minutes (target: 50% reduction)
+- [ ] Clinical time capture accuracy: >90% auto-tracked
+
+**Billing Compliance**:
+- [ ] Monthly billing readiness: >90% of active patients eligible by month 3
+- [ ] CMS time requirements met: 100% of logged encounters have supporting documentation
+
+**Clinical Monitoring**:
+- [ ] Automatic alert triggering: 100% of threshold breaches detected
+- [ ] Alert evaluation latency: <60 seconds from observation to alert
+- [ ] False positive rate: <10% (measured via "Not Actionable" dismissals)
+
+**User Adoption**:
+- [ ] Weekly active users (WAU): 100% of pilot clinic care managers using triage queue daily
+- [ ] Task management adoption: >80% of follow-ups tracked as tasks
+- [ ] CSAT (Customer Satisfaction): >4.5/5 after 60 days
+
+---
 
 ### Dependencies
 
+**Phase 1a (Workflow Optimizer)**:
+- Product analytics instrumentation (track time-to-resolve, alerts/user/day, documentation time)
+- UX research with pilot clinic care managers (validate triage queue design, task workflows)
+- Risk scoring algorithm validation (clinical advisor review of thresholds and weights)
+
+**Phase 1b (Stabilization)**:
 - Complete authentication testing on feature/auth-testing branch
 - Finalize condition preset library with validated clinical standards
 - Establish initial alert rule library based on clinical evidence
+- Pilot clinic identified and onboarding plan finalized
+
+---
+
+### Phase 1 Timeline & Resourcing
+
+**Team**: 2 people (1 Full-Stack Engineer + 1 PM/Designer)
+
+**Phase 1a (Workflow Optimizer)**: 6 weeks
+- Week 1-2: Prioritized triage queue + risk scoring (parallel: Task model design)
+- Week 3: Task management system backend + frontend
+- Week 4: Patient context panel + encounter notes model
+- Week 5: Smart documentation templates + billing dashboard
+- Week 6: Alert evaluation engine (can start Week 1 if second engineer available)
+
+**Phase 1b (Stabilization)**: 2-3 weeks
+- Week 7: Authentication testing + enhanced notifications
+- Week 8: Real-time updates (WebSocket/SSE) + SLA escalation
+- Week 9: Analytics dashboards + usability testing with pilot clinic
+
+**Total**: 8-9 weeks to pilot-ready platform
+
+**Parallel Work Opportunities**:
+- PM/Designer: UX research, wireframes, clinical workflows (Weeks 1-3)
+- Engineer: Backend data models and APIs (Weeks 1-6)
+- PM/Designer: Frontend UI implementation support (Weeks 4-9)
+- Engineer: Alert evaluation engine (can run parallel to workflow features, Weeks 1-6)
 
 ## Phase 2: Pilot Deployment & Compliance Infrastructure (Q1 2026)
 
