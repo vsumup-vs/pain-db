@@ -7,6 +7,8 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import PlatformDashboard from './pages/PlatformDashboard'
+import Profile from './pages/Profile'
 import AssessmentTemplatesEnhanced from './pages/AssessmentTemplatesEnhanced'
 import Patients from './pages/Patients'
 import Clinicians from './pages/Clinicians'
@@ -14,6 +16,8 @@ import ConditionPresets from './pages/ConditionPresets'
 import MetricDefinitions from './pages/MetricDefinitions'
 import Observations from './pages/Observations'
 import Alerts from './pages/Alerts'
+import TriageQueue from './pages/TriageQueue'
+import Tasks from './pages/Tasks'
 import AlertRules from './pages/AlertRules'
 import Enrollments from './pages/Enrollments'
 import EnrollmentDetails from './pages/EnrollmentDetails'
@@ -70,6 +74,38 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
+// Conditional Dashboard component - shows different dashboard based on role
+const DashboardRouter = () => {
+  const [userRole, setUserRole] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const user = await api.getCurrentUserProfile()
+        const isPlatformAdmin = user.isPlatformAdmin || false
+        setUserRole(isPlatformAdmin ? 'PLATFORM_ADMIN' : 'USER')
+      } catch (error) {
+        console.error('Error fetching user role:', error)
+        setUserRole('USER')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchUserRole()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  return userRole === 'PLATFORM_ADMIN' ? <PlatformDashboard /> : <Dashboard />
+}
+
 function App() {
   return (
     <>
@@ -80,7 +116,8 @@ function App() {
           <ProtectedRoute>
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<DashboardRouter />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="/patients" element={<Patients />} />
                 <Route path="/clinicians" element={<Clinicians />} />
                 <Route path="/condition-presets" element={<ConditionPresets />} />
@@ -88,6 +125,8 @@ function App() {
                 <Route path="/assessment-templates" element={<AssessmentTemplatesEnhanced />} />
                 <Route path="/observations" element={<Observations />} />
                 <Route path="/alerts" element={<Alerts />} />
+                <Route path="/triage-queue" element={<TriageQueue />} />
+                <Route path="/tasks" element={<Tasks />} />
                 <Route path="/alert-rules" element={<AlertRules />} />
                 <Route path="/enrollments" element={<Enrollments />} />
                 <Route path="/enrollments/:id" element={<EnrollmentDetails />} />

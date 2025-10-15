@@ -37,6 +37,7 @@ const drugRoutes = require('./src/routes/drugRoutes');
 const patientMedicationRoutes = require('./src/routes/patientMedicationRoutes');
 const continuityRoutes = require('./src/routes/continuityRoutes');
 const organizationRoutes = require('./src/routes/organizationRoutes');
+const taskRoutes = require('./src/routes/taskRoutes');
 
 // Import authentication
 const passport = require('passport');
@@ -100,6 +101,7 @@ app.get('/api', (req, res) => {
       'assessment-templates': '/api/assessment-templates',
       observations: '/api/observations',
       alerts: '/api/alerts',
+      tasks: '/api/tasks',
       'alert-rules': '/api/alert-rules',
       'condition-presets': '/api/condition-presets',
       drugs: '/api/drugs',
@@ -111,21 +113,27 @@ app.get('/api', (req, res) => {
 // SECURITY: Apply authentication and organization context to all protected routes
 // This ensures all API endpoints have:
 // 1. Valid authentication (requireAuth)
-// 2. Organization context validation (injectOrganizationContext)
+// 2. Organization context validation (injectOrganizationContext) - for organization-specific resources
 // 3. Audit logging for security events (auditOrganizationAccess)
+
+// Organization-specific routes (require organization context)
 app.use('/api/patients', requireAuth, injectOrganizationContext, auditOrganizationAccess, patientRoutes);
 app.use('/api/clinicians', requireAuth, injectOrganizationContext, auditOrganizationAccess, clinicianRoutes);
 app.use('/api/enrollments', requireAuth, injectOrganizationContext, auditOrganizationAccess, enrollmentRoutes);
-app.use('/api/metric-definitions', requireAuth, injectOrganizationContext, auditOrganizationAccess, metricDefinitionRoutes);
-app.use('/api/assessment-templates-v2', requireAuth, injectOrganizationContext, auditOrganizationAccess, assessmentTemplateEnhancedRoutes);
-app.use('/api/assessment-templates', requireAuth, injectOrganizationContext, auditOrganizationAccess, assessmentTemplateRoutes);
 app.use('/api/observations', requireAuth, injectOrganizationContext, auditOrganizationAccess, observationRoutes);
 app.use('/api/alerts', requireAuth, injectOrganizationContext, auditOrganizationAccess, alertRoutes);
-app.use('/api/alert-rules', requireAuth, injectOrganizationContext, auditOrganizationAccess, alertRuleRoutes);
-app.use('/api/condition-presets', requireAuth, injectOrganizationContext, auditOrganizationAccess, conditionPresetRoutes);
+app.use('/api/tasks', requireAuth, injectOrganizationContext, auditOrganizationAccess, taskRoutes);
 app.use('/api/drugs', requireAuth, injectOrganizationContext, auditOrganizationAccess, drugRoutes);
 app.use('/api/patient-medications', requireAuth, injectOrganizationContext, auditOrganizationAccess, patientMedicationRoutes);
 app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganizationAccess, continuityRoutes);
+
+// Platform configuration routes (platform-wide resources, no organization context needed)
+// These are managed by SUPER_ADMIN and available to all organizations
+app.use('/api/metric-definitions', requireAuth, metricDefinitionRoutes);
+app.use('/api/assessment-templates-v2', requireAuth, assessmentTemplateEnhancedRoutes);
+app.use('/api/assessment-templates', requireAuth, assessmentTemplateRoutes);
+app.use('/api/alert-rules', requireAuth, alertRuleRoutes);
+app.use('/api/condition-presets', requireAuth, conditionPresetRoutes);
 
 // Admin routes (SUPER_ADMIN and ORG_ADMIN)
 // Note: Organizations don't need organization context middleware since they manage organizations themselves
