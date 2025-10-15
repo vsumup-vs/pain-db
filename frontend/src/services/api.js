@@ -75,14 +75,15 @@ export const api = {
   getSpecializations: () => apiClient.get('/clinicians/specializations'),
 
   // Metric Definitions
-  getMetricDefinitions: (params = {}) => apiClient.get('/metric-definitions', { 
-    params: { limit: 100, ...params } 
+  getMetricDefinitions: (params = {}) => apiClient.get('/metric-definitions', {
+    params: { limit: 100, ...params }
   }),
   getMetricDefinition: (id) => apiClient.get(`/metric-definitions/${id}`),
   createMetricDefinition: (data) => apiClient.post('/metric-definitions', data),
   updateMetricDefinition: (id, data) => apiClient.put(`/metric-definitions/${id}`, data),
   deleteMetricDefinition: (id) => apiClient.delete(`/metric-definitions/${id}`),
   getMetricDefinitionsStats: () => apiClient.get('/metric-definitions/stats'),
+  customizeMetricDefinition: (id) => apiClient.post(`/metric-definitions/${id}/customize`),
 
   // Assessment Templates
   getAssessmentTemplates: (params) => apiClient.get('/assessment-templates', { params }),
@@ -90,6 +91,7 @@ export const api = {
   createAssessmentTemplate: (data) => apiClient.post('/assessment-templates', data),
   updateAssessmentTemplate: (id, data) => apiClient.put(`/assessment-templates/${id}`, data),
   deleteAssessmentTemplate: (id) => apiClient.delete(`/assessment-templates/${id}`),
+  customizeAssessmentTemplate: (id) => apiClient.post(`/assessment-templates/${id}/customize`),
 
   // Enhanced Assessment Templates (v2 with standardization support)
   // Assessment Templates
@@ -106,6 +108,7 @@ export const api = {
   updateConditionPreset: (id, data) => apiClient.put(`/condition-presets/${id}`, data),
   deleteConditionPreset: (id) => apiClient.delete(`/condition-presets/${id}`),
   getConditionPresetsStats: () => apiClient.get('/condition-presets/stats'),
+  customizeConditionPreset: (id) => apiClient.post(`/condition-presets/${id}/customize`),
 
   // Alert Rules
   getAlertRules: (params) => apiClient.get('/alert-rules', { params }),
@@ -115,6 +118,7 @@ export const api = {
   deleteAlertRule: (id) => apiClient.delete(`/alert-rules/${id}`),
   getAlertRuleStats: () => apiClient.get('/alert-rules/stats'),
   getAlertRuleTemplates: () => apiClient.get('/alert-rules/templates'),
+  customizeAlertRule: (id) => apiClient.post(`/alert-rules/${id}/customize`),
 
   // Observations
   getObservations: (params) => apiClient.get('/observations', { params }),
@@ -140,6 +144,7 @@ export const api = {
   // Admin - Organizations (SUPER_ADMIN only)
   getOrganizations: (params) => apiClient.get('/organizations', { params }),
   getOrganization: (id) => apiClient.get(`/organizations/${id}`),
+  getPlatformUsageStats: () => apiClient.get('/organizations/platform-usage'),
   createOrganization: (data) => apiClient.post('/organizations', data),
   updateOrganization: (id, data) => apiClient.put(`/organizations/${id}`, data),
   deleteOrganization: (id) => apiClient.delete(`/organizations/${id}`),
@@ -151,7 +156,36 @@ export const api = {
   assignUserRole: (userId, data) => apiClient.post(`/auth/users/${userId}/assign-role`, data),
 
   // Organization Selection
-  selectOrganization: (organizationId) => apiClient.post('/auth/select-organization', { organizationId })
+  selectOrganization: (organizationId) => apiClient.post('/auth/select-organization', { organizationId }),
+  switchOrganization: (organizationId) => apiClient.post('/auth/switch-organization', { organizationId }),
+
+  // Alerts
+  getAlerts: (params) => apiClient.get('/alerts', { params }),
+  getAlert: (id) => apiClient.get(`/alerts/${id}`),
+  createAlert: (data) => apiClient.post('/alerts', data),
+  updateAlert: (id, data) => apiClient.put(`/alerts/${id}`, data),
+  deleteAlert: (id) => apiClient.delete(`/alerts/${id}`),
+  getAlertStats: () => apiClient.get('/alerts/stats'),
+  getRecentAlerts: (params) => apiClient.get('/alerts/recent', { params }),
+  evaluateAlerts: (params) => apiClient.post('/alerts/evaluate', params),
+
+  // Triage Queue (Phase 1a - Workflow Optimizer)
+  getTriageQueue: (params) => apiClient.get('/alerts/triage-queue', { params }),
+  claimAlert: (id) => apiClient.post(`/alerts/${id}/claim`),
+  unclaimAlert: (id) => apiClient.post(`/alerts/${id}/unclaim`),
+  acknowledgeAlert: (id) => apiClient.post(`/alerts/${id}/acknowledge`),
+  resolveAlert: (id, data) => apiClient.post(`/alerts/${id}/resolve`, data),
+
+  // Tasks (Phase 1b - Task Management System)
+  getTasks: (params) => apiClient.get('/tasks', { params }),
+  getTask: (id) => apiClient.get(`/tasks/${id}`),
+  createTask: (data) => apiClient.post('/tasks', data),
+  updateTask: (id, data) => apiClient.put(`/tasks/${id}`, data),
+  completeTask: (id, data) => apiClient.patch(`/tasks/${id}/complete`, data),
+  cancelTask: (id, data) => apiClient.patch(`/tasks/${id}/cancel`, data),
+  bulkAssignTasks: (data) => apiClient.post('/tasks/bulk-assign', data),
+  bulkCompleteTasks: (data) => apiClient.post('/tasks/bulk-complete', data),
+  getTaskStats: (params) => apiClient.get('/tasks/stats', { params })
 }
 
 export default api

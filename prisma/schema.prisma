@@ -52,6 +52,27 @@ enum AlertStatus {
   DISMISSED
 }
 
+enum InterventionType {
+  PHONE_CALL
+  VIDEO_CALL
+  IN_PERSON_VISIT
+  SECURE_MESSAGE
+  MEDICATION_ADJUSTMENT
+  REFERRAL
+  PATIENT_EDUCATION
+  CARE_COORDINATION
+  MEDICATION_RECONCILIATION
+  NO_PATIENT_CONTACT
+}
+
+enum PatientOutcome {
+  IMPROVED
+  STABLE
+  DECLINED
+  NO_CHANGE
+  PATIENT_UNREACHABLE
+}
+
 enum CPTCode {
   CODE_99201
   CODE_99202
@@ -66,7 +87,6 @@ enum CPTCode {
 }
 
 enum UserRole {
-  SUPER_ADMIN
   ORG_ADMIN
   CLINICIAN
   NURSE
@@ -106,6 +126,29 @@ enum ObservationContext {
   PROGRAM_ENROLLMENT
   CLINICAL_MONITORING
   ROUTINE_FOLLOWUP
+}
+
+enum TaskType {
+  FOLLOW_UP_CALL
+  MED_REVIEW
+  ADHERENCE_CHECK
+  LAB_ORDER
+  REFERRAL
+  CUSTOM
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 enum Permission {
@@ -160,6 +203,11 @@ enum Permission {
   MEDICATION_UPDATE
   MEDICATION_DELETE
   MEDICATION_PRESCRIBE
+  TASK_CREATE
+  TASK_READ
+  TASK_UPDATE
+  TASK_DELETE
+  TASK_ASSIGN
   REPORT_READ
   REPORT_CREATE
   ANALYTICS_READ
@@ -172,30 +220,36 @@ enum Permission {
 
 // Authentication Models
 model User {
-  id                    String              @id @default(cuid())
-  email                 String              @unique
-  passwordHash          String?
-  firstName             String?
-  lastName              String?
-  avatar                String?
-  phone                 String?
-  isActive              Boolean             @default(true)
-  emailVerified         DateTime?
-  mfaEnabled            Boolean             @default(false)
-  mfaSecret             String?
-  backupCodes           String[]            @default([])
-  lastLoginAt           DateTime?
-  passwordResetToken    String?             @unique // ENHANCEMENT: Make unique
-  passwordResetExpires  DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String?
+  firstName            String?
+  lastName             String?
+  avatar               String?
+  phone                String?
+  isPlatformAdmin      Boolean   @default(false) // Platform-level administrator
+  isActive             Boolean   @default(true)
+  emailVerified        DateTime?
+  mfaEnabled           Boolean   @default(false)
+  mfaSecret            String?
+  backupCodes          String[]  @default([])
+  lastLoginAt          DateTime?
+  passwordResetToken   String?   @unique // ENHANCEMENT: Make unique
+  passwordResetExpires DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
   // Relationships
-  socialAccounts        SocialAccount[]
-  userOrganizations     UserOrganization[]
-  refreshTokens         RefreshToken[]
-  auditLogs             AuditLog[]
-  
+  socialAccounts    SocialAccount[]
+  userOrganizations UserOrganization[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  claimedAlerts     Alert[]         @relation("ClaimedAlerts")
+  resolvedAlerts    Alert[]         @relation("ResolvedAlerts")
+  tasksAssignedTo   Task[]          @relation("TaskAssignedTo")
+  tasksAssignedBy   Task[]          @relation("TaskAssignedBy")
+  tasksCompleted    Task[]          @relation("TaskCompletedBy")
+
   // ENHANCEMENT: Add indexes for common queries
   @@index([email])
   @@index([isActive])
@@ -204,25 +258,30 @@ model User {
 }
 
 model Organization {
-  id                String              @id @default(cuid())
-  name              String              @unique // ENHANCEMENT: Organization names should be unique
-  type              OrganizationType
-  email             String?             @unique // ENHANCEMENT: Organization emails should be unique
-  phone             String?
-  address           String?
-  website           String?
-  isActive          Boolean             @default(true)
-  settings          Json?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  
+  id        String           @id @default(cuid())
+  name      String           @unique // ENHANCEMENT: Organization names should be unique
+  type      OrganizationType
+  email     String?          @unique // ENHANCEMENT: Organization emails should be unique
+  phone     String?
+  address   String?
+  website   String?
+  isActive  Boolean          @default(true)
+  settings  Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
   // Relationships
-  userOrganizations UserOrganization[]
-  carePrograms      CareProgram[]
-  patients          Patient[]
-  clinicians        Clinician[]
-  enrollments       Enrollment[]
-  
+  userOrganizations   UserOrganization[]
+  carePrograms        CareProgram[]
+  patients            Patient[]
+  clinicians          Clinician[]
+  enrollments         Enrollment[]
+  metricDefinitions   MetricDefinition[]   // Custom metrics for this org
+  assessmentTemplates AssessmentTemplate[] // Custom templates for this org
+  conditionPresets    ConditionPreset[]    // Custom condition presets for this org
+  alertRules          AlertRule[]          // Custom alert rules for this org
+  tasks               Task[]
+
   // ENHANCEMENT: Add indexes
   @@index([name])
   @@index([type])
@@ -238,11 +297,11 @@ model UserOrganization {
   permissions    Permission[]
   isActive       Boolean      @default(true)
   joinedAt       DateTime     @default(now())
-  
+
   // Relationships
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@unique([userId, organizationId])
   @@index([userId])
   @@index([organizationId])
@@ -251,7 +310,7 @@ model UserOrganization {
 }
 
 model SocialAccount {
-  id           String        @id @default(cuid())
+  id           String         @id @default(cuid())
   userId       String
   provider     SocialProvider
   providerId   String
@@ -259,12 +318,12 @@ model SocialAccount {
   accessToken  String?
   refreshToken String?
   expiresAt    DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
   // Relationships
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerId])
   @@index([userId])
   @@map("social_accounts")
@@ -276,10 +335,10 @@ model RefreshToken {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
-  
+
   // Relationships
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
@@ -295,11 +354,11 @@ model CareProgram {
   settings       Json?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
-  
+
   // Relationships
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  enrollments    Enrollment[]
-  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[]
+
   // ENHANCEMENT: Unique program names per organization
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -309,7 +368,7 @@ model CareProgram {
 }
 
 model AuditLog {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   userId         String?
   organizationId String?
   action         String
@@ -320,12 +379,12 @@ model AuditLog {
   oldValues      Json?
   newValues      Json?
   metadata       Json?
-  hipaaRelevant  Boolean   @default(false)
-  createdAt      DateTime  @default(now())
-  
+  hipaaRelevant  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
   // Relationships
-  user           User?     @relation(fields: [userId], references: [id])
-  
+  user User? @relation(fields: [userId], references: [id])
+
   // ENHANCEMENT: Add indexes for audit queries
   @@index([userId])
   @@index([action])
@@ -337,7 +396,7 @@ model AuditLog {
 
 // Core Models
 model Patient {
-  id                  String               @id @default(cuid())
+  id                  String   @id @default(cuid())
   organizationId      String
   firstName           String
   lastName            String
@@ -347,20 +406,21 @@ model Patient {
   phone               String?
   address             String?
   emergencyContact    String?
-  medicalRecordNumber String?              @unique
+  medicalRecordNumber String?  @unique
   insuranceInfo       Json?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
   // Relationships
-  organization        Organization         @relation(fields: [organizationId], references: [id])
-  enrollments         Enrollment[]
-  observations        Observation[]
-  assessments         Assessment[]
-  timeLogs            TimeLog[]
-  alerts              Alert[]
-  patientMedications  PatientMedication[]
-  
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  enrollments        Enrollment[]
+  observations       Observation[]
+  assessments        Assessment[]
+  timeLogs           TimeLog[]
+  alerts             Alert[]
+  patientMedications PatientMedication[]
+  tasks              Task[]
+
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([organizationId, email]) // Unique email per organization
   @@index([organizationId])
@@ -371,29 +431,29 @@ model Patient {
 }
 
 model Clinician {
-  id               String       @id @default(cuid())
+  id               String   @id @default(cuid())
   organizationId   String
   firstName        String
   lastName         String
-  email            String       @unique
+  email            String   @unique
   phone            String?
   address          String?
-  licenseNumber    String?      @unique // ENHANCEMENT: License numbers should be unique
+  licenseNumber    String?  @unique // ENHANCEMENT: License numbers should be unique
   specialization   String?
   department       String?
   credentials      String?
   emergencyContact String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   // Relationships
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  enrollments      Enrollment[]
-  observations     Observation[]
-  assessments      Assessment[]
-  timeLogs         TimeLog[]
-  alerts           Alert[]
-  
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  enrollments  Enrollment[]
+  observations Observation[]
+  assessments  Assessment[]
+  timeLogs     TimeLog[]
+  alerts       Alert[]
+
   // ENHANCEMENT: Add indexes
   @@index([organizationId])
   @@index([firstName, lastName])
@@ -403,26 +463,26 @@ model Clinician {
 }
 
 model Enrollment {
-  id               String           @id @default(cuid())
-  organizationId   String
-  patientId        String
-  clinicianId      String
-  careProgramId    String
+  id                String           @id @default(cuid())
+  organizationId    String
+  patientId         String
+  clinicianId       String
+  careProgramId     String
   conditionPresetId String?
-  status           EnrollmentStatus @default(PENDING)
-  startDate        DateTime
-  endDate          DateTime?
-  notes            String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  
+  status            EnrollmentStatus @default(PENDING)
+  startDate         DateTime
+  endDate           DateTime?
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
   // Relationships
-  organization     Organization     @relation(fields: [organizationId], references: [id])
-  patient          Patient          @relation(fields: [patientId], references: [id])
-  clinician        Clinician        @relation(fields: [clinicianId], references: [id])
-  careProgram      CareProgram      @relation(fields: [careProgramId], references: [id])
-  conditionPreset  ConditionPreset? @relation(fields: [conditionPresetId], references: [id])
-  
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  clinician       Clinician        @relation(fields: [clinicianId], references: [id])
+  careProgram     CareProgram      @relation(fields: [careProgramId], references: [id])
+  conditionPreset ConditionPreset? @relation(fields: [conditionPresetId], references: [id])
+
   // ENHANCEMENT: Prevent duplicate enrollments
   @@unique([patientId, careProgramId, startDate])
   @@index([organizationId])
@@ -434,56 +494,64 @@ model Enrollment {
 }
 
 model MetricDefinition {
-  id                String        @id @default(cuid())
-  key               String        @unique
-  displayName       String        @unique // ENHANCEMENT: Display names should be unique
-  description       String?
-  unit              String?
-  valueType         ValueType
-  category          String?
-  isStandardized    Boolean       @default(false)
-  scaleMin          Decimal?
-  scaleMax          Decimal?
-  decimalPrecision  Int?
-  options           Json?
-  normalRange       Json?
-  standardCoding    Json?
-  validationInfo    Json?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
+  id               String    @id @default(cuid())
+  organizationId   String?   // NULL = platform-level standardized, non-null = org-specific custom
+  sourceMetricId   String?   // Reference to original standardized metric (if cloned)
+  key              String    // No longer globally unique (allow per-org duplicates)
+  displayName      String    // No longer globally unique
+  description      String?
+  unit             String?
+  valueType        ValueType
+  category         String?
+  isStandardized   Boolean   @default(false) // True for platform library items
+  scaleMin         Decimal?
+  scaleMax         Decimal?
+  decimalPrecision Int?
+  options          Json?
+  normalRange      Json?
+  standardCoding   Json?
+  validationInfo   Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
   // Relationships
-  observations      Observation[]
-  templateItems     AssessmentTemplateItem[]
-  
-  // ENHANCEMENT: Add indexes
+  organization     Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceMetric     MetricDefinition?  @relation("MetricClones", fields: [sourceMetricId], references: [id])
+  clonedMetrics    MetricDefinition[] @relation("MetricClones")
+  observations     Observation[]
+  templateItems    AssessmentTemplateItem[]
+
+  // ENHANCEMENT: Unique per organization (or globally if null)
+  @@unique([organizationId, key])
+  @@index([organizationId])
   @@index([key])
   @@index([displayName])
   @@index([category])
   @@index([valueType])
   @@index([isStandardized])
+  @@index([sourceMetricId])
   @@map("metric_definitions")
 }
 
 model Observation {
-  id               String           @id @default(cuid())
-  organizationId   String
-  patientId        String
-  clinicianId      String?
-  metricId         String
-  value            Json
-  unit             String?
-  source           SourceType       @default(MANUAL)
-  context          ObservationContext @default(CLINICAL_MONITORING)
-  notes            String?
-  recordedAt       DateTime         @default(now())
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id             String             @id @default(cuid())
+  organizationId String
+  patientId      String
+  clinicianId    String?
+  metricId       String
+  value          Json
+  unit           String?
+  source         SourceType         @default(MANUAL)
+  context        ObservationContext @default(CLINICAL_MONITORING)
+  notes          String?
+  recordedAt     DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   // Relationships
-  patient          Patient          @relation(fields: [patientId], references: [id])
-  clinician        Clinician?       @relation(fields: [clinicianId], references: [id])
-  metric           MetricDefinition @relation(fields: [metricId], references: [id])
+  patient   Patient          @relation(fields: [patientId], references: [id])
+  clinician Clinician?       @relation(fields: [clinicianId], references: [id])
+  metric    MetricDefinition @relation(fields: [metricId], references: [id])
 
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([patientId, metricId, recordedAt]) // Prevent duplicate observations
@@ -497,48 +565,56 @@ model Observation {
 }
 
 model AssessmentTemplate {
-  id                String       @id @default(cuid())
-  name              String       @unique // ENHANCEMENT: Template names should be unique
-  description       String?
-  questions         Json
-  scoring           Json?
-  isStandardized    Boolean      @default(false)
-  category          String?
-  standardCoding    Json?
-  validationInfo    Json?
-  scoringInfo       Json?
-  copyrightInfo     String?
-  clinicalUse       String?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  
+  id               String   @id @default(cuid())
+  organizationId   String?  // NULL = platform-level standardized, non-null = org-specific custom
+  sourceTemplateId String?  // Reference to original standardized template (if cloned)
+  name             String   // No longer globally unique
+  description      String?
+  questions        Json
+  scoring          Json?
+  isStandardized   Boolean  @default(false) // True for platform library items
+  category         String?
+  standardCoding   Json?
+  validationInfo   Json?
+  scoringInfo      Json?
+  copyrightInfo    String?
+  clinicalUse      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   // Relationships
-  assessments       Assessment[]
+  organization             Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceTemplate           AssessmentTemplate?   @relation("TemplateClones", fields: [sourceTemplateId], references: [id])
+  clonedTemplates          AssessmentTemplate[]  @relation("TemplateClones")
+  assessments              Assessment[]
   conditionPresetTemplates ConditionPresetTemplate[]
-  items             AssessmentTemplateItem[]
-  
-  // ENHANCEMENT: Add indexes
+  items                    AssessmentTemplateItem[]
+
+  // ENHANCEMENT: Unique per organization (or globally if null)
+  @@unique([organizationId, name])
+  @@index([organizationId])
   @@index([name])
   @@index([category])
   @@index([isStandardized])
+  @@index([sourceTemplateId])
   @@map("assessment_templates")
 }
 
 model AssessmentTemplateItem {
-  id                  String             @id @default(cuid())
-  templateId          String
-  metricDefinitionId  String
-  displayOrder        Int                @default(0)
-  isRequired          Boolean            @default(false)
-  helpText            String?
-  defaultValue        String?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  
+  id                 String   @id @default(cuid())
+  templateId         String
+  metricDefinitionId String
+  displayOrder       Int      @default(0)
+  isRequired         Boolean  @default(false)
+  helpText           String?
+  defaultValue       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
   // Relationships
-  template            AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  metricDefinition    MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
-  
+  template         AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  metricDefinition MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
+
   @@unique([templateId, metricDefinitionId])
   @@index([templateId])
   @@index([metricDefinitionId])
@@ -547,22 +623,23 @@ model AssessmentTemplateItem {
 }
 
 model Assessment {
-  id               String             @id @default(cuid())
-  patientId        String
-  clinicianId      String?
-  templateId       String
-  responses        Json
-  score            Json?
-  completedAt      DateTime?
-  notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  
+  id          String    @id @default(cuid())
+  patientId   String
+  clinicianId String?
+  templateId  String
+  responses   Json
+  score       Json?
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   // Relationships
-  patient          Patient            @relation(fields: [patientId], references: [id])
-  clinician        Clinician?         @relation(fields: [clinicianId], references: [id])
-  template         AssessmentTemplate @relation(fields: [templateId], references: [id])
-  
+  patient   Patient            @relation(fields: [patientId], references: [id])
+  clinician Clinician?         @relation(fields: [clinicianId], references: [id])
+  template  AssessmentTemplate @relation(fields: [templateId], references: [id])
+  tasks     Task[]
+
   // ENHANCEMENT: Add indexes
   @@index([patientId])
   @@index([templateId])
@@ -572,22 +649,22 @@ model Assessment {
 }
 
 model TimeLog {
-  id               String     @id @default(cuid())
-  patientId        String
-  clinicianId      String
-  activity         String
-  duration         Int
-  cptCode          CPTCode?
-  notes            String?
-  billable         Boolean    @default(true)
-  loggedAt         DateTime   @default(now())
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  
+  id          String   @id @default(cuid())
+  patientId   String
+  clinicianId String
+  activity    String
+  duration    Int
+  cptCode     CPTCode?
+  notes       String?
+  billable    Boolean  @default(true)
+  loggedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relationships
-  patient          Patient    @relation(fields: [patientId], references: [id])
-  clinician        Clinician  @relation(fields: [clinicianId], references: [id])
-  
+  patient   Patient   @relation(fields: [patientId], references: [id])
+  clinician Clinician @relation(fields: [clinicianId], references: [id])
+
   // ENHANCEMENT: Add indexes
   @@index([patientId])
   @@index([clinicianId])
@@ -598,43 +675,51 @@ model TimeLog {
 }
 
 model ConditionPreset {
-  id                    String                      @id @default(cuid())
-  name                  String                      @unique
-  defaultProtocolId     String?
-  description           String?
-  isActive              Boolean                     @default(true)
-  isStandardized        Boolean                     @default(false)
-  category              String?
-  standardCoding        Json?
-  clinicalGuidelines    Json?
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
-  
+  id                 String   @id @default(cuid())
+  organizationId     String?  // NULL = platform-level standardized, non-null = org-specific custom
+  sourcePresetId     String?  // Reference to original standardized preset (if cloned)
+  name               String   // No longer globally unique (allow per-org duplicates)
+  defaultProtocolId  String?
+  description        String?
+  isActive           Boolean  @default(true)
+  isStandardized     Boolean  @default(false) // True for platform library items
+  category           String?
+  standardCoding     Json?
+  clinicalGuidelines Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
   // Relationships
-  diagnoses             ConditionPresetDiagnosis[]
-  templates             ConditionPresetTemplate[]
-  alertRules            ConditionPresetAlertRule[]
-  enrollments           Enrollment[]
-  
-  // ENHANCEMENT: Add indexes
+  organization    Organization?                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourcePreset    ConditionPreset?             @relation("PresetClones", fields: [sourcePresetId], references: [id])
+  clonedPresets   ConditionPreset[]            @relation("PresetClones")
+  diagnoses       ConditionPresetDiagnosis[]
+  templates       ConditionPresetTemplate[]
+  alertRules      ConditionPresetAlertRule[]
+  enrollments     Enrollment[]
+
+  // ENHANCEMENT: Unique per organization (or globally if null)
+  @@unique([organizationId, name])
+  @@index([organizationId])
   @@index([name])
   @@index([category])
   @@index([isStandardized])
   @@index([isActive])
+  @@index([sourcePresetId])
   @@map("condition_presets")
 }
 
 model ConditionPresetDiagnosis {
-  id                    String          @id @default(cuid())
-  conditionPresetId     String
-  icd10                 String
-  snomed                String?
-  label                 String
-  isPrimary             Boolean         @default(false)
-  
+  id                String  @id @default(cuid())
+  conditionPresetId String
+  icd10             String
+  snomed            String?
+  label             String
+  isPrimary         Boolean @default(false)
+
   // Relationships
-  conditionPreset       ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
-  
+  conditionPreset ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+
   // ENHANCEMENT: Add composite unique constraint
   @@unique([conditionPresetId, icd10])
   @@index([conditionPresetId])
@@ -644,17 +729,17 @@ model ConditionPresetDiagnosis {
 }
 
 model ConditionPresetTemplate {
-  id                    String             @id @default(cuid())
-  conditionPresetId     String
-  templateId            String
-  isRequired            Boolean            @default(true)
-  frequency             String?
-  displayOrder          Int                @default(0)
-  
+  id                String  @id @default(cuid())
+  conditionPresetId String
+  templateId        String
+  isRequired        Boolean @default(true)
+  frequency         String?
+  displayOrder      Int     @default(0)
+
   // Relationships
-  conditionPreset       ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
-  template              AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  
+  conditionPreset ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  template        AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
   @@unique([conditionPresetId, templateId])
   @@index([conditionPresetId])
   @@index([templateId])
@@ -663,45 +748,53 @@ model ConditionPresetTemplate {
 }
 
 model AlertRule {
-  id                    String                      @id @default(cuid())
-  name                  String                      @unique // ENHANCEMENT: Alert rule names should be unique
-  description           String?
-  conditions            Json
-  actions               Json
-  isActive              Boolean                     @default(true)
-  isStandardized        Boolean                     @default(false)
-  category              String?
-  severity              Severity?
-  priority              Int                         @default(0)
-  standardCoding        Json?
-  clinicalEvidence      Json?
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
-  
+  id               String    @id @default(cuid())
+  organizationId   String?   // NULL = platform-level standardized, non-null = org-specific custom
+  sourceRuleId     String?   // Reference to original standardized rule (if cloned)
+  name             String    // No longer globally unique (allow per-org duplicates)
+  description      String?
+  conditions       Json
+  actions          Json
+  isActive         Boolean   @default(true)
+  isStandardized   Boolean   @default(false) // True for platform library items
+  category         String?
+  severity         Severity?
+  priority         Int       @default(0)
+  standardCoding   Json?
+  clinicalEvidence Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
   // Relationships
-  alerts                Alert[]
-  conditionPresets      ConditionPresetAlertRule[]
-  
-  // ENHANCEMENT: Add indexes
+  organization     Organization?            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceRule       AlertRule?               @relation("RuleClones", fields: [sourceRuleId], references: [id])
+  clonedRules      AlertRule[]              @relation("RuleClones")
+  alerts           Alert[]
+  conditionPresets ConditionPresetAlertRule[]
+
+  // ENHANCEMENT: Unique per organization (or globally if null)
+  @@unique([organizationId, name])
+  @@index([organizationId])
   @@index([name])
   @@index([category])
   @@index([isActive])
   @@index([isStandardized])
   @@index([severity])
+  @@index([sourceRuleId])
   @@map("alert_rules")
 }
 
 model ConditionPresetAlertRule {
-  id                    String          @id @default(cuid())
-  conditionPresetId     String
-  alertRuleId           String
-  isEnabled             Boolean         @default(true)
-  priority              Int             @default(0)
-  
+  id                String  @id @default(cuid())
+  conditionPresetId String
+  alertRuleId       String
+  isEnabled         Boolean @default(true)
+  priority          Int     @default(0)
+
   // Relationships
-  conditionPreset       ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
-  rule                  AlertRule       @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
-  
+  conditionPreset ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  rule            AlertRule       @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+
   @@unique([conditionPresetId, alertRuleId])
   @@index([conditionPresetId])
   @@index([alertRuleId])
@@ -709,23 +802,40 @@ model ConditionPresetAlertRule {
 }
 
 model Alert {
-  id          String      @id @default(cuid())
+  id             String      @id @default(cuid())
   organizationId String
-  ruleId      String
-  patientId   String
-  clinicianId String?
-  severity    Severity
-  status      AlertStatus @default(PENDING)
-  message     String
-  data        Json?
-  triggeredAt DateTime    @default(now())
+  ruleId         String
+  patientId      String
+  clinicianId    String?
+  severity       Severity
+  status         AlertStatus @default(PENDING)
+  message        String
+  data           Json?
+  triggeredAt    DateTime    @default(now())
   acknowledgedAt DateTime?
-  resolvedAt  DateTime?
+  resolvedAt     DateTime?
+
+  // Triage Queue Fields (Phase 1a)
+  riskScore      Float?      // 0-10 risk score for prioritization
+  priorityRank   Int?        // Global rank across all alerts (1 = highest priority)
+  slaBreachTime  DateTime?   // When SLA will be breached
+  claimedById    String?     // User who claimed this alert
+  claimedAt      DateTime?   // When alert was claimed
+
+  // Resolution Documentation (Critical Fix #1, #3, #4)
+  resolvedById      String?          // User who resolved the alert
+  resolutionNotes   String?          @db.Text // Clinical documentation (required, min 10 chars)
+  interventionType  InterventionType? // Type of intervention performed (PHONE_CALL, VIDEO_CALL, etc.)
+  patientOutcome    PatientOutcome?  // Patient outcome after intervention (IMPROVED, STABLE, etc.)
+  timeSpentMinutes  Int?             // Time spent in minutes (for TimeLog creation and billing)
 
   // Relationships
-  rule        AlertRule   @relation(fields: [ruleId], references: [id])
-  patient     Patient     @relation(fields: [patientId], references: [id])
-  clinician   Clinician?  @relation(fields: [clinicianId], references: [id])
+  rule        AlertRule  @relation(fields: [ruleId], references: [id])
+  patient     Patient    @relation(fields: [patientId], references: [id])
+  clinician   Clinician? @relation(fields: [clinicianId], references: [id])
+  claimedBy   User?      @relation("ClaimedAlerts", fields: [claimedById], references: [id], onDelete: SetNull)
+  resolvedBy  User?      @relation("ResolvedAlerts", fields: [resolvedById], references: [id], onDelete: SetNull)
+  tasks       Task[]
 
   // ENHANCEMENT: Add indexes
   @@index([organizationId])
@@ -734,28 +844,32 @@ model Alert {
   @@index([status])
   @@index([severity])
   @@index([triggeredAt])
+  @@index([riskScore])
+  @@index([priorityRank])
+  @@index([slaBreachTime])
+  @@index([claimedById])
   @@map("alerts")
 }
 
 model Drug {
-  id                 String              @id @default(cuid())
-  name               String              @unique // ENHANCEMENT: Drug names should be unique
-  genericName        String?
-  brandName          String?
-  dosageForm         String?
-  strength           String?
-  manufacturer       String?
-  ndcNumber          String?             @unique
-  description        String?
-  sideEffects        String[]
-  contraindications  String[]
-  interactions       String[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  
+  id                String   @id @default(cuid())
+  name              String   @unique // ENHANCEMENT: Drug names should be unique
+  genericName       String?
+  brandName         String?
+  dosageForm        String?
+  strength          String?
+  manufacturer      String?
+  ndcNumber         String?  @unique
+  description       String?
+  sideEffects       String[]
+  contraindications String[]
+  interactions      String[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
   // Relationships
   patientMedications PatientMedication[]
-  
+
   // ENHANCEMENT: Add indexes
   @@index([name])
   @@index([genericName])
@@ -764,26 +878,26 @@ model Drug {
 }
 
 model PatientMedication {
-  id                   String                @id @default(cuid())
-  patientId            String
-  drugId               String
-  prescribedBy         String?
-  dosage               String
-  frequency            String
-  route                String?
-  startDate            DateTime
-  endDate              DateTime?
-  isActive             Boolean               @default(true)
-  instructions         String?
-  notes                String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  
+  id           String    @id @default(cuid())
+  patientId    String
+  drugId       String
+  prescribedBy String?
+  dosage       String
+  frequency    String
+  route        String?
+  startDate    DateTime
+  endDate      DateTime?
+  isActive     Boolean   @default(true)
+  instructions String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
   // Relationships
-  patient              Patient               @relation(fields: [patientId], references: [id])
-  drug                 Drug                  @relation(fields: [drugId], references: [id])
-  medicationAdherence  MedicationAdherence[]
-  
+  patient             Patient               @relation(fields: [patientId], references: [id])
+  drug                Drug                  @relation(fields: [drugId], references: [id])
+  medicationAdherence MedicationAdherence[]
+
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([patientId, drugId, startDate]) // Prevent duplicate prescriptions
   @@index([patientId])
@@ -794,21 +908,67 @@ model PatientMedication {
 }
 
 model MedicationAdherence {
-  id                   String            @id @default(cuid())
-  patientMedicationId  String
-  takenAt              DateTime
-  doseTaken            String?
-  adherenceScore       Float?
-  notes                String?
-  recordedAt           DateTime          @default(now())
-  
+  id                  String   @id @default(cuid())
+  patientMedicationId String
+  takenAt             DateTime
+  doseTaken           String?
+  adherenceScore      Float?
+  notes               String?
+  recordedAt          DateTime @default(now())
+
   // Relationships
-  patientMedication    PatientMedication @relation(fields: [patientMedicationId], references: [id])
-  
+  patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
+
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([patientMedicationId, takenAt]) // Prevent duplicate adherence records
   @@index([patientMedicationId])
   @@index([takenAt])
   @@index([adherenceScore])
   @@map("medication_adherence")
+}
+
+model Task {
+  id              String       @id @default(cuid())
+  taskType        TaskType
+  title           String       @db.VarChar(200)
+  description     String?      @db.Text
+  status          TaskStatus   @default(PENDING)
+  priority        TaskPriority @default(MEDIUM)
+  dueDate         DateTime
+  completedAt     DateTime?
+  completionNotes String?      @db.Text
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relationships - Assignment
+  assignedToId String
+  assignedTo   User   @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+
+  assignedById String
+  assignedBy   User   @relation("TaskAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+
+  completedById String?
+  completedBy   User?   @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+
+  // Relationships - Clinical Context
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  alertId String?
+  alert   Alert?  @relation(fields: [alertId], references: [id], onDelete: SetNull)
+
+  assessmentId String?
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  // Multi-Tenant
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([organizationId, assignedToId, status, dueDate], name: "task_assigned_status_due")
+  @@index([organizationId, patientId, status], name: "task_patient_status")
+  @@index([organizationId, dueDate, status], name: "task_due_status")
+  @@index([alertId], name: "task_alert")
+  @@index([assessmentId], name: "task_assessment")
+  @@map("tasks")
 }
