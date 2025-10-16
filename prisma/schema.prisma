@@ -84,6 +84,11 @@ enum CPTCode {
   CODE_99213
   CODE_99214
   CODE_99215
+  CODE_99453  // RTM: Setup and patient education
+  CODE_99454  // RTM: Device supply with daily recording/transmission
+  CODE_99457  // RTM: Interactive communication (20+ minutes)
+  CODE_99458  // RTM: Additional 20 minutes
+  CODE_99091  // CCM: Collection and interpretation of physiologic data
 }
 
 enum UserRole {
@@ -149,6 +154,14 @@ enum TaskPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum EncounterType {
+  RPM
+  RTM
+  CCM
+  TCM
+  GENERAL
 }
 
 enum Permission {
@@ -240,15 +253,16 @@ model User {
   updatedAt            DateTime  @updatedAt
 
   // Relationships
-  socialAccounts    SocialAccount[]
-  userOrganizations UserOrganization[]
-  refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]
-  claimedAlerts     Alert[]         @relation("ClaimedAlerts")
-  resolvedAlerts    Alert[]         @relation("ResolvedAlerts")
-  tasksAssignedTo   Task[]          @relation("TaskAssignedTo")
-  tasksAssignedBy   Task[]          @relation("TaskAssignedBy")
-  tasksCompleted    Task[]          @relation("TaskCompletedBy")
+  socialAccounts       SocialAccount[]
+  userOrganizations    UserOrganization[]
+  refreshTokens        RefreshToken[]
+  auditLogs            AuditLog[]
+  claimedAlerts        Alert[]            @relation("ClaimedAlerts")
+  resolvedAlerts       Alert[]            @relation("ResolvedAlerts")
+  tasksAssignedTo      Task[]             @relation("TaskAssignedTo")
+  tasksAssignedBy      Task[]             @relation("TaskAssignedBy")
+  tasksCompleted       Task[]             @relation("TaskCompletedBy")
+  attestedEncounterNotes EncounterNote[] @relation("AttestedEncounterNotes")
 
   // ENHANCEMENT: Add indexes for common queries
   @@index([email])
@@ -281,6 +295,7 @@ model Organization {
   conditionPresets    ConditionPreset[]    // Custom condition presets for this org
   alertRules          AlertRule[]          // Custom alert rules for this org
   tasks               Task[]
+  encounterNotes      EncounterNote[]
 
   // ENHANCEMENT: Add indexes
   @@index([name])
@@ -420,6 +435,7 @@ model Patient {
   alerts             Alert[]
   patientMedications PatientMedication[]
   tasks              Task[]
+  encounterNotes     EncounterNote[]
 
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([organizationId, email]) // Unique email per organization
@@ -447,12 +463,13 @@ model Clinician {
   updatedAt        DateTime @updatedAt
 
   // Relationships
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  enrollments  Enrollment[]
-  observations Observation[]
-  assessments  Assessment[]
-  timeLogs     TimeLog[]
-  alerts       Alert[]
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  enrollments    Enrollment[]
+  observations   Observation[]
+  assessments    Assessment[]
+  timeLogs       TimeLog[]
+  alerts         Alert[]
+  encounterNotes EncounterNote[]
 
   // ENHANCEMENT: Add indexes
   @@index([organizationId])
@@ -648,18 +665,30 @@ model Assessment {
   @@map("assessments")
 }
 
+enum TimeLogSource {
+  AUTO
+  MANUAL
+  ADJUSTED
+}
+
 model TimeLog {
-  id          String   @id @default(cuid())
+  id          String         @id @default(cuid())
   patientId   String
   clinicianId String
   activity    String
   duration    Int
   cptCode     CPTCode?
   notes       String?
-  billable    Boolean  @default(true)
-  loggedAt    DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  billable    Boolean        @default(true)
+  loggedAt    DateTime       @default(now())
+
+  // Auto-tracking fields (Phase 1a)
+  autoStarted Boolean        @default(false) // True if timer was auto-started
+  source      TimeLogSource  @default(MANUAL) // How this time log was created
+  startedAt   DateTime?      // When timer actually started (for active timers)
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   // Relationships
   patient   Patient   @relation(fields: [patientId], references: [id])
@@ -671,6 +700,8 @@ model TimeLog {
   @@index([loggedAt])
   @@index([billable])
   @@index([cptCode])
+  @@index([source])
+  @@index([autoStarted])
   @@map("time_logs")
 }
 
@@ -830,12 +861,13 @@ model Alert {
   timeSpentMinutes  Int?             // Time spent in minutes (for TimeLog creation and billing)
 
   // Relationships
-  rule        AlertRule  @relation(fields: [ruleId], references: [id])
-  patient     Patient    @relation(fields: [patientId], references: [id])
-  clinician   Clinician? @relation(fields: [clinicianId], references: [id])
-  claimedBy   User?      @relation("ClaimedAlerts", fields: [claimedById], references: [id], onDelete: SetNull)
-  resolvedBy  User?      @relation("ResolvedAlerts", fields: [resolvedById], references: [id], onDelete: SetNull)
-  tasks       Task[]
+  rule           AlertRule       @relation(fields: [ruleId], references: [id])
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  clinician      Clinician?      @relation(fields: [clinicianId], references: [id])
+  claimedBy      User?           @relation("ClaimedAlerts", fields: [claimedById], references: [id], onDelete: SetNull)
+  resolvedBy     User?           @relation("ResolvedAlerts", fields: [resolvedById], references: [id], onDelete: SetNull)
+  tasks          Task[]
+  encounterNotes EncounterNote[]
 
   // ENHANCEMENT: Add indexes
   @@index([organizationId])
@@ -971,4 +1003,58 @@ model Task {
   @@index([alertId], name: "task_alert")
   @@index([assessmentId], name: "task_assessment")
   @@map("tasks")
+}
+
+model EncounterNote {
+  id           String        @id @default(cuid())
+  encounterType EncounterType
+
+  // Auto-populated fields (read-only after creation)
+  vitalsSnapshot Json? // Snapshot of recent vitals at time of creation
+  assessmentSummary String? @db.Text // Summary of recent assessments
+  alertsSummary String? @db.Text // Summary of alerts that triggered this encounter
+
+  // Clinician-editable fields (SOAP format)
+  subjective String? @db.Text // Patient's reported symptoms/concerns
+  objective String? @db.Text // Clinician's observations and vital signs
+  assessment String? @db.Text // Clinical assessment and diagnosis
+  plan String? @db.Text // Treatment plan and next steps
+
+  // Additional documentation
+  additionalNotes String? @db.Text // Free-form clinical notes
+
+  // Attestation workflow
+  isLocked Boolean @default(false) // Once attested, note cannot be edited
+  attestedById String? // User who attested/finalized the note
+  attestedAt DateTime? // When note was attested
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  patientId String
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  clinicianId String
+  clinician Clinician @relation(fields: [clinicianId], references: [id])
+
+  attestedBy User? @relation("AttestedEncounterNotes", fields: [attestedById], references: [id], onDelete: SetNull)
+
+  alertId String? // Optional: link to specific alert that triggered encounter
+  alert Alert? @relation(fields: [alertId], references: [id], onDelete: SetNull)
+
+  // Indexes
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([clinicianId])
+  @@index([encounterType])
+  @@index([createdAt])
+  @@index([isLocked])
+  @@index([attestedById])
+  @@index([alertId])
+  @@map("encounter_notes")
 }

@@ -8,7 +8,8 @@ const {
   deletePatient,
   getPatientStats,
   getGeneralPatientStats,
-  getRecentPatients
+  getRecentPatients,
+  getPatientContext
 } = require('../controllers/patientController');
 
 const {
@@ -50,12 +51,17 @@ router.get('/recent',
 );
 
 // Get patient statistics by ID
-router.get('/:id/stats', 
+router.get('/:id/stats',
   getPatientStats
 );
 
+// Get comprehensive patient context (Phase 1a - Patient Context Panel)
+router.get('/:id/context',
+  getPatientContext
+);
+
 // Get patient by ID
-router.get('/:id', 
+router.get('/:id',
   getPatientById
 );
 

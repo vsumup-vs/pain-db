@@ -60,6 +60,7 @@ export const api = {
   getPatients: (params) => apiClient.get('/patients', { params }),
   getRecentPatients: (params) => apiClient.get('/patients/recent', { params }),
   getPatient: (id) => apiClient.get(`/patients/${id}`),
+  getPatientContext: (id, params) => apiClient.get(`/patients/${id}/context`, { params }),
   createPatient: (data) => apiClient.post('/patients', data),
   updatePatient: (id, data) => apiClient.put(`/patients/${id}`, data),
   deletePatient: (id) => apiClient.delete(`/patients/${id}`),
@@ -185,7 +186,35 @@ export const api = {
   cancelTask: (id, data) => apiClient.patch(`/tasks/${id}/cancel`, data),
   bulkAssignTasks: (data) => apiClient.post('/tasks/bulk-assign', data),
   bulkCompleteTasks: (data) => apiClient.post('/tasks/bulk-complete', data),
-  getTaskStats: (params) => apiClient.get('/tasks/stats', { params })
+  getTaskStats: (params) => apiClient.get('/tasks/stats', { params }),
+
+  // Billing Readiness (Phase 1c - Monthly Billing Readiness Dashboard)
+  getBillingReadiness: (params) => apiClient.get('/billing/readiness', { params }),
+  getPatientBillingReadiness: (patientId, params) => apiClient.get(`/billing/readiness/patient/${patientId}`, { params }),
+  getBillingStats: (params) => apiClient.get('/billing/stats', { params }),
+
+  // Encounter Notes (Phase 1a - Smart Documentation Templates)
+  getEncounterNotes: (params) => apiClient.get('/encounter-notes', { params }),
+  getEncounterNote: (id) => apiClient.get(`/encounter-notes/${id}`),
+  createEncounterNote: (data) => apiClient.post('/encounter-notes', data),
+  updateEncounterNote: (id, data) => apiClient.put(`/encounter-notes/${id}`, data),
+  attestEncounterNote: (id) => apiClient.post(`/encounter-notes/${id}/attest`),
+  deleteEncounterNote: (id) => apiClient.delete(`/encounter-notes/${id}`),
+
+  // Time Tracking (Phase 1a - Auto-Start/Stop Time Tracking)
+  startTimer: (data) => apiClient.post('/time-tracking/start', data),
+  stopTimer: (data) => apiClient.post('/time-tracking/stop', data),
+  getActiveTimer: (patientId) => apiClient.get('/time-tracking/active', { params: { patientId } }),
+  getAllActiveTimers: () => apiClient.get('/time-tracking/active/all'),
+  cancelTimer: (data) => apiClient.post('/time-tracking/cancel', data),
+  adjustTimeLog: (id, data) => apiClient.patch(`/time-tracking/adjust/${id}`, data),
+
+  // Enrollments
+  getEnrollments: (params) => apiClient.get('/enrollments', { params }),
+  getEnrollment: (id) => apiClient.get(`/enrollments/${id}`),
+  createEnrollment: (data) => apiClient.post('/enrollments', data),
+  updateEnrollment: (id, data) => apiClient.put(`/enrollments/${id}`, data),
+  deleteEnrollment: (id) => apiClient.delete(`/enrollments/${id}`)
 }
 
 export default api

@@ -18,11 +18,15 @@ import Observations from './pages/Observations'
 import Alerts from './pages/Alerts'
 import TriageQueue from './pages/TriageQueue'
 import Tasks from './pages/Tasks'
+import BillingReadiness from './pages/BillingReadiness'
+import EncounterNotes from './pages/EncounterNotes'
 import AlertRules from './pages/AlertRules'
 import Enrollments from './pages/Enrollments'
 import EnrollmentDetails from './pages/EnrollmentDetails'
 import AdminOrganizations from './pages/AdminOrganizations'
 import AdminUsers from './pages/AdminUsers'
+import TestPatientContext from './pages/TestPatientContext'
+import TestAlertEvaluation from './pages/TestAlertEvaluation'
 import { api } from './services/api'
 
 // Protected Route component
@@ -127,11 +131,15 @@ function App() {
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/triage-queue" element={<TriageQueue />} />
                 <Route path="/tasks" element={<Tasks />} />
+                <Route path="/billing-readiness" element={<BillingReadiness />} />
+                <Route path="/encounter-notes" element={<EncounterNotes />} />
                 <Route path="/alert-rules" element={<AlertRules />} />
                 <Route path="/enrollments" element={<Enrollments />} />
                 <Route path="/enrollments/:id" element={<EnrollmentDetails />} />
                 <Route path="/admin/organizations" element={<AdminOrganizations />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/test/patient-context" element={<TestPatientContext />} />
+                <Route path="/test/alert-evaluation" element={<TestAlertEvaluation />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

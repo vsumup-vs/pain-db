@@ -38,10 +38,16 @@ const patientMedicationRoutes = require('./src/routes/patientMedicationRoutes');
 const continuityRoutes = require('./src/routes/continuityRoutes');
 const organizationRoutes = require('./src/routes/organizationRoutes');
 const taskRoutes = require('./src/routes/taskRoutes');
+const billingRoutes = require('./src/routes/billingRoutes');
+const encounterNoteRoutes = require('./src/routes/encounterNoteRoutes');
+const timeTrackingRoutes = require('./src/routes/timeTrackingRoutes');
 
 // Import authentication
 const passport = require('passport');
 const authRoutes = require('./src/routes/authRoutes');
+
+// Import alert scheduler for background jobs
+const alertScheduler = require('./src/services/alertScheduler');
 
 // Initialize passport
 app.use(passport.initialize());
@@ -102,10 +108,12 @@ app.get('/api', (req, res) => {
       observations: '/api/observations',
       alerts: '/api/alerts',
       tasks: '/api/tasks',
+      'encounter-notes': '/api/encounter-notes',
       'alert-rules': '/api/alert-rules',
       'condition-presets': '/api/condition-presets',
       drugs: '/api/drugs',
-      'patient-medications': '/api/patient-medications'
+      'patient-medications': '/api/patient-medications',
+      billing: '/api/billing'
     }
   });
 });
@@ -123,9 +131,12 @@ app.use('/api/enrollments', requireAuth, injectOrganizationContext, auditOrganiz
 app.use('/api/observations', requireAuth, injectOrganizationContext, auditOrganizationAccess, observationRoutes);
 app.use('/api/alerts', requireAuth, injectOrganizationContext, auditOrganizationAccess, alertRoutes);
 app.use('/api/tasks', requireAuth, injectOrganizationContext, auditOrganizationAccess, taskRoutes);
+app.use('/api/encounter-notes', requireAuth, injectOrganizationContext, auditOrganizationAccess, encounterNoteRoutes);
 app.use('/api/drugs', requireAuth, injectOrganizationContext, auditOrganizationAccess, drugRoutes);
 app.use('/api/patient-medications', requireAuth, injectOrganizationContext, auditOrganizationAccess, patientMedicationRoutes);
 app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganizationAccess, continuityRoutes);
+app.use('/api/billing', requireAuth, injectOrganizationContext, auditOrganizationAccess, billingRoutes);
+app.use('/api/time-tracking', requireAuth, injectOrganizationContext, auditOrganizationAccess, timeTrackingRoutes);
 
 // Platform configuration routes (platform-wide resources, no organization context needed)
 // These are managed by SUPER_ADMIN and available to all organizations
@@ -175,12 +186,14 @@ app.use((req, res) => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Received SIGINT, shutting down gracefully...');
+  alertScheduler.stopScheduledJobs();
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, shutting down gracefully...');
+  alertScheduler.stopScheduledJobs();
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -191,6 +204,11 @@ if (require.main === module) {
     console.log(`Server running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
     console.log(`API info: http://localhost:${PORT}/api`);
+
+    // Start alert evaluation scheduled jobs
+    console.log('🔄 Starting alert evaluation engine...');
+    alertScheduler.startScheduledJobs();
+    console.log('✅ Alert evaluation engine started successfully');
   });
 }
 

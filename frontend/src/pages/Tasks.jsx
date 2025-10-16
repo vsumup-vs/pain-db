@@ -17,6 +17,7 @@ import {
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
 import TaskDetailModal from '../components/TaskDetailModal'
+import PatientContextPanel from '../components/PatientContextPanel'
 
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState('MY_TASKS')
@@ -34,6 +35,10 @@ export default function Tasks() {
   const [filterPriority, setFilterPriority] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const limit = 20
+
+  // Patient Context Panel state
+  const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState(null)
 
   const queryClient = useQueryClient()
 
@@ -193,6 +198,13 @@ export default function Tasks() {
       return
     }
     bulkAssignMutation.mutate({ taskIds: selectedTasks, assignedToId: selectedAssigneeId })
+  }
+
+  // Handle view patient context
+  const handleViewPatientContext = (patientId, e) => {
+    if (e) e.stopPropagation()
+    setSelectedPatientId(patientId)
+    setIsPatientContextOpen(true)
   }
 
   // Get priority color classes
@@ -539,10 +551,13 @@ export default function Tasks() {
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => handleViewPatientContext(task.patient?.id, e)}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200"
+                          >
                             {task.patient?.firstName} {task.patient?.lastName}
-                          </div>
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-600">{task.type}</span>
@@ -641,9 +656,12 @@ export default function Tasks() {
                       />
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">{task.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <button
+                          onClick={(e) => handleViewPatientContext(task.patient?.id, e)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200 mb-2 block"
+                        >
                           {task.patient?.firstName} {task.patient?.lastName}
-                        </p>
+                        </button>
                       </div>
                     </div>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityBadge(task.priority)}`}>
@@ -732,6 +750,14 @@ export default function Tasks() {
           isOpen={!!selectedTaskId}
           onClose={() => setSelectedTaskId(null)}
           taskId={selectedTaskId}
+        />
+
+        {/* Patient Context Panel */}
+        <PatientContextPanel
+          isOpen={isPatientContextOpen}
+          onClose={() => setIsPatientContextOpen(false)}
+          patientId={selectedPatientId}
+          days={30}
         />
 
         {/* Bulk Assign Modal */}

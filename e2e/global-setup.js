@@ -8,9 +8,11 @@ async function globalSetup() {
     
     // Clean up existing test data in correct order to avoid foreign key constraints
     await prisma.observation.deleteMany({});
+    await prisma.encounterNote.deleteMany({});
     await prisma.alert.deleteMany({});
     await prisma.timeLog.deleteMany({});
-    await prisma.message.deleteMany({});
+    await prisma.medicationAdherence.deleteMany({});
+    await prisma.patientMedication.deleteMany({});
     await prisma.enrollment.deleteMany({});
     await prisma.patient.deleteMany({});
     await prisma.clinician.deleteMany({});

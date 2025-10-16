@@ -53,9 +53,17 @@ async function cleanDatabase() {
   // Then metric definitions
   await global.prisma.metricDefinition.deleteMany({});
 
-  // Finally, core entities
+  // Core entities
   await global.prisma.patient.deleteMany({});
   await global.prisma.clinician.deleteMany({});
+
+  // User-related tables (must be before user deletion)
+  await global.prisma.refreshToken.deleteMany({});
+  await global.prisma.userOrganization.deleteMany({});
+
+  // Users and organizations
+  await global.prisma.user.deleteMany({});
+  await global.prisma.organization.deleteMany({});
 }
 
 beforeAll(async () => {

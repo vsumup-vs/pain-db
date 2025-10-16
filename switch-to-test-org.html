@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Switch to Test Organization</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #2563eb;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #6b7280;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔧 Switch Organization</h1>
+        <p>Click the button below to switch to<br><strong>Test Clinic - Triage Queue</strong><br>and view the test alerts.</p>
+
+        <button onclick="switchAndGo()">Switch & View Alerts</button>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function switchAndGo() {
+            try {
+                const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWdtamQybG0wMDA4N2tlYm1jdGVkaHF3IiwiZW1haWwiOiJ1c2VyQHZzdW11cC5jb20iLCJpc1BsYXRmb3JtQWRtaW4iOmZhbHNlLCJvcmdhbml6YXRpb25zIjpbeyJvcmdhbml6YXRpb25JZCI6ImNtZ2xuZjE3dzAwMDA3a3o3N3kwYzhhaHMiLCJuYW1lIjoiRGVmYXVsdCBIZWFsdGhjYXJlIE9yZ2FuaXphdGlvbiIsImlzQWN0aXZlIjp0cnVlLCJyb2xlIjoiT1JHX0FETUlOIiwicGVybWlzc2lvbnMiOlsiVVNFUl9SRUFEIiwiVVNFUl9DUkVBVEUiLCJVU0VSX1VQREFURSIsIlVTRVJfSU5WSVRFIiwiVVNFUl9ST0xFX0FTU0lHTiIsIlBBVElFTlRfUkVBRCIsIlBBVElFTlRfQ1JFQVRFIiwiUEFUSUVOVF9VUERBVEUiLCJQQVRJRU5UX0RFTEVURSIsIlBBVElFTlRfQVNTSUdOIiwiUEFUSUVOVF9NRURJQ0FMX1JFQ09SRF9SRUFEIiwiQ0xJTklDSUFOX1JFQUQiLCJDTElOSUNJQU5fQ1JFQVRFIiwiQ0xJTklDSUFOX1VQREFURSIsIkNMSU5JQ0lBTl9ERUxFVEUiLCJDTElOSUNJQU5fQVNTSUdOIiwiUFJPR1JBTV9SRUFEIiwiUFJPR1JBTV9DUkVBVEUiLCJQUk9HUkFNX1VQREFURSIsIlBST0dSQU1fQVNTSUdOIiwiQVNTRVNTTUVOVF9SRUFEIiwiQVNTRVNTTUVOVF9DUkVBVEUiLCJBU1NFU1NNRU5UX1VQREFURSIsIk1FVFJJQ19SRUFEIiwiT0JTRVJWQVRJT05fUkVBRCIsIk9CU0VSVkFUSU9OX0NSRUFURSIsIk9CU0VSVkFUSU9OX1VQREFURSIsIkFMRVJUX1JFQUQiLCJBTEVSVF9DUkVBVEUiLCJBTEVSVF9VUERBVEUiLCJBTEVSVF9BQ0tOT1dMRURHRSIsIk1FRElDQVRJT05fUkVBRCIsIk1FRElDQVRJT05fQ1JFQVRFIiwiTUVESUNBVElPTl9VUERBVEUiLCJNRURJQ0FUSU9OX1BSRVNDUklCRSIsIlJFUE9SVF9SRUFEIiwiUkVQT1JUX0NSRUFURSIsIkFOQUxZVElDU19SRUFEIiwiT1JHX1NFVFRJTkdTX01BTkFHRSIsIk9SR19VU0VSU19NQU5BR0UiXSwiYXZhaWxhYmxlUHJvZ3JhbXMiOltdfSx7Im9yZ2FuaXphdGlvbklkIjoiY21ncW04b3RkMDAwMDdrcnZmaDV4Mmx6biIsIm5hbWUiOiJUZXN0IENsaW5pYyAtIFRyaWFnZSBRdWV1ZSIsImlzQWN0aXZlIjp0cnVlLCJyb2xlIjoiT1JHX0FETUlOIiwicGVybWlzc2lvbnMiOlsiVVNFUl9SRUFEIiwiVVNFUl9DUkVBVEUiLCJQQVRJRU5UX1JFQUQiLCJQQVRJRU5UX0NSRUFURSIsIkFMRVJUX1JFQUQiLCJBTEVSVF9VUERBVEUiXSwiYXZhaWxhYmxlUHJvZ3JhbXMiOltdfV0sImN1cnJlbnRPcmdhbml6YXRpb24iOiJjbWdxbThvdGQwMDAwN2tydmZoNXgybHpuIiwicm9sZSI6Ik9SR19BRE1JTiIsInBlcm1pc3Npb25zIjpbIlVTRVJfUkVBRCIsIlVTRVJfQ1JFQVRFIiwiUEFUSUVOVF9SRUFEIiwiUEFUSUVOVF9DUkVBVEUiLCJBTEVSVF9SRUFEIiwiQUxFUlRfVVBEQVRFIl0sInByb2dyYW1BY2Nlc3MiOltdLCJjdXJyZW50UHJvZ3JhbSI6bnVsbCwiYmlsbGluZ0NvbnRleHQiOnt9LCJ0eXBlIjoiYWNjZXNzIiwiaWF0IjoxNzYwNTEzODI1LCJleHAiOjE3NjA2MDAyMjUsImF1ZCI6ImhlYWx0aGNhcmUtdXNlcnMiLCJpc3MiOiJwYWluLW1hbmFnZW1lbnQtcGxhdGZvcm0ifQ.lsgxl2syGr1jRfQ9uDk5UWXElvR6T2pd0aarfhTn8yw';
+
+                // Clear any existing session data first
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+
+                // Set the new token
+                localStorage.setItem('authToken', token);
+
+                document.getElementById('status').innerHTML = '<div class="status success">✅ Token Set! Opening app in new tab...</div>';
+
+                // Open in new tab to avoid any cached state issues
+                setTimeout(function() {
+                    window.open('http://localhost:5174/triage-queue', '_blank');
+                }, 500);
+
+            } catch (error) {
+                document.getElementById('status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
+const { evaluateObservation } = require('../services/alertEvaluationService');
+const { updateAlertRiskScores } = require('../services/riskScoringService');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -31,7 +33,7 @@ const createObservation = async (req, res) => {
     const [patient, enrollment, metricDefinition] = await Promise.all([
       prisma.patient.findUnique({
         where: { id: patientId },
-        select: { id: true, mrn: true } // Only select needed fields
+        select: { id: true, medicalRecordNumber: true } // Only select needed fields
       }),
       prisma.enrollment.findUnique({
         where: { id: enrollmentId },
@@ -45,9 +47,9 @@ const createObservation = async (req, res) => {
           displayName: true,
           valueType: true,
           unit: true,
-          version: true,
-          activeFrom: true,
-          activeTo: true
+          scaleMin: true,
+          scaleMax: true,
+          normalRange: true
         }
       })
     ]);
@@ -63,19 +65,8 @@ const createObservation = async (req, res) => {
       validationErrors.push('Enrollment does not belong to the specified patient');
     }
     
-    if (enrollment && enrollment.status !== 'active') {
+    if (enrollment && enrollment.status !== 'ACTIVE') {
       validationErrors.push('Enrollment is not active');
-    }
-
-    // Check metric definition active status
-    if (metricDefinition) {
-      const now = new Date();
-      if (metricDefinition.activeTo && metricDefinition.activeTo < now) {
-        validationErrors.push('Metric definition is no longer active');
-      }
-      if (metricDefinition.activeFrom && metricDefinition.activeFrom > now) {
-        validationErrors.push('Metric definition is not yet active');
-      }
     }
 
     if (validationErrors.length > 0) {
@@ -95,22 +86,14 @@ const createObservation = async (req, res) => {
       });
     }
 
-    // Prepare value fields based on valueType
-    let valueFields = {};
-    switch (metricDefinition.valueType) {
-      case 'numeric':
-        valueFields.valueNumeric = validationResult.processedValue;
-        break;
-      case 'text':
-        valueFields.valueText = validationResult.processedValue;
-        break;
-      case 'categorical':
-      case 'ordinal':
-      case 'boolean':
-        valueFields.valueCode = validationResult.processedValue;
-        break;
-      default:
-        valueFields.valueText = validationResult.processedValue;
+    // Get organizationId from request context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Organization context required'
+      });
     }
 
     // OPTIMIZATION 4: Create observation with minimal includes
@@ -118,30 +101,51 @@ const createObservation = async (req, res) => {
       data: {
         organizationId,  // SECURITY: Always include organizationId
         patientId: patientId,
-        enrollmentId: enrollmentId,
-        metricDefinitionId: metricDefinitionId,
-        metricKey: metricDefinition.key,
-        metricDefinitionVersion: metricDefinition.version,
-        recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
-        source: recordedBy === 'device' ? 'device' : recordedBy === 'staff' ? 'staff' : 'patient',
-        ...valueFields,
+        metricId: metricDefinitionId,  // Schema uses metricId, not metricDefinitionId
+        value: validationResult.processedValue,  // Schema uses single JSON value field
         unit: metricDefinition.unit,
-        context: context,
-        raw: {
-          notes: notes,
-          location: location,
-          originalRecordedBy: recordedBy
-        }
+        source: recordedBy === 'DEVICE' ? 'DEVICE' : recordedBy === 'API' ? 'API' : 'MANUAL',
+        context: context || 'CLINICAL_MONITORING',
+        notes: notes,
+        recordedAt: recordedAt ? new Date(recordedAt) : new Date()
       },
       select: {
         id: true,
         patientId: true,
-        enrollmentId: true,
-        metricDefinitionId: true,
+        metricId: true,
         recordedAt: true,
-        valueNumeric: true,
-        valueCode: true,
-        valueText: true
+        value: true,
+        organizationId: true
+      }
+    });
+
+    // ALERT EVALUATION: Automatically evaluate observation against alert rules
+    // This runs asynchronously to avoid blocking the response
+    // Construct full observation object for evaluation
+    const fullObservation = {
+      ...observation,
+      metricId: observation.metricId,
+      value: observation.value
+    };
+
+    setImmediate(async () => {
+      try {
+        const triggeredAlerts = await evaluateObservation(fullObservation);
+        if (triggeredAlerts.length > 0) {
+          console.log(`🚨 ${triggeredAlerts.length} alert(s) triggered for observation ${observation.id}`);
+        }
+
+        // Update risk scores for existing alerts with new observation data
+        const riskUpdateResult = await updateAlertRiskScores(
+          observation.patientId,
+          observation.metricId
+        );
+        if (riskUpdateResult.updated > 0) {
+          console.log(`📊 Updated risk scores for ${riskUpdateResult.updated} existing alert(s)`);
+        }
+      } catch (error) {
+        console.error('Error evaluating observation for alerts:', error);
+        // Don't fail the observation creation if alert evaluation fails
       }
     });
 

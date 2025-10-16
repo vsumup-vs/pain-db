@@ -406,7 +406,9 @@ const resolveAlert = async (req, res) => {
       followUpTaskDescription,
       followUpTaskDueDate,
       followUpTaskPriority,
-      followUpTaskAssignedToId
+      followUpTaskAssignedToId,
+      createEncounterNote,
+      encounterNoteType
     } = req.body;
 
     const currentUserId = req.user?.userId;
@@ -641,11 +643,110 @@ const resolveAlert = async (req, res) => {
         });
       }
 
+      // 5. Optional: Create encounter note
+      let encounterNote = null;
+      if (createEncounterNote) {
+        // Fetch data for auto-population (same logic as encounterNoteController)
+        const [recentVitals, recentAssessments, recentAlerts] = await Promise.all([
+          // Last 5 vital readings
+          tx.observation.findMany({
+            where: {
+              patientId: alert.patientId,
+              organizationId,
+              metric: {
+                category: { in: ['Vitals', 'Clinical Measurements'] }
+              }
+            },
+            include: {
+              metric: {
+                select: {
+                  displayName: true,
+                  unit: true
+                }
+              }
+            },
+            orderBy: { recordedAt: 'desc' },
+            take: 5
+          }),
+          // Last 3 assessments
+          tx.assessment.findMany({
+            where: { patientId: alert.patientId },
+            include: {
+              template: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            orderBy: { completedAt: 'desc' },
+            take: 3
+          }),
+          // Recent active alerts
+          tx.alert.findMany({
+            where: {
+              patientId: alert.patientId,
+              organizationId,
+              status: { in: ['PENDING', 'ACKNOWLEDGED'] }
+            },
+            include: {
+              rule: {
+                select: {
+                  name: true,
+                  severity: true
+                }
+              }
+            },
+            orderBy: { triggeredAt: 'desc' },
+            take: 5
+          })
+        ]);
+
+        // Auto-populate vitalsSnapshot
+        const vitalsSnapshot = recentVitals.map(obs => ({
+          metric: obs.metric.displayName,
+          value: obs.value,
+          unit: obs.metric.unit,
+          recordedAt: obs.recordedAt
+        }));
+
+        // Auto-populate assessmentSummary
+        const assessmentSummary = recentAssessments.length > 0
+          ? recentAssessments.map(a =>
+              `${a.template.name}: Score ${JSON.stringify(a.score)} (${new Date(a.completedAt).toLocaleDateString()})`
+            ).join('\n')
+          : null;
+
+        // Auto-populate alertsSummary
+        const alertsSummary = recentAlerts.length > 0
+          ? recentAlerts.map(a =>
+              `${a.rule.name} (${a.rule.severity}): ${a.message}`
+            ).join('\n')
+          : null;
+
+        encounterNote = await tx.encounterNote.create({
+          data: {
+            organizationId,
+            patientId: alert.patientId,
+            clinicianId: alert.clinicianId || currentUserId,
+            encounterType: encounterNoteType || 'GENERAL',
+            vitalsSnapshot,
+            assessmentSummary,
+            alertsSummary,
+            subjective: `Alert Resolution: ${alert.rule?.name}\nPatient Outcome: ${patientOutcome}`,
+            objective: resolutionNotes.trim(),
+            assessment: `Intervention: ${interventionType.replace(/_/g, ' ')}`,
+            plan: `Follow-up as needed. Time spent: ${timeSpentMinutes} minutes.`,
+            alertId: alert.id
+          }
+        });
+      }
+
       return {
         alert: updatedAlert,
         timeLog,
         auditLog,
-        followUpTask
+        followUpTask,
+        encounterNote
       };
     });
 
@@ -654,6 +755,7 @@ const resolveAlert = async (req, res) => {
       data: result.alert,
       timeLog: result.timeLog,
       followUpTask: result.followUpTask,
+      encounterNote: result.encounterNote,
       message: 'Alert resolved successfully with clinical documentation and billable time logged'
     });
   } catch (error) {

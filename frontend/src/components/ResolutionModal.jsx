@@ -54,10 +54,13 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
       followUpTaskDueDate: '',
       followUpTaskPriority: 'MEDIUM',
       followUpTaskAssignedToId: '', // User to assign the task to
+      createEncounterNote: false,
+      encounterNoteType: 'GENERAL',
     },
   })
 
   const createFollowUpTask = watch('createFollowUpTask')
+  const createEncounterNote = watch('createEncounterNote')
   const selectedPatientOutcome = watch('patientOutcome')
   const selectedInterventionType = watch('interventionType')
 
@@ -402,6 +405,54 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
                         className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                         {...register('followUpTaskDescription')}
                       />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Encounter Note Creation */}
+              <div className="border-t border-gray-200 pt-6">
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="createEncounterNote"
+                      type="checkbox"
+                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      {...register('createEncounterNote')}
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="createEncounterNote" className="font-medium text-gray-700">
+                      Create Encounter Note
+                    </label>
+                    <p className="text-gray-500">Document this encounter with a SOAP format clinical note</p>
+                  </div>
+                </div>
+
+                {createEncounterNote && (
+                  <div className="mt-4 space-y-4 pl-7">
+                    <div>
+                      <label htmlFor="encounterNoteType" className="block text-sm font-medium text-gray-700 mb-1">
+                        Encounter Type
+                      </label>
+                      <select
+                        id="encounterNoteType"
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        {...register('encounterNoteType')}
+                      >
+                        <option value="RPM">Remote Patient Monitoring (RPM)</option>
+                        <option value="RTM">Remote Therapeutic Monitoring (RTM)</option>
+                        <option value="CCM">Chronic Care Management (CCM)</option>
+                        <option value="TCM">Transitional Care Management (TCM)</option>
+                        <option value="GENERAL">General Encounter</option>
+                      </select>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800">
+                        <strong>Note:</strong> The encounter note will auto-populate with patient context (recent vitals, assessments, alerts).
+                        You can edit and complete the SOAP fields after creation.
+                      </p>
                     </div>
                   </div>
                 )}

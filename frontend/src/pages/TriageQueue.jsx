@@ -17,6 +17,7 @@ import {
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
 import ResolutionModal from '../components/ResolutionModal'
+import PatientContextPanel from '../components/PatientContextPanel'
 
 export default function TriageQueue() {
   const [filters, setFilters] = useState({
@@ -40,6 +41,11 @@ export default function TriageQueue() {
   // Resolution modal state
   const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false)
   const [selectedAlertForResolution, setSelectedAlertForResolution] = useState(null)
+
+  // Patient Context Panel state
+  const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState(null)
+  const [selectedClinicianId, setSelectedClinicianId] = useState(null)
 
   const queryClient = useQueryClient()
 
@@ -75,12 +81,29 @@ export default function TriageQueue() {
     )
   })
 
-  // Claim alert mutation
+  // Claim alert mutation (with auto-start timer)
   const claimAlertMutation = useMutation({
-    mutationFn: (alertId) => api.claimAlert(alertId),
+    mutationFn: async (data) => {
+      // First claim the alert
+      await api.claimAlert(data.alertId)
+
+      // Then auto-start timer for time tracking
+      try {
+        await api.startTimer({
+          patientId: data.patientId,
+          activity: `Addressing alert: ${data.alertName}`,
+          source: 'alert',
+          sourceId: data.alertId
+        })
+      } catch (timerError) {
+        // Non-critical: Timer start failure shouldn't block alert claim
+        console.warn('Failed to auto-start timer:', timerError)
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['triageQueue'])
-      toast.success('Alert claimed successfully')
+      queryClient.invalidateQueries(['active-timer']) // Refresh timer state
+      toast.success('Alert claimed - timer started automatically')
     },
     onError: (error) => {
       toast.error(error.response?.data?.error || 'Failed to claim alert')
@@ -138,8 +161,12 @@ export default function TriageQueue() {
     }
   })
 
-  const handleClaim = (alertId) => {
-    claimAlertMutation.mutate(alertId)
+  const handleClaim = (alert) => {
+    claimAlertMutation.mutate({
+      alertId: alert.id,
+      patientId: alert.patient?.id,
+      alertName: alert.rule?.name || 'Alert'
+    })
   }
 
   const handleUnclaim = (alertId) => {
@@ -171,6 +198,12 @@ export default function TriageQueue() {
   const handleResolutionModalClose = () => {
     setIsResolutionModalOpen(false)
     setSelectedAlertForResolution(null)
+  }
+
+  const handleViewPatientContext = (patientId, clinicianId) => {
+    setSelectedPatientId(patientId)
+    setSelectedClinicianId(clinicianId)
+    setIsPatientContextOpen(true)
   }
 
   const handleTaskModalClose = (taskCreated = false) => {
@@ -469,11 +502,14 @@ export default function TriageQueue() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
                     <div>
                       <p className="text-xs font-medium text-gray-500 mb-1">Patient</p>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <button
+                        onClick={() => handleViewPatientContext(alert.patient?.id, alert.clinician?.id)}
+                        className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200 text-left"
+                      >
                         {alert.patient?.firstName} {alert.patient?.lastName}
-                      </p>
+                      </button>
                       {alert.patient?.phone && (
-                        <a href={`tel:${alert.patient.phone}`} className="text-xs text-blue-600 hover:underline">
+                        <a href={`tel:${alert.patient.phone}`} className="block text-xs text-blue-600 hover:underline">
                           {alert.patient.phone}
                         </a>
                       )}
@@ -520,7 +556,7 @@ export default function TriageQueue() {
                     <div className="flex flex-wrap gap-2">
                       {!alert.computed.isClaimed ? (
                         <button
-                          onClick={() => handleClaim(alert.id)}
+                          onClick={() => handleClaim(alert)}
                           disabled={claimAlertMutation.isLoading}
                           className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
                         >
@@ -608,6 +644,15 @@ export default function TriageQueue() {
         onSubmit={handleResolutionSubmit}
         alert={selectedAlertForResolution}
         isSubmitting={resolveAlertMutation.isLoading}
+      />
+
+      {/* Patient Context Panel */}
+      <PatientContextPanel
+        isOpen={isPatientContextOpen}
+        onClose={() => setIsPatientContextOpen(false)}
+        patientId={selectedPatientId}
+        clinicianId={selectedClinicianId}
+        days={30}
       />
     </div>
   )

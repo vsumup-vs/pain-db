@@ -573,6 +573,334 @@ const getRecentPatients = async (req, res) => {
   }
 };
 
+// Get comprehensive patient context (for Patient Context Panel - Phase 1a)
+const getPatientContext = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { days = 30 } = req.query; // Default to 30-day window
+
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check if patient exists and belongs to user's organization
+    const patient = await prisma.patient.findFirst({
+      where: {
+        id,
+        organizationId // SECURITY: Verify patient belongs to user's organization
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        dateOfBirth: true,
+        gender: true,
+        email: true,
+        phone: true,
+        medicalRecordNumber: true,
+        emergencyContact: true
+      }
+    });
+
+    if (!patient) {
+      return res.status(404).json({
+        error: 'Patient not found or access denied'
+      });
+    }
+
+    // Calculate date range for trends
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    // Fetch all data in parallel
+    const [
+      vitalsTrends,
+      activeMedications,
+      conditions,
+      recentAssessments,
+      activeAlerts,
+      recentObservations
+    ] = await Promise.all([
+      // Vitals trends (last N days, grouped by metric)
+      prisma.observation.findMany({
+        where: {
+          patientId: id,
+          organizationId,
+          recordedAt: { gte: startDate },
+          metric: {
+            category: { in: ['Vitals', 'Clinical Measurements'] }
+          }
+        },
+        include: {
+          metric: {
+            select: {
+              id: true,
+              key: true,
+              displayName: true,
+              unit: true,
+              valueType: true,
+              normalRange: true
+            }
+          }
+        },
+        orderBy: { recordedAt: 'desc' },
+        take: 200 // Last 200 vital readings
+      }),
+
+      // Active medications with adherence
+      prisma.patientMedication.findMany({
+        where: {
+          patientId: id,
+          isActive: true
+        },
+        include: {
+          drug: {
+            select: {
+              id: true,
+              name: true,
+              genericName: true,
+              dosageForm: true,
+              strength: true
+            }
+          },
+          medicationAdherence: {
+            where: {
+              takenAt: { gte: startDate }
+            },
+            select: {
+              adherenceScore: true,
+              takenAt: true
+            }
+          }
+        },
+        orderBy: { startDate: 'desc' }
+      }),
+
+      // Active conditions (from enrollments)
+      prisma.enrollment.findMany({
+        where: {
+          patientId: id,
+          organizationId,
+          status: 'ACTIVE'
+        },
+        include: {
+          careProgram: {
+            select: {
+              id: true,
+              name: true,
+              type: true
+            }
+          },
+          conditionPreset: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              diagnoses: {
+                select: {
+                  icd10: true,
+                  label: true,
+                  isPrimary: true
+                }
+              }
+            }
+          },
+          clinician: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              specialization: true
+            }
+          }
+        }
+      }),
+
+      // Recent assessments
+      prisma.assessment.findMany({
+        where: {
+          patientId: id
+        },
+        include: {
+          template: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
+          }
+        },
+        orderBy: { completedAt: 'desc' },
+        take: 5
+      }),
+
+      // Active/recent alerts
+      prisma.alert.findMany({
+        where: {
+          patientId: id,
+          organizationId,
+          status: { in: ['PENDING', 'ACKNOWLEDGED'] }
+        },
+        include: {
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          }
+        },
+        orderBy: { triggeredAt: 'desc' },
+        take: 10
+      }),
+
+      // Most recent observations (any type)
+      prisma.observation.findMany({
+        where: {
+          patientId: id,
+          organizationId
+        },
+        include: {
+          metric: {
+            select: {
+              displayName: true,
+              unit: true,
+              valueType: true
+            }
+          }
+        },
+        orderBy: { recordedAt: 'desc' },
+        take: 10
+      })
+    ]);
+
+    // Calculate medication adherence percentages
+    const medicationsWithAdherence = activeMedications.map(med => {
+      const adherenceRecords = med.medicationAdherence || [];
+      const averageAdherence = adherenceRecords.length > 0
+        ? adherenceRecords.reduce((sum, record) => sum + (record.adherenceScore || 0), 0) / adherenceRecords.length
+        : null;
+
+      return {
+        id: med.id,
+        drug: med.drug,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        route: med.route,
+        startDate: med.startDate,
+        adherencePercentage: averageAdherence ? Math.round(averageAdherence * 100) : null,
+        recentAdherenceCount: adherenceRecords.length
+      };
+    });
+
+    // Group vitals by metric for trend visualization
+    const vitalsTrendsByMetric = vitalsTrends.reduce((acc, obs) => {
+      const metricKey = obs.metric.key;
+      if (!acc[metricKey]) {
+        acc[metricKey] = {
+          metric: obs.metric,
+          readings: []
+        };
+      }
+      acc[metricKey].readings.push({
+        value: obs.value,
+        recordedAt: obs.recordedAt,
+        source: obs.source
+      });
+      return acc;
+    }, {});
+
+    // Get last reading timestamp for each vital
+    const lastReadings = Object.entries(vitalsTrendsByMetric).reduce((acc, [key, data]) => {
+      if (data.readings.length > 0) {
+        acc[key] = {
+          displayName: data.metric.displayName,
+          lastReading: data.readings[0].recordedAt,
+          value: data.readings[0].value,
+          unit: data.metric.unit
+        };
+      }
+      return acc;
+    }, {});
+
+    res.json({
+      data: {
+        patient: {
+          ...patient,
+          age: patient.dateOfBirth ? Math.floor((new Date() - new Date(patient.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000)) : null
+        },
+        vitals: {
+          trends: vitalsTrendsByMetric,
+          lastReadings,
+          totalReadings: vitalsTrends.length
+        },
+        medications: {
+          active: medicationsWithAdherence,
+          totalActive: activeMedications.length
+        },
+        conditions: conditions.map(enrollment => ({
+          program: enrollment.careProgram,
+          condition: enrollment.conditionPreset,
+          clinician: enrollment.clinician,
+          startDate: enrollment.startDate,
+          status: enrollment.status
+        })),
+        assessments: {
+          recent: recentAssessments.map(assessment => ({
+            id: assessment.id,
+            template: assessment.template,
+            completedAt: assessment.completedAt,
+            score: assessment.score
+          })),
+          totalRecent: recentAssessments.length
+        },
+        alerts: {
+          active: activeAlerts.map(alert => ({
+            id: alert.id,
+            rule: alert.rule,
+            severity: alert.severity,
+            status: alert.status,
+            message: alert.message,
+            triggeredAt: alert.triggeredAt,
+            riskScore: alert.riskScore
+          })),
+          totalActive: activeAlerts.length
+        },
+        recentActivity: {
+          observations: recentObservations.map(obs => ({
+            metric: obs.metric,
+            value: obs.value,
+            recordedAt: obs.recordedAt,
+            source: obs.source
+          }))
+        },
+        summary: {
+          totalActiveConditions: conditions.length,
+          totalActiveMedications: activeMedications.length,
+          totalActiveAlerts: activeAlerts.length,
+          lastObservation: recentObservations.length > 0 ? recentObservations[0].recordedAt : null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching patient context:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+    res.status(500).json({
+      error: 'Internal server error while fetching patient context'
+    });
+  }
+};
+
 module.exports = {
   createPatient,
   getAllPatients,
@@ -581,7 +909,8 @@ module.exports = {
   deletePatient,
   getPatientStats,
   getGeneralPatientStats,
-  getRecentPatients
+  getRecentPatients,
+  getPatientContext
 };
 
 

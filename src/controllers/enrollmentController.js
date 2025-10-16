@@ -225,6 +225,13 @@ const getAllEnrollments = async (req, res) => {
               specialization: true,
               department: true
             }
+          },
+          careProgram: {
+            select: {
+              id: true,
+              name: true,
+              type: true
+            }
           }
         }
       }),
@@ -277,22 +284,19 @@ const getEnrollmentById = async (req, res) => {
             phone: true
           }
         },
-        preset: {
+        careProgram: {
           select: {
             id: true,
-            name: true
+            name: true,
+            type: true
           }
         },
-        observations: {
-          orderBy: { recordedAt: 'desc' },
-          take: 10,
-          include: {
-            metricDefinition: true
+        conditionPreset: {
+          select: {
+            id: true,
+            name: true,
+            description: true
           }
-        },
-        alerts: {
-          orderBy: { createdAt: 'desc' },
-          take: 5
         }
       }
     });

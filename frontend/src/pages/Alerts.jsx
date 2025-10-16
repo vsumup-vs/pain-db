@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { 
-  ExclamationTriangleIcon, 
-  CheckIcon, 
+import {
+  ExclamationTriangleIcon,
+  CheckIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
   BellIcon,
@@ -12,11 +12,14 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
+import ResolutionModal from '../components/ResolutionModal'
 
 export default function Alerts() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false)
+  const [selectedAlertForResolution, setSelectedAlertForResolution] = useState(null)
   const queryClient = useQueryClient()
 
   const { data: alertsResponse, isLoading } = useQuery({
@@ -42,22 +45,57 @@ export default function Alerts() {
     )
   })
 
-  const updateAlertMutation = useMutation({
-    mutationFn: ({ id, data }) => api.updateAlert(id, data),
+  // Acknowledge alert mutation (Critical Fix #3)
+  const acknowledgeAlertMutation = useMutation({
+    mutationFn: (alertId) => api.acknowledgeAlert(alertId),
     onSuccess: () => {
       queryClient.invalidateQueries(['alerts'])
-      toast.success('Alert updated successfully')
+      toast.success('Alert acknowledged successfully')
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update alert')
-    },
+      toast.error(error.response?.data?.error || 'Failed to acknowledge alert')
+    }
   })
 
-  const handleStatusChange = (alertId, newStatus) => {
-    updateAlertMutation.mutate({
-      id: alertId,
-      data: { status: newStatus }
+  // Resolve alert mutation (Critical Fixes #1, #2, #3, #4)
+  const resolveAlertMutation = useMutation({
+    mutationFn: ({ id, data }) => api.resolveAlert(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['alerts'])
+      queryClient.invalidateQueries(['tasks'])
+      toast.success('Alert resolved successfully with complete documentation')
+      setIsResolutionModalOpen(false)
+      setSelectedAlertForResolution(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Failed to resolve alert')
+    }
+  })
+
+  const handleAcknowledge = (alertId) => {
+    acknowledgeAlertMutation.mutate(alertId)
+  }
+
+  const handleResolve = (alertId) => {
+    // Find the alert to pass to modal
+    const alert = alerts.find(a => a.id === alertId)
+    if (alert) {
+      setSelectedAlertForResolution(alert)
+      setIsResolutionModalOpen(true)
+    }
+  }
+
+  const handleResolutionSubmit = (resolutionData) => {
+    if (!selectedAlertForResolution) return
+    resolveAlertMutation.mutate({
+      id: selectedAlertForResolution.id,
+      data: resolutionData
     })
+  }
+
+  const handleResolutionModalClose = () => {
+    setIsResolutionModalOpen(false)
+    setSelectedAlertForResolution(null)
   }
 
   const getSeverityColor = (severity) => {
@@ -331,9 +369,9 @@ export default function Alerts() {
                     <div className="flex flex-col space-y-2 ml-6">
                       {alert.status === 'PENDING' && (
                         <button
-                          onClick={() => handleStatusChange(alert.id, 'ACKNOWLEDGED')}
+                          onClick={() => handleAcknowledge(alert.id)}
                           className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-sm font-medium rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          disabled={updateAlertMutation.isLoading}
+                          disabled={acknowledgeAlertMutation.isLoading}
                         >
                           <CheckIcon className="h-4 w-4 mr-2" />
                           Acknowledge
@@ -341,9 +379,9 @@ export default function Alerts() {
                       )}
                       {alert.status !== 'RESOLVED' && alert.status !== 'DISMISSED' && (
                         <button
-                          onClick={() => handleStatusChange(alert.id, 'RESOLVED')}
+                          onClick={() => handleResolve(alert.id)}
                           className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          disabled={updateAlertMutation.isLoading}
+                          disabled={resolveAlertMutation.isLoading}
                         >
                           <XMarkIcon className="h-4 w-4 mr-2" />
                           Resolve
@@ -357,6 +395,15 @@ export default function Alerts() {
           )}
         </div>
       </div>
+
+      {/* Resolution Modal */}
+      <ResolutionModal
+        isOpen={isResolutionModalOpen}
+        onClose={handleResolutionModalClose}
+        onSubmit={handleResolutionSubmit}
+        alert={selectedAlertForResolution}
+        isSubmitting={resolveAlertMutation.isLoading}
+      />
     </div>
   )
 }

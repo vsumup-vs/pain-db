@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { prisma } = require('./db');
 
 class JWTService {
@@ -34,15 +35,16 @@ class JWTService {
   }
 
   /**
-   * Generate refresh token
+   * Generate refresh token with unique JTI to prevent duplicate tokens
    */
   async generateRefreshToken(userId) {
     const payload = {
       userId,
-      type: 'refresh'
+      type: 'refresh',
+      jti: crypto.randomBytes(16).toString('hex') // Add unique JWT ID to ensure each refresh token is unique
     };
 
-    return jwt.sign(payload, this.secret, { 
+    return jwt.sign(payload, this.secret, {
       expiresIn: this.refreshExpiresIn,
       issuer: 'pain-management-platform',
       audience: 'healthcare-users'
