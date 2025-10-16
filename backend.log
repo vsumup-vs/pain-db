@@ -6614,12 +6614,72 @@ API info: http://localhost:3000/api
   - Trend evaluation: Daily at 2 AM
   - Stale alert cleanup: Daily at 3 AM
 ✅ Alert evaluation engine started successfully
-"."users"."id", "public"."users"."email", "public"."users"."passwordHash", "public"."users"."firstName", "public"."users"."lastName", "public"."users"."avatar", "public"."users"."phone", "public"."users"."isPlatformAdmin", "public"."users"."isActive", "public"."users"."emailVerified", "public"."users"."mfaEnabled", "public"."users"."mfaSecret", "public"."users"."backupCodes", "public"."users"."lastLoginAt", "public"."users"."passwordResetToken", "public"."users"."passwordResetExpires", "public"."users"."createdAt", "public"."users"."updatedAt" FROM "public"."users" WHERE ("public"."users"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
-prisma:query SELECT "public"."user_organizations"."id", "public"."user_organizations"."userId", "public"."user_organizations"."organizationId", "public"."user_organizations"."role"::text, "public"."user_organizations"."permissions"::text[], "public"."user_organizations"."isActive", "public"."user_organizations"."joinedAt" FROM "public"."user_organizations" WHERE "public"."user_organizations"."userId" IN ($1) OFFSET $2
-prisma:query SELECT "public"."organizations"."id", "public"."organizations"."name", "public"."organizations"."type"::text, "public"."organizations"."email", "public"."organizations"."phone", "public"."organizations"."address", "public"."organizations"."website", "public"."organizations"."isActive", "public"."organizations"."settings", "public"."organizations"."createdAt", "public"."organizations"."updatedAt" FROM "public"."organizations" WHERE "public"."organizations"."id" IN ($1) OFFSET $2
-2025-10-16T05:46:31.051Z - GET /api/alerts
-prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."passwordHash", "public"."users"."firstName", "public"."users"."lastName", "public"."users"."avatar", "public"."users"."phone", "public"."users"."isPlatformAdmin", "public"."users"."isActive", "public"."users"."emailVerified", "public"."users"."mfaEnabled", "public"."users"."mfaSecret", "public"."users"."backupCodes", "public"."users"."lastLoginAt", "public"."users"."passwordResetToken", "public"."users"."passwordResetExpires", "public"."users"."createdAt", "public"."users"."updatedAt" FROM "public"."users" WHERE ("public"."users"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
-prisma:query SELECT "public"."user_organizations"."id", "public"."user_organizations"."userId", "public"."user_organizations"."organizationId", "public"."user_organizations"."role"::text, "public"."user_organizations"."permissions"::text[], "public"."user_organizations"."isActive", "public"."user_organizations"."joinedAt" FROM "public"."user_organizations" WHERE "public"."user_organizations"."userId" IN ($1) OFFSET $2
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+🔄 Starting alert evaluation engine...
+🔄 Starting alert evaluation scheduled jobs...
+✅ All alert evaluation jobs scheduled:
+  - Missed assessments: Every hour
+  - Medication adherence: Every 6 hours
+  - Trend evaluation: Daily at 2 AM
+  - Stale alert cleanup: Daily at 3 AM
+✅ Alert evaluation engine started successfully
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+🔄 Starting alert evaluation engine...
+🔄 Starting alert evaluation scheduled jobs...
+✅ All alert evaluation jobs scheduled:
+  - Missed assessments: Every hour
+  - Medication adherence: Every 6 hours
+  - Trend evaluation: Daily at 2 AM
+  - Stale alert cleanup: Daily at 3 AM
+✅ Alert evaluation engine started successfully
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+🔄 Starting alert evaluation engine...
+🔄 Starting alert evaluation scheduled jobs...
+✅ All alert evaluation jobs scheduled:
+  - Missed assessments: Every hour
+  - Medication adherence: Every 6 hours
+  - Trend evaluation: Daily at 2 AM
+  - Stale alert cleanup: Daily at 3 AM
+✅ Alert evaluation engine started successfully
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+🔄 Starting alert evaluation engine...
+🔄 Starting alert evaluation scheduled jobs...
+✅ All alert evaluation jobs scheduled:
+  - Missed assessments: Every hour
+  - Medication adherence: Every 6 hours
+  - Trend evaluation: Daily at 2 AM
+  - Stale alert cleanup: Daily at 3 AM
+✅ Alert evaluation engine started successfully
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node index.js`[39m
+Server running on port 3000
+Health check: http://localhost:3000/health
+API info: http://localhost:3000/api
+🔄 Starting alert evaluation engine...
+🔄 Starting alert evaluation scheduled jobs...
+✅ All alert evaluation jobs scheduled:
+  - Missed assessments: Every hour
+  - Medication adherence: Every 6 hours
+  - Trend evaluation: Daily at 2 AM
+  - Stale alert cleanup: Daily at 3 AM
+✅ Alert evaluation engine started successfully
+rId" IN ($1) OFFSET $2
 prisma:query SELECT "public"."organizations"."id", "public"."organizations"."name", "public"."organizations"."type"::text, "public"."organizations"."email", "public"."organizations"."phone", "public"."organizations"."address", "public"."organizations"."website", "public"."organizations"."isActive", "public"."organizations"."settings", "public"."organizations"."createdAt", "public"."organizations"."updatedAt" FROM "public"."organizations" WHERE "public"."organizations"."id" IN ($1) OFFSET $2
 2025-10-16T05:46:33.906Z - GET /api/alerts
 prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."passwordHash", "public"."users"."firstName", "public"."users"."lastName", "public"."users"."avatar", "public"."users"."phone", "public"."users"."isPlatformAdmin", "public"."users"."isActive", "public"."users"."emailVerified", "public"."users"."mfaEnabled", "public"."users"."mfaSecret", "public"."users"."backupCodes", "public"."users"."lastLoginAt", "public"."users"."passwordResetToken", "public"."users"."passwordResetExpires", "public"."users"."createdAt", "public"."users"."updatedAt" FROM "public"."users" WHERE ("public"."users"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3
