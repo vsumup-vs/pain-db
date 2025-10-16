@@ -259,6 +259,9 @@ model User {
   auditLogs            AuditLog[]
   claimedAlerts        Alert[]            @relation("ClaimedAlerts")
   resolvedAlerts       Alert[]            @relation("ResolvedAlerts")
+  snoozedAlerts        Alert[]            @relation("SnoozedAlerts")
+  suppressedAlerts     Alert[]            @relation("SuppressedAlerts")
+  escalatedAlerts      Alert[]            @relation("EscalatedAlerts")
   tasksAssignedTo      Task[]             @relation("TaskAssignedTo")
   tasksAssignedBy      Task[]             @relation("TaskAssignedBy")
   tasksCompleted       Task[]             @relation("TaskCompletedBy")
@@ -436,6 +439,7 @@ model Patient {
   patientMedications PatientMedication[]
   tasks              Task[]
   encounterNotes     EncounterNote[]
+  assessmentReminders AssessmentReminder[]
 
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([organizationId, email]) // Unique email per organization
@@ -486,10 +490,27 @@ model Enrollment {
   clinicianId       String
   careProgramId     String
   conditionPresetId String?
+  billingProgramId  String?          // NEW: Link to specific billing configuration
   status            EnrollmentStatus @default(PENDING)
   startDate         DateTime
   endDate           DateTime?
   notes             String?
+
+  // NEW: Billing eligibility tracking (PHASE 0)
+  billingEligibility Json?           // {
+                                      //   eligible: true,
+                                      //   eligibilityDate: "2025-10-01",
+                                      //   verifiedRules: [
+                                      //     { ruleId: "rule-123", ruleName: "Medicare Part B", passed: true },
+                                      //     { ruleId: "rule-456", ruleName: "2+ Chronic Conditions", passed: true }
+                                      //   ],
+                                      //   chronicConditions: ["E11.9", "I10"],
+                                      //   insurance: { type: "Medicare Part B", memberId: "..." },
+                                      //   verifiedBy: "clinician-id",
+                                      //   verifiedAt: "2025-10-01T10:30:00Z",
+                                      //   notes: "Patient meets CCM criteria..."
+                                      // }
+
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -499,6 +520,10 @@ model Enrollment {
   clinician       Clinician        @relation(fields: [clinicianId], references: [id])
   careProgram     CareProgram      @relation(fields: [careProgramId], references: [id])
   conditionPreset ConditionPreset? @relation(fields: [conditionPresetId], references: [id])
+  billingProgram  BillingProgram?  @relation(fields: [billingProgramId], references: [id])
+  observations    Observation[]    // PHASE 3: Observations linked to this enrollment
+  timeLogs        TimeLog[]        // PHASE 3: Time logs linked to this enrollment
+  assessmentReminders AssessmentReminder[]
 
   // ENHANCEMENT: Prevent duplicate enrollments
   @@unique([patientId, careProgramId, startDate])
@@ -507,6 +532,7 @@ model Enrollment {
   @@index([clinicianId])
   @@index([status])
   @@index([startDate])
+  @@index([billingProgramId])
   @@map("enrollments")
 }
 
@@ -555,6 +581,7 @@ model Observation {
   organizationId String
   patientId      String
   clinicianId    String?
+  enrollmentId   String?            // PHASE 3: Link to enrollment for billing
   metricId       String
   value          Json
   unit           String?
@@ -566,14 +593,16 @@ model Observation {
   updatedAt      DateTime           @updatedAt
 
   // Relationships
-  patient   Patient          @relation(fields: [patientId], references: [id])
-  clinician Clinician?       @relation(fields: [clinicianId], references: [id])
-  metric    MetricDefinition @relation(fields: [metricId], references: [id])
+  patient    Patient          @relation(fields: [patientId], references: [id])
+  clinician  Clinician?       @relation(fields: [clinicianId], references: [id])
+  enrollment Enrollment?      @relation(fields: [enrollmentId], references: [id])
+  metric     MetricDefinition @relation(fields: [metricId], references: [id])
 
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([patientId, metricId, recordedAt]) // Prevent duplicate observations
   @@index([organizationId])
   @@index([patientId])
+  @@index([enrollmentId])
   @@index([metricId])
   @@index([recordedAt])
   @@index([source])
@@ -606,6 +635,7 @@ model AssessmentTemplate {
   assessments              Assessment[]
   conditionPresetTemplates ConditionPresetTemplate[]
   items                    AssessmentTemplateItem[]
+  assessmentReminders      AssessmentReminder[]
 
   // ENHANCEMENT: Unique per organization (or globally if null)
   @@unique([organizationId, name])
@@ -672,15 +702,16 @@ enum TimeLogSource {
 }
 
 model TimeLog {
-  id          String         @id @default(cuid())
-  patientId   String
-  clinicianId String
-  activity    String
-  duration    Int
-  cptCode     CPTCode?
-  notes       String?
-  billable    Boolean        @default(true)
-  loggedAt    DateTime       @default(now())
+  id           String         @id @default(cuid())
+  patientId    String
+  clinicianId  String
+  enrollmentId String?        // PHASE 3: Link to enrollment for billing
+  activity     String
+  duration     Int
+  cptCode      CPTCode?
+  notes        String?
+  billable     Boolean        @default(true)
+  loggedAt     DateTime       @default(now())
 
   // Auto-tracking fields (Phase 1a)
   autoStarted Boolean        @default(false) // True if timer was auto-started
@@ -691,12 +722,14 @@ model TimeLog {
   updatedAt   DateTime       @updatedAt
 
   // Relationships
-  patient   Patient   @relation(fields: [patientId], references: [id])
-  clinician Clinician @relation(fields: [clinicianId], references: [id])
+  patient    Patient     @relation(fields: [patientId], references: [id])
+  clinician  Clinician   @relation(fields: [clinicianId], references: [id])
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id])
 
   // ENHANCEMENT: Add indexes
   @@index([patientId])
   @@index([clinicianId])
+  @@index([enrollmentId])
   @@index([loggedAt])
   @@index([billable])
   @@index([cptCode])
@@ -741,12 +774,14 @@ model ConditionPreset {
 }
 
 model ConditionPresetDiagnosis {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   conditionPresetId String
   icd10             String
   snomed            String?
   label             String
-  isPrimary         Boolean @default(false)
+  isPrimary         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relationships
   conditionPreset ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
@@ -760,12 +795,14 @@ model ConditionPresetDiagnosis {
 }
 
 model ConditionPresetTemplate {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   conditionPresetId String
   templateId        String
-  isRequired        Boolean @default(true)
+  isRequired        Boolean  @default(true)
   frequency         String?
-  displayOrder      Int     @default(0)
+  displayOrder      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relationships
   conditionPreset ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
@@ -816,11 +853,13 @@ model AlertRule {
 }
 
 model ConditionPresetAlertRule {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   conditionPresetId String
   alertRuleId       String
-  isEnabled         Boolean @default(true)
-  priority          Int     @default(0)
+  isEnabled         Boolean  @default(true)
+  priority          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relationships
   conditionPreset ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
@@ -860,12 +899,32 @@ model Alert {
   patientOutcome    PatientOutcome?  // Patient outcome after intervention (IMPROVED, STABLE, etc.)
   timeSpentMinutes  Int?             // Time spent in minutes (for TimeLog creation and billing)
 
+  // Snooze & Suppress (Phase 1b)
+  snoozedUntil   DateTime?       // When snooze expires (alert will reactivate)
+  snoozedById    String?         // User who snoozed the alert
+  snoozedAt      DateTime?       // When alert was snoozed
+  isSuppressed   Boolean         @default(false) // Active suppression flag
+  suppressReason SuppressReason? // Documented reason for suppression
+  suppressedById String?         // User who suppressed the alert
+  suppressedAt   DateTime?       // When alert was suppressed
+  suppressNotes  String?         @db.Text // Additional notes for suppression (required if reason is OTHER)
+
+  // Escalation Tracking (Phase 1b)
+  isEscalated      Boolean         @default(false) // Alert has been escalated
+  escalatedAt      DateTime?       // When alert was escalated
+  escalatedToId    String?         // User/Supervisor who received escalation
+  escalationLevel  Int?            // Number of times escalated (1, 2, 3...)
+  escalationReason String?         @db.Text // Why alert was escalated (e.g., "SLA breach", "Manual escalation")
+
   // Relationships
   rule           AlertRule       @relation(fields: [ruleId], references: [id])
   patient        Patient         @relation(fields: [patientId], references: [id])
   clinician      Clinician?      @relation(fields: [clinicianId], references: [id])
   claimedBy      User?           @relation("ClaimedAlerts", fields: [claimedById], references: [id], onDelete: SetNull)
   resolvedBy     User?           @relation("ResolvedAlerts", fields: [resolvedById], references: [id], onDelete: SetNull)
+  snoozedBy      User?           @relation("SnoozedAlerts", fields: [snoozedById], references: [id], onDelete: SetNull)
+  suppressedBy   User?           @relation("SuppressedAlerts", fields: [suppressedById], references: [id], onDelete: SetNull)
+  escalatedTo    User?           @relation("EscalatedAlerts", fields: [escalatedToId], references: [id], onDelete: SetNull)
   tasks          Task[]
   encounterNotes EncounterNote[]
 
@@ -880,6 +939,13 @@ model Alert {
   @@index([priorityRank])
   @@index([slaBreachTime])
   @@index([claimedById])
+  @@index([snoozedUntil])
+  @@index([isSuppressed])
+  @@index([snoozedById])
+  @@index([suppressedById])
+  @@index([isEscalated])
+  @@index([escalatedToId])
+  @@index([escalationLevel])
   @@map("alerts")
 }
 
@@ -1057,4 +1123,192 @@ model EncounterNote {
   @@index([attestedById])
   @@index([alertId])
   @@map("encounter_notes")
+}
+
+// Phase 1b: Assessment Reminder Tracking
+model AssessmentReminder {
+  id        String   @id @default(cuid())
+
+  // Relationships
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  templateId String
+  template   AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  // Reminder details
+  reminderType ReminderType  // UPCOMING, OVERDUE, ESCALATION
+  sentAt       DateTime      // When reminder was sent
+  dueAt        DateTime      // When assessment is/was due
+
+  // Response tracking (optional)
+  assessmentId String?       // If patient completed assessment in response
+  completedAt  DateTime?     // When assessment was completed
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes
+  @@index([patientId])
+  @@index([templateId])
+  @@index([enrollmentId])
+  @@index([sentAt])
+  @@index([dueAt])
+  @@map("assessment_reminders")
+}
+
+enum ReminderType {
+  UPCOMING     // Reminder sent before due date
+  OVERDUE      // Reminder sent after due date
+  ESCALATION   // Escalation reminder for severely overdue
+}
+
+enum SuppressReason {
+  FALSE_POSITIVE           // Alert triggered incorrectly
+  PATIENT_CONTACTED        // Patient already contacted, issue resolved
+  DUPLICATE_ALERT          // Duplicate of existing alert
+  PLANNED_INTERVENTION     // Intervention already scheduled
+  PATIENT_HOSPITALIZED     // Patient in hospital, alert not actionable
+  DEVICE_MALFUNCTION       // Device error causing false reading
+  DATA_ENTRY_ERROR         // Manual data entry mistake
+  CLINICAL_JUDGMENT        // Clinician determines alert not actionable
+  OTHER                    // Other reason (requires notes)
+}
+
+// ============================================================================
+// PHASE 0: Configurable Billing Architecture
+// ============================================================================
+
+model BillingProgram {
+  id          String   @id @default(cuid())
+  name        String   // "CMS RPM 2025", "Medicare RTM", "UK NHS Remote 2025"
+  code        String   @unique // "CMS_RPM_2025", "NHS_REMOTE_2025"
+  region      String   // "US", "UK", "AU", "CA", "EU"
+  payer       String?  // "CMS", "Medicare", "Medicaid", "NHS", "Private"
+  programType String   // "RPM", "RTM", "CCM", "TCM", "REMOTE_MONITORING"
+  version     String   // "2025.1" for tracking requirement changes
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  isActive    Boolean  @default(true)
+
+  // Billing requirements as JSON (flexible configuration)
+  requirements Json     // {
+                        //   dataCollectionDays: 16,
+                        //   clinicalTimeMinutes: 20,
+                        //   setupRequired: true,
+                        //   chronicConditionsMin: 2,
+                        //   eligibilityCriteria: { ... }
+                        // }
+
+  description String?  @db.Text
+  notes       String?  @db.Text
+
+  // Relationships
+  cptCodes         BillingCPTCode[]
+  eligibilityRules BillingEligibilityRule[]
+  enrollments      Enrollment[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([region, programType])
+  @@index([isActive])
+  @@index([effectiveFrom, effectiveTo])
+  @@index([code])
+  @@map("billing_programs")
+}
+
+model BillingCPTCode {
+  id                String   @id @default(cuid())
+  billingProgramId  String
+  code              String   // "99453", "99454", "99457", "98975", etc.
+  description       String   @db.Text // "Initial setup and patient education"
+  category          String   // "SETUP", "DATA_COLLECTION", "CLINICAL_TIME", "TREATMENT_TIME", "CARE_COORDINATION"
+  isRecurring       Boolean  @default(false) // Can bill monthly vs one-time
+
+  // Billing criteria as JSON (flexible configuration)
+  criteria          Json     // {
+                            //   type: "DATA_DAYS",
+                            //   threshold: 16,
+                            //   operator: ">=",
+                            //   calculationMethod: "unique_days_device_observations"
+                            // }
+                            // OR
+                            // {
+                            //   type: "CLINICAL_TIME",
+                            //   thresholdMinutes: 20,
+                            //   maxMinutes: 40,
+                            //   operator: ">=",
+                            //   calculationMethod: "sum_billable_time_logs"
+                            // }
+
+  // Reimbursement info
+  reimbursementRate Decimal? @db.Decimal(10, 2)
+  currency          String?  @default("USD")
+
+  displayOrder      Int      @default(0)
+  isActive          Boolean  @default(true)
+
+  // Relationships
+  billingProgram    BillingProgram @relation(fields: [billingProgramId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([billingProgramId, code])
+  @@index([billingProgramId])
+  @@index([code])
+  @@index([category])
+  @@index([isActive])
+  @@map("billing_cpt_codes")
+}
+
+model BillingEligibilityRule {
+  id                String   @id @default(cuid())
+  billingProgramId  String
+  ruleName          String   @db.VarChar(200) // "Medicare Part B Eligibility"
+  ruleType          String   // "INSURANCE", "DIAGNOSIS", "AGE", "CONSENT", "CUSTOM"
+  priority          Int      @default(0)
+  isRequired        Boolean  @default(true)
+
+  // Rule logic as JSON (flexible configuration)
+  ruleLogic         Json     // {
+                            //   type: "INSURANCE",
+                            //   operator: "IN",
+                            //   values: ["Medicare", "Medicaid"],
+                            //   errorMessage: "Patient must have Medicare or Medicaid"
+                            // }
+                            // OR
+                            // {
+                            //   type: "DIAGNOSIS",
+                            //   operator: "MIN_COUNT",
+                            //   minCount: 2,
+                            //   codingSystems: ["ICD-10"],
+                            //   expectedDuration: "12_MONTHS",
+                            //   errorMessage: "Requires 2+ chronic conditions lasting 12+ months"
+                            // }
+                            // OR
+                            // {
+                            //   type: "AGE",
+                            //   operator: ">=",
+                            //   value: 18,
+                            //   errorMessage: "Patient must be 18 or older"
+                            // }
+
+  description       String?  @db.Text
+
+  // Relationships
+  billingProgram    BillingProgram @relation(fields: [billingProgramId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([billingProgramId])
+  @@index([ruleType])
+  @@index([priority])
+  @@map("billing_eligibility_rules")
 }

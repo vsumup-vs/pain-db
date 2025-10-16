@@ -188,10 +188,30 @@ export const api = {
   bulkCompleteTasks: (data) => apiClient.post('/tasks/bulk-complete', data),
   getTaskStats: (params) => apiClient.get('/tasks/stats', { params }),
 
-  // Billing Readiness (Phase 1c - Monthly Billing Readiness Dashboard)
-  getBillingReadiness: (params) => apiClient.get('/billing/readiness', { params }),
-  getPatientBillingReadiness: (patientId, params) => apiClient.get(`/billing/readiness/patient/${patientId}`, { params }),
-  getBillingStats: (params) => apiClient.get('/billing/stats', { params }),
+  // Billing Readiness (Configurable Billing Service - NEW)
+  // Single enrollment billing readiness
+  getEnrollmentBillingReadiness: (enrollmentId, billingMonth) =>
+    apiClient.get(`/billing/readiness/${enrollmentId}/${billingMonth}`),
+
+  // Organization-wide billing readiness for all enrollments
+  getOrganizationBillingReadiness: (organizationId, billingMonth) =>
+    apiClient.get(`/billing/organization/${organizationId}/${billingMonth}`),
+
+  // Organization billing summary with financial projections
+  getOrganizationBillingSummary: (organizationId, billingMonth) =>
+    apiClient.get(`/billing/summary/${organizationId}/${billingMonth}`),
+
+  // Export billing summary to CSV
+  exportBillingSummaryCSV: (organizationId, billingMonth) =>
+    apiClient.get(`/billing/export/${organizationId}/${billingMonth}`, {
+      responseType: 'blob'
+    }),
+
+  // Billing program management
+  getBillingPrograms: (params) => apiClient.get('/billing/programs', { params }),
+  getBillingProgramByCode: (code) => apiClient.get(`/billing/programs/${code}`),
+  getOrganizationBillingPrograms: (organizationId) =>
+    apiClient.get(`/billing/programs/organization/${organizationId}`),
 
   // Encounter Notes (Phase 1a - Smart Documentation Templates)
   getEncounterNotes: (params) => apiClient.get('/encounter-notes', { params }),

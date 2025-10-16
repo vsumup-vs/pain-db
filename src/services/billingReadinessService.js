@@ -1,293 +1,593 @@
 /**
  * Billing Readiness Service
  *
- * Calculates patient eligibility for CMS billing codes based on TimeLog and Observation data.
+ * Calculates billing eligibility for patients enrolled in CMS programs (RPM, RTM, CCM)
+ * based on CONFIGURABLE criteria stored in the database.
  *
- * CMS Requirements:
- * - CCM (99091): 20+ minutes of clinical time per calendar month
- * - RPM (99454): 16+ days of device readings (observations) per calendar month
- * - RTM (99457): 20+ minutes of interactive communication + 16+ days of data per calendar month
+ * ⚠️  NO HARDCODED BILLING REQUIREMENTS ⚠️
  *
- * Eligibility Status:
- * - ELIGIBLE: Meets all requirements for billing
- * - CLOSE: Within 80% of requirements (e.g., 16+ min for CCM, 13+ days for RPM)
- * - NOT_ELIGIBLE: Below 80% threshold
+ * This service reads billing program criteria from BillingProgram, BillingCPTCode,
+ * and BillingEligibilityRule models, then evaluates patient data (observations,
+ * time logs, enrollments) to determine which CPT codes are billable.
+ *
+ * Key Features:
+ * - Configurable criteria (thresholds read from database)
+ * - Supports multiple billing programs (RPM, RTM, CCM)
+ * - Version-aware (effective dates)
+ * - International program support (US CMS, UK NHS, etc.)
+ * - Detailed eligibility breakdown per CPT code
+ *
+ * @module billingReadinessService
  */
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 /**
- * Calculate billing readiness for a specific patient and month
+ * Calculate billing readiness for a specific enrollment
  *
- * @param {string} patientId - Patient ID
- * @param {number} year - Year (e.g., 2025)
- * @param {number} month - Month (1-12)
- * @param {string} organizationId - Organization ID for data isolation
- * @returns {Promise<Object>} Billing readiness object
+ * @param {string} enrollmentId - Enrollment ID to calculate billing for
+ * @param {string} billingMonth - Month to calculate (YYYY-MM format, e.g., "2025-10")
+ * @returns {Promise<Object>} Billing readiness details
  */
-const calculatePatientBillingReadiness = async (patientId, year, month, organizationId) => {
-  try {
-    // Calculate date range for the month
-    const startDate = new Date(year, month - 1, 1); // Month is 0-indexed
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+async function calculateBillingReadiness(enrollmentId, billingMonth) {
+  // Parse billing month
+  const [year, month] = billingMonth.split('-').map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-    // Fetch patient with enrollment info
-    const patient = await prisma.patient.findFirst({
-      where: {
-        id: patientId,
-        organizationId
-      },
-      include: {
-        enrollments: {
-          where: {
-            status: 'ACTIVE',
-            startDate: { lte: endDate }
+  // Fetch enrollment with billing program
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    include: {
+      patient: true,
+      billingProgram: {
+        include: {
+          cptCodes: {
+            where: { isActive: true },
+            orderBy: { displayOrder: 'asc' }
           },
-          include: {
-            careProgram: true,
-            clinician: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true
-              }
-            }
+          eligibilityRules: {
+            where: { isRequired: true },
+            orderBy: { priority: 'asc' }
           }
         }
       }
-    });
-
-    if (!patient) {
-      return null;
     }
+  });
 
-    // Calculate CCM eligibility (99091): 20+ minutes of clinical time
-    const timeLogs = await prisma.timeLog.findMany({
-      where: {
-        patientId,
-        billable: true,
-        loggedAt: {
-          gte: startDate,
-          lte: endDate
-        }
-      }
-    });
-
-    const totalMinutes = timeLogs.reduce((sum, log) => sum + log.duration, 0);
-    const ccmEligible = totalMinutes >= 20;
-    const ccmClose = totalMinutes >= 16 && totalMinutes < 20; // 80% threshold
-    const ccmStatus = ccmEligible ? 'ELIGIBLE' : ccmClose ? 'CLOSE' : 'NOT_ELIGIBLE';
-
-    // Get CPT codes from time logs
-    const cptCodes = [...new Set(timeLogs.map(log => log.cptCode).filter(Boolean))];
-
-    // Calculate RPM eligibility (99454): 16+ days of device readings
-    const deviceObservations = await prisma.observation.findMany({
-      where: {
-        patientId,
-        source: 'DEVICE',
-        recordedAt: {
-          gte: startDate,
-          lte: endDate
-        }
-      },
-      select: {
-        recordedAt: true
-      }
-    });
-
-    // Count unique days with device readings
-    const uniqueDays = new Set(
-      deviceObservations.map(obs =>
-        new Date(obs.recordedAt).toISOString().split('T')[0]
-      )
-    );
-    const daysWithReadings = uniqueDays.size;
-    const rpmEligible = daysWithReadings >= 16;
-    const rpmClose = daysWithReadings >= 13 && daysWithReadings < 16; // 80% threshold
-    const rpmStatus = rpmEligible ? 'ELIGIBLE' : rpmClose ? 'CLOSE' : 'NOT_ELIGIBLE';
-
-    // Calculate RTM eligibility (99457): 20+ minutes of interactive communication + 16+ days
-    const rtmTimeLogs = timeLogs.filter(log =>
-      log.cptCode === 'CODE_99457' || log.cptCode === 'CODE_99458'
-    );
-    const rtmMinutes = rtmTimeLogs.reduce((sum, log) => sum + log.duration, 0);
-    const rtmTimeEligible = rtmMinutes >= 20;
-    const rtmDataEligible = daysWithReadings >= 16;
-    const rtmEligible = rtmTimeEligible && rtmDataEligible;
-    const rtmClose = (rtmMinutes >= 16 || daysWithReadings >= 13) && !rtmEligible; // Partial eligibility
-    const rtmStatus = rtmEligible ? 'ELIGIBLE' : rtmClose ? 'CLOSE' : 'NOT_ELIGIBLE';
-
-    // Determine overall billing status (best case scenario)
-    let overallStatus = 'NOT_ELIGIBLE';
-    if (ccmEligible || rpmEligible || rtmEligible) {
-      overallStatus = 'ELIGIBLE';
-    } else if (ccmClose || rpmClose || rtmClose) {
-      overallStatus = 'CLOSE';
-    }
-
-    return {
-      patientId: patient.id,
-      patientName: `${patient.firstName} ${patient.lastName}`,
-      medicalRecordNumber: patient.medicalRecordNumber,
-      month,
-      year,
-      overallStatus,
-      ccm: {
-        status: ccmStatus,
-        totalMinutes,
-        required: 20,
-        percentage: Math.min(100, Math.round((totalMinutes / 20) * 100))
-      },
-      rpm: {
-        status: rpmStatus,
-        daysWithReadings,
-        required: 16,
-        percentage: Math.min(100, Math.round((daysWithReadings / 16) * 100))
-      },
-      rtm: {
-        status: rtmStatus,
-        interactiveMinutes: rtmMinutes,
-        daysWithReadings,
-        requiredMinutes: 20,
-        requiredDays: 16,
-        percentageTime: Math.min(100, Math.round((rtmMinutes / 20) * 100)),
-        percentageData: Math.min(100, Math.round((daysWithReadings / 16) * 100))
-      },
-      cptCodes,
-      enrollments: patient.enrollments.map(e => ({
-        id: e.id,
-        programName: e.careProgram.name,
-        programType: e.careProgram.type,
-        clinician: e.clinician
-      })),
-      timeLogCount: timeLogs.length,
-      observationDays: daysWithReadings
-    };
-  } catch (error) {
-    console.error('Error calculating patient billing readiness:', error);
-    throw error;
+  if (!enrollment) {
+    throw new Error(`Enrollment ${enrollmentId} not found`);
   }
-};
+
+  if (!enrollment.billingProgram) {
+    throw new Error(`Enrollment ${enrollmentId} has no billing program assigned`);
+  }
+
+  const billingProgram = enrollment.billingProgram;
+
+  // Check if billing program is active and effective for this month
+  if (!billingProgram.isActive) {
+    return {
+      enrollmentId,
+      billingMonth,
+      eligible: false,
+      reason: 'Billing program is not active',
+      billingProgram: null,
+      cptCodes: []
+    };
+  }
+
+  const effectiveFrom = new Date(billingProgram.effectiveFrom);
+  const effectiveTo = billingProgram.effectiveTo ? new Date(billingProgram.effectiveTo) : null;
+
+  if (startDate < effectiveFrom || (effectiveTo && endDate > effectiveTo)) {
+    return {
+      enrollmentId,
+      billingMonth,
+      eligible: false,
+      reason: `Billing program not effective for ${billingMonth}`,
+      billingProgram: billingProgram.name,
+      cptCodes: []
+    };
+  }
+
+  // Evaluate eligibility rules
+  const eligibilityResults = await evaluateEligibilityRules(
+    enrollment,
+    billingProgram.eligibilityRules
+  );
+
+  const allRulesPassed = eligibilityResults.every(r => r.passed);
+
+  if (!allRulesPassed) {
+    return {
+      enrollmentId,
+      billingMonth,
+      eligible: false,
+      reason: 'Failed eligibility requirements',
+      billingProgram: billingProgram.name,
+      eligibilityRules: eligibilityResults,
+      cptCodes: []
+    };
+  }
+
+  // Calculate CPT code eligibility
+  const cptCodeResults = await Promise.all(
+    billingProgram.cptCodes.map(cptCode =>
+      evaluateCPTCode(enrollment, cptCode, startDate, endDate, billingMonth)
+    )
+  );
+
+  // Calculate total potential reimbursement
+  const totalReimbursement = cptCodeResults
+    .filter(c => c.eligible)
+    .reduce((sum, c) => sum + (parseFloat(c.reimbursementRate) || 0), 0);
+
+  const eligibleCPTCodes = cptCodeResults.filter(c => c.eligible);
+  const isEligible = eligibleCPTCodes.length > 0;
+
+  return {
+    enrollmentId,
+    patientId: enrollment.patientId,
+    patientName: `${enrollment.patient.firstName} ${enrollment.patient.lastName}`,
+    billingMonth,
+    eligible: isEligible,
+    billingProgram: billingProgram.name,
+    billingProgramCode: billingProgram.code,
+    eligibilityRules: eligibilityResults,
+    cptCodes: cptCodeResults,
+    totalReimbursement: totalReimbursement.toFixed(2),
+    currency: 'USD',
+    summary: {
+      totalCPTCodes: cptCodeResults.length,
+      eligibleCPTCodes: eligibleCPTCodes.length,
+      setupCompleted: cptCodeResults.some(c => c.category === 'SETUP' && c.eligible),
+      dataCollectionMet: cptCodeResults.some(c => c.category === 'DATA_COLLECTION' && c.eligible),
+      clinicalTimeMet: cptCodeResults.some(c =>
+        ['CLINICAL_TIME', 'TREATMENT_TIME', 'CARE_COORDINATION'].includes(c.category) && c.eligible
+      )
+    }
+  };
+}
 
 /**
- * Calculate billing readiness for all active patients in an organization for a given month
+ * Evaluate eligibility rules for an enrollment
+ *
+ * @param {Object} enrollment - Enrollment with patient data
+ * @param {Array} rules - Array of BillingEligibilityRule objects
+ * @returns {Promise<Array>} Array of rule evaluation results
+ */
+async function evaluateEligibilityRules(enrollment, rules) {
+  const results = [];
+
+  for (const rule of rules) {
+    const ruleLogic = rule.ruleLogic;
+    let passed = false;
+    let actualValue = null;
+    let reason = '';
+
+    switch (rule.ruleType) {
+      case 'INSURANCE':
+        // Check patient insurance type
+        const insuranceType = enrollment.patient.insuranceInfo?.type ||
+                             enrollment.billingEligibility?.insurance?.type;
+
+        if (ruleLogic.operator === 'IN') {
+          passed = ruleLogic.values.some(v =>
+            insuranceType && insuranceType.toLowerCase().includes(v.toLowerCase())
+          );
+          actualValue = insuranceType;
+          reason = passed ? 'Insurance requirement met' :
+                   (ruleLogic.errorMessage || 'Patient does not have required insurance');
+        }
+        break;
+
+      case 'DIAGNOSIS':
+        // Check chronic conditions count
+        const chronicConditions = enrollment.billingEligibility?.chronicConditions || [];
+
+        if (ruleLogic.operator === 'MIN_COUNT') {
+          passed = chronicConditions.length >= ruleLogic.minCount;
+          actualValue = chronicConditions.length;
+          reason = passed ? `Has ${chronicConditions.length} chronic condition(s)` :
+                   (ruleLogic.errorMessage || `Requires at least ${ruleLogic.minCount} chronic conditions`);
+        }
+        break;
+
+      case 'CONSENT':
+        // Check if patient has consented
+        const hasConsent = enrollment.billingEligibility?.eligible === true;
+        passed = hasConsent;
+        actualValue = hasConsent ? 'Consented' : 'Not consented';
+        reason = passed ? 'Patient consent obtained' :
+                 (ruleLogic.errorMessage || 'Patient consent required');
+        break;
+
+      case 'AGE':
+        // Check patient age requirements
+        if (enrollment.patient.dateOfBirth) {
+          const birthDate = new Date(enrollment.patient.dateOfBirth);
+          const today = new Date();
+          const age = Math.floor((today - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+
+          if (ruleLogic.operator === '>=') {
+            passed = age >= ruleLogic.value;
+          } else if (ruleLogic.operator === '<=') {
+            passed = age <= ruleLogic.value;
+          }
+
+          actualValue = age;
+          reason = passed ? `Age ${age} meets requirement` :
+                   (ruleLogic.errorMessage || `Age requirement not met`);
+        }
+        break;
+
+      case 'CUSTOM':
+        // Custom rules - default to passed if billingEligibility exists
+        passed = enrollment.billingEligibility?.eligible === true;
+        actualValue = 'Checked during enrollment';
+        reason = ruleLogic.errorMessage || 'Custom eligibility requirement';
+        break;
+
+      default:
+        passed = false;
+        reason = `Unknown rule type: ${rule.ruleType}`;
+    }
+
+    results.push({
+      ruleId: rule.id,
+      ruleName: rule.ruleName,
+      ruleType: rule.ruleType,
+      priority: rule.priority,
+      passed,
+      actualValue,
+      reason,
+      required: rule.isRequired
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Evaluate a single CPT code for billing eligibility
+ *
+ * @param {Object} enrollment - Enrollment object
+ * @param {Object} cptCode - BillingCPTCode object
+ * @param {Date} startDate - Billing period start
+ * @param {Date} endDate - Billing period end
+ * @param {string} billingMonth - Billing month (YYYY-MM)
+ * @returns {Promise<Object>} CPT code evaluation result
+ */
+async function evaluateCPTCode(enrollment, cptCode, startDate, endDate, billingMonth) {
+  const criteria = cptCode.criteria;
+  let eligible = false;
+  let actualValue = 0;
+  let details = '';
+
+  switch (criteria.type) {
+    case 'ONE_TIME_SETUP':
+      // Check if setup was already billed
+      const existingSetupBilling = await checkPreviousBilling(
+        enrollment.id,
+        cptCode.code,
+        null,
+        startDate
+      );
+
+      eligible = !existingSetupBilling;
+      actualValue = existingSetupBilling ? 'Already billed' : 'Not yet billed';
+      details = eligible ? 'Setup can be billed (first time)' : 'Setup already billed previously';
+      break;
+
+    case 'DATA_DAYS':
+      // Calculate unique days with observations
+      const uniqueDays = await calculateUniqueDaysWithData(
+        enrollment.id,
+        startDate,
+        endDate,
+        criteria.calculationMethod
+      );
+
+      eligible = evaluateOperator(uniqueDays, criteria.operator, criteria.threshold);
+      actualValue = uniqueDays;
+      details = `${uniqueDays} days with data (requires ${criteria.operator} ${criteria.threshold})`;
+      break;
+
+    case 'CLINICAL_TIME':
+    case 'TREATMENT_TIME':
+    case 'CARE_COORDINATION':
+      // Calculate total billable time
+      const totalMinutes = await calculateBillableTime(
+        enrollment.id,
+        startDate,
+        endDate,
+        criteria.calculationMethod
+      );
+
+      eligible = totalMinutes >= criteria.thresholdMinutes;
+      actualValue = totalMinutes;
+      details = `${totalMinutes} minutes logged (requires ≥ ${criteria.thresholdMinutes})`;
+      break;
+
+    case 'CLINICAL_TIME_INCREMENTAL':
+    case 'TREATMENT_TIME_ADDITIONAL':
+    case 'CARE_COORDINATION_ADDITIONAL':
+      // Check if base code is eligible first
+      const baseCodeRequired = criteria.requires?.[0];
+
+      if (baseCodeRequired) {
+        const baseCode = await prisma.billingCPTCode.findFirst({
+          where: {
+            billingProgramId: cptCode.billingProgramId,
+            code: baseCodeRequired
+          }
+        });
+
+        if (baseCode) {
+          const baseResult = await evaluateCPTCode(enrollment, baseCode, startDate, endDate, billingMonth);
+
+          if (!baseResult.eligible) {
+            eligible = false;
+            actualValue = 0;
+            details = `Requires ${baseCodeRequired} to be eligible first`;
+            break;
+          }
+
+          // Calculate additional time beyond base threshold
+          const totalMinutes = await calculateBillableTime(
+            enrollment.id,
+            startDate,
+            endDate,
+            criteria.calculationMethod || baseCode.criteria.calculationMethod
+          );
+
+          const baseThreshold = baseCode.criteria.thresholdMinutes;
+          const additionalMinutes = totalMinutes - baseThreshold;
+          const additionalIncrements = Math.floor(additionalMinutes / criteria.thresholdMinutes);
+
+          eligible = additionalIncrements > 0;
+          actualValue = additionalIncrements;
+          details = `${additionalMinutes} additional minutes (${additionalIncrements} x ${criteria.thresholdMinutes}-min increments)`;
+        }
+      }
+      break;
+
+    default:
+      eligible = false;
+      details = `Unknown criteria type: ${criteria.type}`;
+  }
+
+  return {
+    code: cptCode.code,
+    description: cptCode.description,
+    category: cptCode.category,
+    eligible,
+    actualValue,
+    details,
+    reimbursementRate: cptCode.reimbursementRate ? parseFloat(cptCode.reimbursementRate) : 0,
+    currency: cptCode.currency || 'USD',
+    isRecurring: cptCode.isRecurring
+  };
+}
+
+/**
+ * Calculate unique days with observations based on calculation method
+ *
+ * @param {string} enrollmentId - Enrollment ID
+ * @param {Date} startDate - Period start
+ * @param {Date} endDate - Period end
+ * @param {string} calculationMethod - Method to use for calculation
+ * @returns {Promise<number>} Number of unique days
+ */
+async function calculateUniqueDaysWithData(enrollmentId, startDate, endDate, calculationMethod) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { patientId: true }
+  });
+
+  if (!enrollment) return 0;
+
+  let whereClause = {
+    patientId: enrollment.patientId,
+    recordedAt: {
+      gte: startDate,
+      lte: endDate
+    }
+  };
+
+  // Filter by observation source based on calculation method
+  if (calculationMethod === 'unique_days_device_observations') {
+    whereClause.source = 'DEVICE';
+  } else if (calculationMethod === 'unique_days_therapeutic_data') {
+    whereClause.source = { in: ['DEVICE', 'MANUAL', 'API'] };
+  }
+
+  const observations = await prisma.observation.findMany({
+    where: whereClause,
+    select: {
+      recordedAt: true
+    }
+  });
+
+  // Count unique dates (YYYY-MM-DD)
+  const uniqueDates = new Set(
+    observations.map(obs => obs.recordedAt.toISOString().split('T')[0])
+  );
+
+  return uniqueDates.size;
+}
+
+/**
+ * Calculate total billable time in minutes
+ *
+ * @param {string} enrollmentId - Enrollment ID
+ * @param {Date} startDate - Period start
+ * @param {Date} endDate - Period end
+ * @param {string} calculationMethod - Method to use for calculation
+ * @returns {Promise<number>} Total minutes
+ */
+async function calculateBillableTime(enrollmentId, startDate, endDate, calculationMethod) {
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { patientId: true, clinicianId: true }
+  });
+
+  if (!enrollment) return 0;
+
+  const whereClause = {
+    patientId: enrollment.patientId,
+    loggedAt: {
+      gte: startDate,
+      lte: endDate
+    }
+  };
+
+  // Filter by activity type based on calculation method
+  if (calculationMethod === 'sum_billable_time_logs') {
+    // All billable activities
+    whereClause.billable = true;
+  } else if (calculationMethod === 'sum_care_coordination_time') {
+    // Only care coordination activities - Note: TimeLog doesn't have activityType enum yet
+    // For now, filter by billable only
+    whereClause.billable = true;
+  }
+
+  const timeLogs = await prisma.timeLog.findMany({
+    where: whereClause,
+    select: {
+      duration: true
+    }
+  });
+
+  return timeLogs.reduce((sum, log) => sum + log.duration, 0);
+}
+
+/**
+ * Check if a CPT code was already billed
+ *
+ * @param {string} enrollmentId - Enrollment ID
+ * @param {string} cptCode - CPT code to check
+ * @param {Date} afterDate - Check for billing after this date (null = check all history)
+ * @param {Date} beforeDate - Check for billing before this date
+ * @returns {Promise<boolean>} True if previously billed
+ */
+async function checkPreviousBilling(enrollmentId, cptCode, afterDate, beforeDate) {
+  // TODO: This will be implemented when we create the BillingRecord model
+  // For now, assume setup codes haven't been billed
+  return false;
+}
+
+/**
+ * Evaluate an operator against actual and expected values
+ *
+ * @param {number} actual - Actual value
+ * @param {string} operator - Comparison operator (>=, >, <, <=, ==)
+ * @param {number} expected - Expected value
+ * @returns {boolean} True if condition met
+ */
+function evaluateOperator(actual, operator, expected) {
+  switch (operator) {
+    case '>=': return actual >= expected;
+    case '>': return actual > expected;
+    case '<': return actual < expected;
+    case '<=': return actual <= expected;
+    case '==': return actual === expected;
+    default: return false;
+  }
+}
+
+/**
+ * Calculate billing readiness for all enrollments in an organization for a month
  *
  * @param {string} organizationId - Organization ID
- * @param {number} year - Year (e.g., 2025)
- * @param {number} month - Month (1-12)
- * @returns {Promise<Object>} Billing readiness summary with patient details
+ * @param {string} billingMonth - Month to calculate (YYYY-MM)
+ * @returns {Promise<Array>} Array of billing readiness results
  */
-const calculateOrganizationBillingReadiness = async (organizationId, year, month) => {
-  try {
-    // Get all patients with active enrollments
-    const patients = await prisma.patient.findMany({
-      where: {
-        organizationId,
-        enrollments: {
-          some: {
-            status: 'ACTIVE',
-            startDate: { lte: new Date(year, month, 0) } // Started before end of month
-          }
-        }
-      },
-      select: {
-        id: true
-      }
-    });
-
-    // Calculate readiness for each patient
-    const patientReadiness = await Promise.all(
-      patients.map(patient =>
-        calculatePatientBillingReadiness(patient.id, year, month, organizationId)
-      )
-    );
-
-    // Filter out null results (patients not found)
-    const validResults = patientReadiness.filter(r => r !== null);
-
-    // Calculate summary statistics
-    const summary = {
-      totalPatients: validResults.length,
-      eligible: validResults.filter(r => r.overallStatus === 'ELIGIBLE').length,
-      close: validResults.filter(r => r.overallStatus === 'CLOSE').length,
-      notEligible: validResults.filter(r => r.overallStatus === 'NOT_ELIGIBLE').length,
-      ccmEligible: validResults.filter(r => r.ccm.status === 'ELIGIBLE').length,
-      rpmEligible: validResults.filter(r => r.rpm.status === 'ELIGIBLE').length,
-      rtmEligible: validResults.filter(r => r.rtm.status === 'ELIGIBLE').length,
-      eligibilityPercentage: validResults.length > 0
-        ? Math.round((validResults.filter(r => r.overallStatus === 'ELIGIBLE').length / validResults.length) * 100)
-        : 0
-    };
-
-    return {
+async function calculateOrganizationBillingReadiness(organizationId, billingMonth) {
+  // Get all active enrollments with billing programs
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
       organizationId,
-      month,
-      year,
-      summary,
-      patients: validResults
-    };
-  } catch (error) {
-    console.error('Error calculating organization billing readiness:', error);
-    throw error;
-  }
-};
+      status: 'ACTIVE',
+      billingProgramId: { not: null }
+    },
+    select: {
+      id: true
+    }
+  });
+
+  const results = await Promise.all(
+    enrollments.map(enrollment =>
+      calculateBillingReadiness(enrollment.id, billingMonth)
+    )
+  );
+
+  return results;
+}
 
 /**
- * Generate CSV export data for billing readiness
+ * Generate monthly billing summary for an organization
  *
- * @param {Object} billingData - Billing readiness data from calculateOrganizationBillingReadiness
- * @returns {string} CSV string
+ * @param {string} organizationId - Organization ID
+ * @param {string} billingMonth - Month to summarize (YYYY-MM)
+ * @returns {Promise<Object>} Billing summary
  */
-const generateBillingCSV = (billingData) => {
-  const headers = [
-    'Patient Name',
-    'MRN',
-    'Overall Status',
-    'CCM Status',
-    'CCM Minutes',
-    'CCM %',
-    'RPM Status',
-    'RPM Days',
-    'RPM %',
-    'RTM Status',
-    'RTM Minutes',
-    'RTM Days',
-    'RTM %',
-    'Program',
-    'Clinician'
-  ];
+async function generateBillingSummary(organizationId, billingMonth) {
+  const results = await calculateOrganizationBillingReadiness(organizationId, billingMonth);
 
-  const rows = billingData.patients.map(p => [
-    p.patientName,
-    p.medicalRecordNumber || 'N/A',
-    p.overallStatus,
-    p.ccm.status,
-    p.ccm.totalMinutes,
-    `${p.ccm.percentage}%`,
-    p.rpm.status,
-    p.rpm.daysWithReadings,
-    `${p.rpm.percentage}%`,
-    p.rtm.status,
-    p.rtm.interactiveMinutes,
-    p.rtm.daysWithReadings,
-    `${p.rtm.percentageTime}%`,
-    p.enrollments.map(e => e.programName).join('; '),
-    p.enrollments.map(e => `${e.clinician.firstName} ${e.clinician.lastName}`).join('; ')
-  ]);
+  const eligible = results.filter(r => r.eligible);
+  const notEligible = results.filter(r => !r.eligible);
 
-  // Build CSV string
-  const csvLines = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-  ];
+  const totalReimbursement = eligible.reduce(
+    (sum, r) => sum + parseFloat(r.totalReimbursement || 0),
+    0
+  );
 
-  return csvLines.join('\n');
-};
+  // Group by billing program
+  const byProgram = {};
+  eligible.forEach(r => {
+    if (!byProgram[r.billingProgramCode]) {
+      byProgram[r.billingProgramCode] = {
+        programName: r.billingProgram,
+        count: 0,
+        totalReimbursement: 0,
+        patients: []
+      };
+    }
+    byProgram[r.billingProgramCode].count++;
+    byProgram[r.billingProgramCode].totalReimbursement += parseFloat(r.totalReimbursement || 0);
+    byProgram[r.billingProgramCode].patients.push({
+      patientId: r.patientId,
+      patientName: r.patientName,
+      reimbursement: r.totalReimbursement
+    });
+  });
+
+  return {
+    organizationId,
+    billingMonth,
+    summary: {
+      totalEnrollments: results.length,
+      eligibleEnrollments: eligible.length,
+      notEligibleEnrollments: notEligible.length,
+      eligibilityRate: results.length > 0 ? (eligible.length / results.length * 100).toFixed(1) : 0,
+      totalReimbursement: totalReimbursement.toFixed(2),
+      currency: 'USD'
+    },
+    byProgram,
+    eligiblePatients: eligible,
+    notEligiblePatients: notEligible
+  };
+}
 
 module.exports = {
-  calculatePatientBillingReadiness,
+  calculateBillingReadiness,
   calculateOrganizationBillingReadiness,
-  generateBillingCSV
+  generateBillingSummary,
+  evaluateEligibilityRules,
+  evaluateCPTCode,
+  calculateUniqueDaysWithData,
+  calculateBillableTime
 };

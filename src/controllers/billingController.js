@@ -1,227 +1,526 @@
 /**
  * Billing Controller
  *
- * Handles billing readiness calculations and exports for CMS billing codes.
+ * Handles HTTP requests for billing readiness calculations and billing program management.
+ *
+ * Uses the NEW CONFIGURABLE billing service (reads criteria from database, not hardcoded).
+ *
+ * Endpoints:
+ * - GET /api/billing/readiness/:enrollmentId/:billingMonth - Single enrollment billing readiness
+ * - GET /api/billing/organization/:organizationId/:billingMonth - All enrollments for organization
+ * - GET /api/billing/summary/:organizationId/:billingMonth - Organization billing summary
+ * - GET /api/billing/programs - List all billing programs
+ * - GET /api/billing/programs/:code - Get specific billing program with CPT codes and rules
+ * - GET /api/billing/export/:organizationId/:billingMonth - Export billing summary to CSV
+ *
+ * @module billingController
  */
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const {
-  calculatePatientBillingReadiness,
-  calculateOrganizationBillingReadiness,
-  generateBillingCSV
-} = require('../services/billingReadinessService');
+const billingService = require('../services/billingReadinessService');
 
 /**
- * Get billing readiness for organization
- * GET /api/billing/readiness
+ * Get billing readiness for a specific enrollment
+ *
+ * GET /api/billing/readiness/:enrollmentId/:billingMonth
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
  */
-const getBillingReadiness = async (req, res) => {
+const getEnrollmentBillingReadiness = async (req, res) => {
   try {
-    const { organizationId } = req.user;
-    const { year, month } = req.query;
+    const { enrollmentId, billingMonth } = req.params;
 
-    // Default to current month if not specified
-    const now = new Date();
-    const targetYear = year ? parseInt(year) : now.getFullYear();
-    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
-
-    // Validate month range
-    if (targetMonth < 1 || targetMonth > 12) {
+    // Validate billing month format (YYYY-MM)
+    const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if (!monthRegex.test(billingMonth)) {
       return res.status(400).json({
-        success: false,
-        message: 'Month must be between 1 and 12'
+        error: 'Invalid billing month format. Use YYYY-MM (e.g., 2025-10)'
       });
     }
 
-    // Calculate billing readiness for the organization
-    const billingData = await calculateOrganizationBillingReadiness(
-      organizationId,
-      targetYear,
-      targetMonth
-    );
-
-    res.status(200).json({
-      success: true,
-      data: billingData
+    // Verify enrollment exists and user has access (organization-level isolation)
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      select: { organizationId: true }
     });
-  } catch (error) {
-    console.error('Error fetching billing readiness:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to calculate billing readiness',
-      error: error.message
-    });
-  }
-};
 
-/**
- * Get billing readiness for a specific patient
- * GET /api/billing/readiness/patient/:patientId
- */
-const getPatientBillingReadiness = async (req, res) => {
-  try {
-    const { organizationId } = req.user;
-    const { patientId } = req.params;
-    const { year, month } = req.query;
-
-    // Default to current month if not specified
-    const now = new Date();
-    const targetYear = year ? parseInt(year) : now.getFullYear();
-    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
-
-    // Validate month range
-    if (targetMonth < 1 || targetMonth > 12) {
-      return res.status(400).json({
-        success: false,
-        message: 'Month must be between 1 and 12'
-      });
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Enrollment not found' });
     }
 
-    // Verify patient belongs to organization
-    const patient = await prisma.patient.findFirst({
-      where: {
-        id: patientId,
-        organizationId
+    // Check organization access
+    if (req.user) {
+      const hasAccess = req.user.organizations?.some(
+        org => org.organizationId === enrollment.organizationId
+      ) || req.user.isPlatformAdmin;
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied to this enrollment' });
       }
-    });
-
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
-    }
-
-    // Calculate billing readiness for the patient
-    const billingData = await calculatePatientBillingReadiness(
-      patientId,
-      targetYear,
-      targetMonth,
-      organizationId
-    );
-
-    if (!billingData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Unable to calculate billing readiness for patient'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: billingData
-    });
-  } catch (error) {
-    console.error('Error fetching patient billing readiness:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to calculate patient billing readiness',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Export billing readiness as CSV
- * GET /api/billing/readiness/export
- */
-const exportBillingReadiness = async (req, res) => {
-  try {
-    const { organizationId } = req.user;
-    const { year, month } = req.query;
-
-    // Default to current month if not specified
-    const now = new Date();
-    const targetYear = year ? parseInt(year) : now.getFullYear();
-    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
-
-    // Validate month range
-    if (targetMonth < 1 || targetMonth > 12) {
-      return res.status(400).json({
-        success: false,
-        message: 'Month must be between 1 and 12'
-      });
-    }
-
-    // Calculate billing readiness for the organization
-    const billingData = await calculateOrganizationBillingReadiness(
-      organizationId,
-      targetYear,
-      targetMonth
-    );
-
-    // Generate CSV
-    const csvContent = generateBillingCSV(billingData);
-
-    // Set headers for CSV download
-    const monthName = new Date(targetYear, targetMonth - 1).toLocaleString('default', { month: 'long' });
-    const filename = `billing-readiness-${monthName}-${targetYear}.csv`;
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.status(200).send(csvContent);
-  } catch (error) {
-    console.error('Error exporting billing readiness:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to export billing readiness',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get billing statistics summary
- * GET /api/billing/stats
- */
-const getBillingStats = async (req, res) => {
-  try {
-    const { organizationId } = req.user;
-    const { year, month } = req.query;
-
-    // Default to current month if not specified
-    const now = new Date();
-    const targetYear = year ? parseInt(year) : now.getFullYear();
-    const targetMonth = month ? parseInt(month) : now.getMonth() + 1;
-
-    // Validate month range
-    if (targetMonth < 1 || targetMonth > 12) {
-      return res.status(400).json({
-        success: false,
-        message: 'Month must be between 1 and 12'
-      });
     }
 
     // Calculate billing readiness
-    const billingData = await calculateOrganizationBillingReadiness(
+    const result = await billingService.calculateBillingReadiness(enrollmentId, billingMonth);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error getting enrollment billing readiness:', error);
+    res.status(500).json({
+      error: 'Failed to calculate billing readiness',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Get billing readiness for all enrollments in an organization
+ *
+ * GET /api/billing/organization/:organizationId/:billingMonth
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const getOrganizationBillingReadiness = async (req, res) => {
+  try {
+    const { organizationId, billingMonth } = req.params;
+
+    // Validate billing month format
+    const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if (!monthRegex.test(billingMonth)) {
+      return res.status(400).json({
+        error: 'Invalid billing month format. Use YYYY-MM (e.g., 2025-10)'
+      });
+    }
+
+    // Check organization access
+    if (req.user) {
+      const hasAccess = req.user.organizations?.some(
+        org => org.organizationId === organizationId
+      ) || req.user.isPlatformAdmin;
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied to this organization' });
+      }
+    }
+
+    // Calculate billing readiness for all enrollments
+    const results = await billingService.calculateOrganizationBillingReadiness(
       organizationId,
-      targetYear,
-      targetMonth
+      billingMonth
     );
 
-    // Return just the summary
-    res.status(200).json({
-      success: true,
-      data: {
-        month: targetMonth,
-        year: targetYear,
-        summary: billingData.summary
-      }
+    res.json({
+      organizationId,
+      billingMonth,
+      totalEnrollments: results.length,
+      enrollments: results
     });
   } catch (error) {
-    console.error('Error fetching billing stats:', error);
+    console.error('Error getting organization billing readiness:', error);
     res.status(500).json({
-      success: false,
-      message: 'Failed to fetch billing statistics',
-      error: error.message
+      error: 'Failed to calculate organization billing readiness',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Get billing summary for an organization
+ *
+ * GET /api/billing/summary/:organizationId/:billingMonth
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const getOrganizationBillingSummary = async (req, res) => {
+  try {
+    const { organizationId, billingMonth } = req.params;
+
+    // Validate billing month format
+    const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if (!monthRegex.test(billingMonth)) {
+      return res.status(400).json({
+        error: 'Invalid billing month format. Use YYYY-MM (e.g., 2025-10)'
+      });
+    }
+
+    // Check organization access
+    if (req.user) {
+      console.log('[Billing Summary] req.user:', JSON.stringify({
+        userId: req.user.userId,
+        organizations: req.user.organizations,
+        isPlatformAdmin: req.user.isPlatformAdmin
+      }, null, 2));
+      console.log('[Billing Summary] requestedOrganizationId:', organizationId);
+
+      const hasAccess = req.user.organizations?.some(
+        org => org.organizationId === organizationId
+      ) || req.user.isPlatformAdmin;
+
+      console.log('[Billing Summary] hasAccess:', hasAccess);
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied to this organization' });
+      }
+    }
+
+    // Generate billing summary
+    const summary = await billingService.generateBillingSummary(organizationId, billingMonth);
+
+    res.json(summary);
+  } catch (error) {
+    console.error('Error generating billing summary:', error);
+    res.status(500).json({
+      error: 'Failed to generate billing summary',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Get all active billing programs
+ *
+ * GET /api/billing/programs?region=US&programType=RPM
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const getBillingPrograms = async (req, res) => {
+  try {
+    const { region, programType, isActive } = req.query;
+
+    const whereClause = {};
+
+    if (region) {
+      whereClause.region = region;
+    }
+
+    if (programType) {
+      whereClause.programType = programType;
+    }
+
+    if (isActive !== undefined) {
+      whereClause.isActive = isActive === 'true';
+    } else {
+      // Default to active programs only
+      whereClause.isActive = true;
+    }
+
+    // Check effective date (optional filter for current programs)
+    if (req.query.effectiveNow === 'true') {
+      const now = new Date();
+      whereClause.effectiveFrom = { lte: now };
+      whereClause.OR = [
+        { effectiveTo: null },
+        { effectiveTo: { gte: now } }
+      ];
+    }
+
+    const programs = await prisma.billingProgram.findMany({
+      where: whereClause,
+      include: {
+        cptCodes: {
+          where: { isActive: true },
+          orderBy: { displayOrder: 'asc' },
+          select: {
+            id: true,
+            code: true,
+            description: true,
+            category: true,
+            reimbursementRate: true,
+            currency: true,
+            isRecurring: true
+          }
+        },
+        eligibilityRules: {
+          orderBy: { priority: 'asc' },
+          select: {
+            id: true,
+            ruleName: true,
+            ruleType: true,
+            priority: true,
+            isRequired: true,
+            description: true
+          }
+        }
+      },
+      orderBy: [
+        { region: 'asc' },
+        { programType: 'asc' },
+        { effectiveFrom: 'desc' }
+      ]
+    });
+
+    res.json({
+      count: programs.length,
+      programs
+    });
+  } catch (error) {
+    console.error('Error getting billing programs:', error);
+    res.status(500).json({
+      error: 'Failed to get billing programs',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Get a specific billing program by code
+ *
+ * GET /api/billing/programs/:code
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const getBillingProgramByCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const program = await prisma.billingProgram.findUnique({
+      where: { code },
+      include: {
+        cptCodes: {
+          where: { isActive: true },
+          orderBy: { displayOrder: 'asc' }
+        },
+        eligibilityRules: {
+          orderBy: { priority: 'asc' }
+        },
+        enrollments: {
+          select: {
+            id: true,
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                medicalRecordNumber: true
+              }
+            }
+          },
+          take: 10  // Limit to 10 sample enrollments
+        }
+      }
+    });
+
+    if (!program) {
+      return res.status(404).json({ error: 'Billing program not found' });
+    }
+
+    // Count total enrollments using this program
+    const enrollmentCount = await prisma.enrollment.count({
+      where: { billingProgramId: program.id }
+    });
+
+    res.json({
+      ...program,
+      enrollmentCount,
+      sampleEnrollments: program.enrollments
+    });
+  } catch (error) {
+    console.error('Error getting billing program:', error);
+    res.status(500).json({
+      error: 'Failed to get billing program',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Get billing programs available for a specific organization
+ *
+ * GET /api/billing/programs/organization/:organizationId
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const getOrganizationBillingPrograms = async (req, res) => {
+  try {
+    const { organizationId } = req.params;
+
+    // Check organization access
+    if (req.user) {
+      const hasAccess = req.user.organizations?.some(
+        org => org.organizationId === organizationId
+      ) || req.user.isPlatformAdmin;
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied to this organization' });
+      }
+    }
+
+    // Get organization to determine region
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { country: true, state: true }
+    });
+
+    if (!organization) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    // Determine region from organization country
+    let region = 'US';  // Default
+    if (organization.country) {
+      const countryRegionMap = {
+        'United States': 'US',
+        'United Kingdom': 'UK',
+        'Canada': 'CA',
+        'Australia': 'AU'
+      };
+      region = countryRegionMap[organization.country] || 'US';
+    }
+
+    // Get active programs for this region
+    const now = new Date();
+    const programs = await prisma.billingProgram.findMany({
+      where: {
+        region,
+        isActive: true,
+        effectiveFrom: { lte: now },
+        OR: [
+          { effectiveTo: null },
+          { effectiveTo: { gte: now } }
+        ]
+      },
+      include: {
+        cptCodes: {
+          where: { isActive: true },
+          orderBy: { displayOrder: 'asc' },
+          select: {
+            code: true,
+            description: true,
+            category: true,
+            reimbursementRate: true
+          }
+        }
+      },
+      orderBy: [
+        { programType: 'asc' },
+        { version: 'desc' }
+      ]
+    });
+
+    res.json({
+      organizationId,
+      region,
+      count: programs.length,
+      programs
+    });
+  } catch (error) {
+    console.error('Error getting organization billing programs:', error);
+    res.status(500).json({
+      error: 'Failed to get organization billing programs',
+      message: error.message
+    });
+  }
+};
+
+/**
+ * Export billing summary to CSV
+ *
+ * GET /api/billing/export/:organizationId/:billingMonth
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const exportBillingSummaryCSV = async (req, res) => {
+  try {
+    const { organizationId, billingMonth } = req.params;
+
+    // Validate billing month format
+    const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if (!monthRegex.test(billingMonth)) {
+      return res.status(400).json({
+        error: 'Invalid billing month format. Use YYYY-MM (e.g., 2025-10)'
+      });
+    }
+
+    // Check organization access
+    if (req.user) {
+      const hasAccess = req.user.organizations?.some(
+        org => org.organizationId === organizationId
+      ) || req.user.isPlatformAdmin;
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied to this organization' });
+      }
+    }
+
+    // Generate billing summary
+    const summary = await billingService.generateBillingSummary(organizationId, billingMonth);
+
+    // Build CSV
+    const headers = [
+      'Patient Name',
+      'Patient ID',
+      'Billing Program',
+      'Eligible',
+      'Total Reimbursement',
+      'Eligible CPT Codes',
+      'Total CPT Codes',
+      'Setup Completed',
+      'Data Collection Met',
+      'Clinical Time Met'
+    ];
+
+    const rows = summary.eligiblePatients.map(p => [
+      p.patientName,
+      p.patientId,
+      p.billingProgram,
+      p.eligible ? 'Yes' : 'No',
+      `$${p.totalReimbursement}`,
+      p.summary.eligibleCPTCodes,
+      p.summary.totalCPTCodes,
+      p.summary.setupCompleted ? 'Yes' : 'No',
+      p.summary.dataCollectionMet ? 'Yes' : 'No',
+      p.summary.clinicalTimeMet ? 'Yes' : 'No'
+    ]);
+
+    // Add not eligible patients
+    summary.notEligiblePatients.forEach(p => {
+      rows.push([
+        p.patientName,
+        p.patientId,
+        p.billingProgram || 'N/A',
+        'No',
+        '$0.00',
+        '0',
+        p.cptCodes?.length || '0',
+        'N/A',
+        'N/A',
+        'N/A'
+      ]);
+    });
+
+    const csvLines = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ];
+
+    const csv = csvLines.join('\n');
+
+    // Set headers for CSV download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="billing-summary-${billingMonth}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error('Error exporting billing summary:', error);
+    res.status(500).json({
+      error: 'Failed to export billing summary',
+      message: error.message
     });
   }
 };
 
 module.exports = {
-  getBillingReadiness,
-  getPatientBillingReadiness,
-  exportBillingReadiness,
-  getBillingStats
+  getEnrollmentBillingReadiness,
+  getOrganizationBillingReadiness,
+  getOrganizationBillingSummary,
+  getBillingPrograms,
+  getBillingProgramByCode,
+  getOrganizationBillingPrograms,
+  exportBillingSummaryCSV
 };
