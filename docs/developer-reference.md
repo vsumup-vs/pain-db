@@ -1,8 +1,8 @@
 # ClinMetrics Pro - Developer Reference Guide
 
 > **Purpose**: Complete reference for database schema, API endpoints, controllers, and common patterns
-> **Last Updated**: 2025-10-16
-> **Version**: 1.0.0
+> **Last Updated**: 2025-10-17
+> **Version**: 1.2.0
 
 ---
 
@@ -16,6 +16,7 @@
 6. [Field Validation Rules](#field-validation-rules)
 7. [Relationship Mappings](#relationship-mappings)
 8. [Authentication & Authorization](#authentication--authorization)
+9. [Utility Scripts](#utility-scripts)
 
 ---
 
@@ -113,6 +114,7 @@
 - `observations` → Observation[] (one-to-many)
 - `assessments` → Assessment[] (one-to-many)
 - `medications` → PatientMedication[] (one-to-many)
+- `timeLogs` → TimeLog[] (one-to-many)
 - `alerts` → Alert[] (one-to-many)
 
 **Unique Constraint**: `[organizationId, medicalRecordNumber]`
@@ -198,6 +200,7 @@
 | id | String | Yes | cuid() | Primary key |
 | patientId | String | Yes | - | FK to Patient |
 | clinicianId | String | Yes | - | FK to Clinician (REQUIRED!) |
+| enrollmentId | String | No | - | FK to Enrollment (for billing attribution) |
 | activity | TimeLogActivity | Yes | - | CALL_PATIENT, REVIEW_DATA, etc. |
 | duration | Int | Yes | - | Minutes spent |
 | cptCode | String | No | - | CPT billing code |
@@ -210,8 +213,10 @@
 **Relationships**:
 - `patient` → Patient (many-to-one)
 - `clinician` → Clinician (many-to-one)
+- `enrollment` → Enrollment (many-to-one, nullable)
 
 **Critical**: `clinicianId` MUST be a valid Clinician ID, not a User ID!
+**Important**: `enrollmentId` links TimeLog to specific billing program for accurate CMS billing calculations.
 
 ---
 
@@ -371,6 +376,136 @@
 
 ---
 
+#### Enrollment
+**Table**: `enrollments`
+**Primary Key**: `id` (String, cuid)
+
+| Field | Type | Required | Default | Notes |
+|-------|------|----------|---------|-------|
+| id | String | Yes | cuid() | Primary key |
+| organizationId | String | Yes | - | FK to Organization |
+| patientId | String | Yes | - | FK to Patient |
+| clinicianId | String | Yes | - | FK to Clinician (assigned) |
+| careProgramId | String | Yes | - | FK to CareProgram |
+| billingProgramId | String | No | - | FK to BillingProgram (for CMS billing) |
+| status | EnrollmentStatus | Yes | ACTIVE | PENDING, ACTIVE, INACTIVE, COMPLETED, WITHDRAWN |
+| startDate | DateTime | Yes | - | Enrollment start date |
+| endDate | DateTime | No | - | Enrollment end date |
+| billingEligibility | Json | No | - | Billing eligibility details (insurance, conditions, consent) |
+| notes | String | No | - | Enrollment notes |
+| createdAt | DateTime | Yes | now() | Record creation timestamp |
+| updatedAt | DateTime | Yes | now() | Last update timestamp |
+
+**Relationships**:
+- `organization` → Organization (many-to-one)
+- `patient` → Patient (many-to-one)
+- `clinician` → Clinician (many-to-one)
+- `careProgram` → CareProgram (many-to-one)
+- `billingProgram` → BillingProgram (many-to-one, nullable)
+- `observations` → Observation[] (one-to-many)
+- `timeLogs` → TimeLog[] (one-to-many)
+
+**Important**: `billingEligibility` JSON contains:
+- `eligible`: boolean
+- `insurance`: { type: string } (e.g., "Medicare Part B")
+- `chronicConditions`: string[] (e.g., ["Hypertension (I10)", "Diabetes (E11)"])
+- `consent`: boolean (optional)
+
+---
+
+#### BillingProgram
+**Table**: `billing_programs`
+**Primary Key**: `id` (String, cuid)
+
+| Field | Type | Required | Default | Notes |
+|-------|------|----------|---------|-------|
+| id | String | Yes | cuid() | Primary key |
+| name | String | Yes | - | Program name (e.g., "CMS RPM 2025") |
+| code | String | Yes | - | Unique program code (e.g., "CMS_RPM_2025") |
+| description | String | No | - | Program description |
+| programType | String | Yes | - | RPM, RTM, CCM, TCM, etc. |
+| payer | String | No | - | Payer name (e.g., "CMS", "Medicare") |
+| effectiveDate | DateTime | Yes | - | When program became effective |
+| expirationDate | DateTime | No | - | When program expires (null = active) |
+| eligibilityRules | Json | Yes | - | Structured eligibility requirements |
+| isActive | Boolean | Yes | true | Program status |
+| createdAt | DateTime | Yes | now() | Record creation timestamp |
+| updatedAt | DateTime | Yes | now() | Last update timestamp |
+
+**Relationships**:
+- `cptCodes` → CPTCode[] (one-to-many)
+- `enrollments` → Enrollment[] (one-to-many)
+
+**Unique Constraint**: `code`
+
+**Important**: `eligibilityRules` JSON structure:
+```json
+[
+  {
+    "ruleType": "INSURANCE",
+    "description": "Medicare Part B Coverage",
+    "logic": { "payers": ["Medicare", "Medicare Advantage"], "plans": ["Part B"] }
+  },
+  {
+    "ruleType": "DIAGNOSIS",
+    "description": "Chronic Condition Requirement",
+    "logic": { "operator": "MIN_COUNT", "minCount": 1 }
+  },
+  {
+    "ruleType": "CONSENT",
+    "description": "Informed Consent",
+    "logic": { "consentTypes": ["TREATMENT", "BILLING"] }
+  }
+]
+```
+
+**Rule Types**: INSURANCE, DIAGNOSIS, CONSENT, CUSTOM
+**Operators**: MIN_COUNT, CATEGORY_MATCH (for DIAGNOSIS rules)
+
+---
+
+#### CPTCode
+**Table**: `cpt_codes`
+**Primary Key**: `id` (String, cuid)
+
+| Field | Type | Required | Default | Notes |
+|-------|------|----------|---------|-------|
+| id | String | Yes | cuid() | Primary key |
+| billingProgramId | String | Yes | - | FK to BillingProgram |
+| code | String | Yes | - | CPT code (e.g., "99453", "99457") |
+| category | CPTCategory | Yes | - | SETUP, DATA_COLLECTION, CLINICAL_TIME, TREATMENT_TIME |
+| description | String | Yes | - | Code description |
+| requirements | Json | No | - | Billing requirements (days, minutes, frequency) |
+| reimbursementAmount | Float | No | - | Typical reimbursement amount |
+| billingFrequency | String | No | - | ONCE, MONTHLY, PER_OCCURRENCE |
+| isActive | Boolean | Yes | true | Code status |
+| createdAt | DateTime | Yes | now() | Record creation timestamp |
+| updatedAt | DateTime | Yes | now() | Last update timestamp |
+
+**Relationships**:
+- `billingProgram` → BillingProgram (many-to-one)
+
+**Unique Constraint**: `[billingProgramId, code]`
+
+**Important**: `requirements` JSON structure:
+```json
+{
+  "minDays": 16,        // For DATA_COLLECTION
+  "minMinutes": 20,     // For CLINICAL_TIME, TREATMENT_TIME
+  "maxPerMonth": 1,     // For SETUP
+  "consecutiveDays": false,
+  "notes": "Additional requirements"
+}
+```
+
+**CPT Categories**:
+- **SETUP**: Initial device setup (99453 for RPM, 98975 for RTM)
+- **DATA_COLLECTION**: Device monitoring (99454 for RPM, 98976 for RTM) - requires 16+ days
+- **CLINICAL_TIME**: Interactive clinical communication (99457 for RPM first 20 min, 99458 for additional 20 min)
+- **TREATMENT_TIME**: Therapeutic interventions (98977 for RTM first 20 min, 98980 for RTM additional 20 min, 98981 for each add'l 20 min)
+
+---
+
 ## API Endpoints Reference
 
 ### Authentication Endpoints
@@ -441,6 +576,122 @@
 }
 ```
 
+### Billing Endpoints
+
+| Method | Endpoint | Controller | Function | Auth Required |
+|--------|----------|------------|----------|---------------|
+| GET | `/api/billing/readiness/:enrollmentId/:billingMonth` | billingController | getEnrollmentBillingReadiness | Yes |
+| GET | `/api/billing/organization/:organizationId/:billingMonth` | billingController | getOrganizationBillingReadiness | Yes |
+| GET | `/api/billing/summary/:organizationId/:billingMonth` | billingController | getOrganizationBillingSummary | Yes |
+| GET | `/api/billing/export/:organizationId/:billingMonth` | billingController | exportBillingSummaryCSV | Yes |
+| GET | `/api/billing/programs` | billingController | getBillingPrograms | Yes |
+| GET | `/api/billing/programs/:code` | billingController | getBillingProgramByCode | Yes |
+| GET | `/api/billing/programs/organization/:organizationId` | billingController | getOrganizationBillingPrograms | Yes |
+
+**Important Notes**:
+- **Date Format**: `billingMonth` must be in `YYYY-MM` format (e.g., `2025-10`)
+- **Breaking Change**: Old API used `{ year: 2025, month: 10 }` query params - now uses path param `2025-10`
+- **Enrollment-Centric**: All billing calculations now tied to specific enrollments, not patients
+
+#### Single Enrollment Billing Readiness
+
+**Endpoint**: `GET /api/billing/readiness/:enrollmentId/:billingMonth`
+
+**Response Structure**:
+```json
+{
+  "enrollmentId": "string",
+  "patientId": "string",
+  "patientName": "string",
+  "billingMonth": "string",
+  "eligible": boolean,
+  "billingProgram": "string",
+  "billingProgramCode": "string",
+  "eligibilityRules": [
+    {
+      "ruleId": "string",
+      "ruleName": "string",
+      "ruleType": "INSURANCE | DIAGNOSIS | CONSENT | AGE | CUSTOM",
+      "priority": number,
+      "passed": boolean,
+      "actualValue": any,
+      "reason": "string"
+    }
+  ],
+  "cptCodes": [
+    {
+      "code": "string",
+      "description": "string",
+      "category": "SETUP | DATA_COLLECTION | CLINICAL_TIME | TREATMENT_TIME",
+      "eligible": boolean,
+      "actualValue": number,
+      "details": "string",
+      "reimbursementRate": number,
+      "currency": "string"
+    }
+  ],
+  "totalReimbursement": "string",
+  "currency": "string",
+  "summary": {
+    "totalCPTCodes": number,
+    "eligibleCPTCodes": number,
+    "setupCompleted": boolean,
+    "dataCollectionMet": boolean,
+    "clinicalTimeMet": boolean
+  }
+}
+```
+
+#### Organization Billing Summary
+
+**Endpoint**: `GET /api/billing/summary/:organizationId/:billingMonth`
+
+**Response Structure**:
+```json
+{
+  "organizationId": "string",
+  "billingMonth": "string",
+  "summary": {
+    "totalEnrollments": number,
+    "eligibleEnrollments": number,
+    "notEligibleEnrollments": number,
+    "eligibilityRate": "string",
+    "totalReimbursement": "string",
+    "currency": "string"
+  },
+  "byProgram": {
+    "CMS_RPM_2025": {
+      "programName": "string",
+      "count": number,
+      "totalReimbursement": number,
+      "patients": [...]
+    },
+    "CMS_CCM_2025": { ... }
+  },
+  "eligiblePatients": [...],
+  "notEligiblePatients": [
+    {
+      "enrollmentId": "string",
+      "patientId": "string",
+      "patientName": "string",
+      "reason": "string"
+    }
+  ]
+}
+```
+
+#### CSV Export
+
+**Endpoint**: `GET /api/billing/export/:organizationId/:billingMonth`
+
+**Response**: CSV file download with headers:
+- Patient Name
+- Patient ID
+- Billing Program
+- Eligible (Yes/No)
+- CPT Codes
+- Total Reimbursement
+
 ---
 
 ## Controller Functions Reference
@@ -485,6 +736,199 @@
 - 500: Database error
 
 **File**: `/home/vsumup/pain-db/src/controllers/alertController.js:395-680`
+
+---
+
+### billingController.js
+
+The billing controller provides comprehensive CMS billing readiness calculations using a **configurable, database-driven** approach. All billing criteria are read from the database, eliminating hardcoded thresholds.
+
+#### Key Features:
+- **Enrollment-Centric**: All billing tied to specific enrollments (not patients)
+- **Date Format**: Uses `YYYY-MM` string format for billing months
+- **Configurable**: Reads requirements from BillingProgram and CPTCode models
+- **Version-Aware**: Checks effective dates to use correct billing program version
+- **Multi-Program Support**: Handles RPM, RTM, CCM, and custom programs
+
+#### getEnrollmentBillingReadiness(req, res)
+**Purpose**: Calculate billing readiness for a single enrollment
+
+**Request Parameters**:
+- `enrollmentId` (path param): Enrollment ID
+- `billingMonth` (path param): Billing month in YYYY-MM format
+
+**Process**:
+1. Validates billingMonth format (YYYY-MM regex)
+2. Fetches enrollment with billing program and CPT codes
+3. Calls `billingReadinessService.calculateBillingReadiness()`
+4. Returns comprehensive eligibility details
+
+**Response**: See "Single Enrollment Billing Readiness" in API Endpoints
+
+**File**: `/home/vsumup/pain-db/src/controllers/billingController.js:15-95`
+
+---
+
+#### getOrganizationBillingSummary(req, res)
+**Purpose**: Generate organization-wide billing summary with financial projections
+
+**Request Parameters**:
+- `organizationId` (path param): Organization ID
+- `billingMonth` (path param): Billing month in YYYY-MM format
+
+**Process**:
+1. Validates billingMonth format
+2. Calls `billingReadinessService.generateBillingSummary()`
+3. Groups results by billing program (CMS_RPM_2025, CMS_RTM_2025, etc.)
+4. Calculates total potential reimbursement
+5. Returns eligible and not eligible patient lists
+
+**Response**: See "Organization Billing Summary" in API Endpoints
+
+**File**: `/home/vsumup/pain-db/src/controllers/billingController.js:138-178`
+
+---
+
+#### exportBillingSummaryCSV(req, res)
+**Purpose**: Export billing summary to CSV format
+
+**Request Parameters**:
+- `organizationId` (path param): Organization ID
+- `billingMonth` (path param): Billing month in YYYY-MM format
+
+**Process**:
+1. Fetches billing summary
+2. Converts to CSV format with headers
+3. Sets Content-Disposition header for download
+4. Returns CSV file named `billing-summary-YYYY-MM.csv`
+
+**CSV Columns**: Patient Name, Patient ID, Billing Program, Eligible, CPT Codes, Total Reimbursement
+
+**File**: `/home/vsumup/pain-db/src/controllers/billingController.js:180-255`
+
+---
+
+## Services Reference
+
+### billingReadinessService.js
+
+The billing readiness service is the core calculation engine for CMS billing eligibility. It was **completely rewritten** (592 lines) to replace hardcoded billing logic with a configurable, database-driven system.
+
+#### Key Architecture Changes:
+- **Old Approach**: Hardcoded thresholds (`if (totalMinutes >= 20)`)
+- **New Approach**: Reads criteria from database (`cptCode.criteria.threshold`)
+- **Benefit**: CMS requirement changes don't require code deployment
+
+#### calculateBillingReadiness(enrollmentId, billingMonth)
+**Purpose**: Main entry point for calculating billing eligibility
+
+**Parameters**:
+- `enrollmentId` (string): Enrollment ID
+- `billingMonth` (string): Billing month in YYYY-MM format
+
+**Process**:
+1. Fetches enrollment with billing program, CPT codes, and eligibility rules
+2. Validates program effective dates
+3. Evaluates all eligibility rules (INSURANCE, DIAGNOSIS, CONSENT, etc.)
+4. Calculates eligibility for each CPT code:
+   - `ONE_TIME_SETUP`: Setup codes (99453, 98975)
+   - `DATA_DAYS`: Data collection requirements (99454, 98976)
+   - `CLINICAL_TIME`: Time requirements (99457, 98977, 99490)
+   - `CLINICAL_TIME_INCREMENTAL`: Additional time (99458, 99439)
+5. Returns comprehensive billing readiness report
+
+**Returns**: Object with `eligible`, `eligibilityRules`, `cptCodes`, `totalReimbursement`, `summary`
+
+**File**: `/home/vsumup/pain-db/src/services/billingReadinessService.js:31-273`
+
+---
+
+#### evaluateEligibilityRules(enrollment, rules)
+**Purpose**: Evaluate all billing eligibility rules
+
+**Supported Rule Types**:
+- **INSURANCE**: Checks patient insurance type matches required (e.g., "Medicare Part B")
+- **DIAGNOSIS**: Validates chronic condition count (MIN_COUNT operator) or category (CATEGORY_MATCH)
+- **CONSENT**: Verifies patient consent obtained
+- **AGE**: Checks patient age requirements
+- **CUSTOM**: Custom validation logic
+
+**Returns**: Array of rule evaluation results with `passed`, `actualValue`, `reason`
+
+**File**: `/home/vsumup/pain-db/src/services/billingReadinessService.js:275-355`
+
+---
+
+#### calculateUniqueDaysWithData(enrollmentId, startDate, endDate, calculationMethod)
+**Purpose**: Count unique days with observations for data collection requirements
+
+**Calculation Methods**:
+- `unique_days_device_observations`: Only counts DEVICE-sourced observations (RPM)
+- `unique_days_therapeutic_data`: Counts all clinical monitoring observations (RTM)
+
+**Important**: Now filters by `enrollmentId` for accurate multi-program billing
+
+**Returns**: Number of unique days with data
+
+**File**: `/home/vsumup/pain-db/src/services/billingReadinessService.js:384-420`
+
+---
+
+#### calculateBillableTime(enrollmentId, startDate, endDate, calculationMethod)
+**Purpose**: Sum billable time in minutes
+
+**Calculation Methods**:
+- `sum_billable_time_logs`: All billable time logs
+- `sum_care_coordination_time`: Care coordination activities only
+
+**Important**: Now filters by `enrollmentId` for accurate multi-program billing
+
+**Returns**: Total minutes logged
+
+**File**: `/home/vsumup/pain-db/src/services/billingReadinessService.js:431-465`
+
+---
+
+#### generateBillingSummary(organizationId, billingMonth)
+**Purpose**: Generate organization-wide billing summary with financial projections
+
+**Process**:
+1. Fetches all active enrollments with billing programs
+2. Calculates billing readiness for each enrollment
+3. Groups results by billing program
+4. Calculates total potential reimbursement
+5. Separates eligible and not eligible patients
+
+**Returns**: Object with `summary`, `byProgram`, `eligiblePatients`, `notEligiblePatients`
+
+**File**: `/home/vsumup/pain-db/src/services/billingReadinessService.js:539-590`
+
+---
+
+### billingHelpers.js
+
+Utility functions for billing-related operations.
+
+#### findBillingEnrollment(patientId, organizationId, tx)
+**Purpose**: Find active billing-enabled enrollment for a patient
+
+**Selection Logic**:
+1. Searches for active enrollments with `billingProgramId` not null
+2. Filters by organization (multi-tenant isolation)
+3. Checks endDate is null or in the future
+4. Returns most recent enrollment (by startDate desc)
+5. Returns `null` if no billing enrollment found (backward compatible)
+
+**Use Cases**:
+- Auto-populate `enrollmentId` when creating TimeLog
+- Auto-populate `enrollmentId` when creating Observation
+- Determine which program to bill for alert resolution
+
+**Transaction-Safe**: Accepts Prisma transaction client as optional parameter
+
+**Returns**: `enrollmentId` string or `null`
+
+**File**: `/home/vsumup/pain-db/src/utils/billingHelpers.js:14-36`
 
 ---
 
@@ -1006,6 +1450,7 @@ const timeLog = await prisma.timeLog.create({
 - `/home/vsumup/pain-db/src/services/sseService.js` - Server-Sent Events for real-time updates
 - `/home/vsumup/pain-db/src/services/alertEvaluationService.js` - Alert rule evaluation
 - `/home/vsumup/pain-db/src/services/slaMonitorService.js` - SLA breach monitoring
+- `/home/vsumup/pain-db/src/services/billingReadinessService.js` - CMS billing eligibility calculation
 
 ### Middleware
 - `/home/vsumup/pain-db/src/middleware/auth.js` - requireAuth, requirePermission
@@ -1056,6 +1501,173 @@ const timeLog = await prisma.timeLog.create({
 
 ---
 
-**Last Updated**: 2025-10-16
+## Utility Scripts
+
+The `/home/vsumup/pain-db/scripts/` directory contains utility scripts for data management, testing, and maintenance.
+
+### Data Cleanup Scripts
+
+#### cleanup-duplicate-test-patients.js
+**Purpose**: Remove duplicate test patients created during multiple seeding operations
+
+**Usage**:
+```bash
+node scripts/cleanup-duplicate-test-patients.js
+```
+
+**What it does**:
+1. Finds all patients with test lastNames: 'Eligible', 'NearReadings', 'NearTime', 'NotEligible'
+2. For each lastName, keeps the newest patient (by `createdAt` timestamp)
+3. Deletes all older duplicates along with related data:
+   - Observations
+   - Time logs
+   - Assessments
+   - Patient medications
+   - Enrollments
+   - Alerts
+4. Confirms deletion with console output
+
+**Important**: This script uses `orderBy: { createdAt: 'desc' }` to identify the newest patient to keep.
+
+---
+
+### Test Data Scripts
+
+#### seed-billing-test-data.js
+**Purpose**: Seed test patients with varying billing eligibility statuses for Billing Readiness Dashboard testing
+
+**Usage**:
+```bash
+node scripts/seed-billing-test-data.js
+```
+
+**What it creates**:
+- **Alice Eligible**: 18 days of observations, 25 minutes of clinical time → Fully eligible
+- **Bob NearReadings**: 14 days of observations, 22 minutes of clinical time → Near-eligible (needs 2 more days)
+- **Carol NearTime**: 17 days of observations, 18 minutes of clinical time → Near-eligible (needs 2 more minutes)
+- **David NotEligible**: 8 days of observations, 10 minutes of clinical time → Not eligible (far from requirements)
+
+**Dependencies**:
+- Requires existing organization, clinician, metric definitions, and billing programs
+- Uses `CMS_RPM_2025` and `CMS_RTM_2025` billing programs
+
+---
+
+#### delete-test-patients.js
+**Purpose**: Delete all test patients by lastName
+
+**Usage**:
+```bash
+node scripts/delete-test-patients.js
+```
+
+**What it does**:
+- Finds and deletes patients with lastNames: 'Eligible', 'NearReadings', 'NearTime', 'NotEligible'
+- Cascades deletion to related observations, time logs, assessments, medications, enrollments, alerts
+
+---
+
+### Diagnostic Scripts
+
+#### check-carol-data.js
+**Purpose**: Inspect Carol NearTime's enrollment data for billing readiness troubleshooting
+
+**Usage**:
+```bash
+node scripts/check-carol-data.js
+```
+
+**What it displays**:
+- Enrollment details (ID, billing program, eligibility)
+- Observations count and unique dates for billing month
+- Time logs count and total minutes
+- CPT codes in billing program
+
+**Use case**: Debugging why a test patient shows incorrect billing eligibility status
+
+---
+
+#### test-carol-billing.js
+**Purpose**: Test billing readiness calculation for Carol NearTime enrollment
+
+**Usage**:
+```bash
+node scripts/test-carol-billing.js
+```
+
+**What it does**:
+- Finds Carol's enrollment
+- Calls `billingReadinessService.calculateBillingReadiness(enrollmentId, '2025-10')`
+- Displays full billing result JSON including:
+  - Eligibility status
+  - Eligibility rules pass/fail
+  - CPT codes eligibility
+  - Data collection and clinical time summary
+
+**Use case**: Testing billing service logic without frontend or API layer
+
+---
+
+### Script Development Guidelines
+
+When creating new utility scripts:
+
+1. **Prisma Client Pattern**:
+```javascript
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+async function main() {
+  try {
+    // Your logic here
+
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    console.error(error.stack);
+    await prisma.$disconnect();
+  }
+}
+
+main();
+```
+
+2. **Multi-Tenant Awareness**:
+- Always filter by `organizationId` when querying patients, enrollments, etc.
+- Document which organization the script expects to work with
+
+3. **Relationship Deletion Order**:
+When deleting entities, follow this order to avoid foreign key violations:
+```javascript
+// 1. Delete child records first
+await prisma.observation.deleteMany({ where: { patientId } });
+await prisma.timeLog.deleteMany({ where: { patientId } });
+await prisma.assessment.deleteMany({ where: { patientId } });
+await prisma.patientMedication.deleteMany({ where: { patientId } });
+await prisma.enrollment.deleteMany({ where: { patientId } });
+await prisma.alert.deleteMany({ where: { patientId } });
+
+// 2. Delete parent record last
+await prisma.patient.delete({ where: { id: patientId } });
+```
+
+4. **Error Handling**:
+- Always wrap Prisma operations in try/catch
+- Log errors with context
+- Disconnect Prisma client in finally block or catch block
+
+5. **Console Output**:
+- Use emoji for visual clarity (✅ ❌ 📊 🌱 ⚠️)
+- Provide clear progress indicators
+- Summarize actions taken at the end
+
+6. **Documentation**:
+- Add purpose comment at top of file
+- Document expected preconditions
+- Explain what data will be created/modified/deleted
+
+---
+
+**Last Updated**: 2025-10-17
 **Maintainer**: Development Team
 **Review Frequency**: Update after each schema change or new feature addition
