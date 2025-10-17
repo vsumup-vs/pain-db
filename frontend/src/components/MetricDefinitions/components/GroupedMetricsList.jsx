@@ -12,7 +12,8 @@ import {
   MoonIcon,
   LifebuoyIcon,
   ScaleIcon,
-  TagIcon
+  TagIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline'
 
 // Helper function to get category from metric key
@@ -106,7 +107,7 @@ const categoryConfig = {
   }
 }
 
-const MetricCard = ({ metric, onEdit, onDelete, onCustomize }) => {
+const MetricCard = ({ metric, onEdit, onDelete, onCustomize, onViewDetails }) => {
   const getValueTypeIcon = (valueType) => {
     switch (valueType) {
       case 'numeric':
@@ -210,6 +211,14 @@ const MetricCard = ({ metric, onEdit, onDelete, onCustomize }) => {
         </div>
 
         <div className="flex items-center space-x-2 ml-4">
+          {/* View Details button for all metrics */}
+          <button
+            onClick={() => onViewDetails(metric)}
+            className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+            title="View Details"
+          >
+            <EyeIcon className="h-4 w-4" />
+          </button>
           {metric.isStandardized && !metric.isCustomized && onCustomize && (
             <button
               onClick={() => onCustomize(metric)}
@@ -242,7 +251,7 @@ const MetricCard = ({ metric, onEdit, onDelete, onCustomize }) => {
   )
 }
 
-export const GroupedMetricsList = ({ metrics, onEdit, onDelete, onCustomize, onCreateFirst }) => {
+export const GroupedMetricsList = ({ metrics, onEdit, onDelete, onCustomize, onViewDetails, onCreateFirst }) => {
   const [expandedCategories, setExpandedCategories] = useState(new Set(['Pain Management', 'Mental Health', 'Medication Management']))
 
   // Group metrics by category
@@ -367,6 +376,7 @@ export const GroupedMetricsList = ({ metrics, onEdit, onDelete, onCustomize, onC
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onCustomize={onCustomize}
+                    onViewDetails={onViewDetails}
                   />
                 ))}
               </div>

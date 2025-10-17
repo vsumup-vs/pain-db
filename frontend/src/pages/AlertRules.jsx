@@ -14,17 +14,21 @@ import {
   DocumentTextIcon,
   FunnelIcon,
   XMarkIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
 import AlertRuleForm from '../components/AlertRuleForm'
+import AlertRuleDetailsModal from '../components/AlertRuleDetailsModal'
 
 export default function AlertRules() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingRule, setEditingRule] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [severityFilter, setSeverityFilter] = useState('all')
+  const [selectedRuleForDetails, setSelectedRuleForDetails] = useState(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: rulesResponse, isLoading } = useQuery({
@@ -38,6 +42,12 @@ export default function AlertRules() {
   const { data: statsResponse } = useQuery({
     queryKey: ['alert-rules-stats'],
     queryFn: () => api.getAlertRuleStats(),
+  })
+
+  const { data: ruleDetails, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ['alert-rule-details', selectedRuleForDetails?.id],
+    queryFn: () => api.getAlertRule(selectedRuleForDetails.id),
+    enabled: !!selectedRuleForDetails,
   })
 
   const rules = rulesResponse?.data || []
@@ -119,6 +129,16 @@ export default function AlertRules() {
     }
   }
 
+  const handleViewDetails = (rule) => {
+    setSelectedRuleForDetails(rule)
+    setIsDetailsModalOpen(true)
+  }
+
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false)
+    setSelectedRuleForDetails(null)
+  }
+
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'critical': return 'text-red-600 bg-red-100'
@@ -142,6 +162,20 @@ export default function AlertRules() {
   const formatExpression = (expression) => {
     if (!expression) return 'No condition'
 
+    // Handle composite conditions (OR/AND)
+    if (expression.operator === 'or' || expression.operator === 'and') {
+      const subConditions = expression.conditions || []
+      if (subConditions.length > 0) {
+        const formatted = subConditions.map(c => formatExpression(c)).join(` ${expression.operator.toUpperCase()} `)
+        return formatted
+      }
+    }
+
+    // Handle type-based conditions (e.g., missed_assessment)
+    if (expression.type === 'missed_assessment') {
+      return 'No assessment completed'
+    }
+
     // Handle both 'condition' and 'metric' field names for backwards compatibility
     const { condition, metric, operator, threshold, value, timeWindow, duration, occurrences, consecutiveDays, description } = expression
     const metricName = condition || metric
@@ -155,6 +189,10 @@ export default function AlertRules() {
     const conditionNames = {
       'pain_scale_0_10': 'Pain Scale (0-10)',
       'blood_glucose': 'Blood Glucose',
+      'systolic_blood_pressure': 'Systolic BP',
+      'diastolic_blood_pressure': 'Diastolic BP',
+      'blood_pressure_systolic': 'Systolic BP',
+      'blood_pressure_diastolic': 'Diastolic BP',
       'mood_rating': 'Mood Rating',
       'medication_adherence_rate': 'Medication Adherence Rate',
       'medication_adherence': 'Medication Adherence',
@@ -164,20 +202,29 @@ export default function AlertRules() {
       'missed_medication_doses': 'Missed Medication Doses',
       'mood_scale': 'Mood Scale',
       'sleep_quality': 'Sleep Quality',
-      'activity_level': 'Activity Level'
+      'activity_level': 'Activity Level',
+      'assessment_completion': 'Assessment Completion'
     }
 
     // Create human-readable operator names
     const operatorNames = {
       'greater_than': '>',
       'greater_than_or_equal': '≥',
+      'gte': '≥',
+      'gt': '>',
       'less_than': '<',
       'less_than_or_equal': '≤',
+      'lte': '≤',
+      'lt': '<',
       'equal': '=',
       'equals': '=',
+      'eq': '=',
       'not_equal': '≠',
+      'ne': '≠',
       'trend_increasing': 'trending upward',
       'trend_decreasing': 'trending downward',
+      'average_gt': 'average >',
+      'average_lt': 'average <',
       'missing_data': 'has missing data',
       'contains': 'contains'
     }
@@ -202,19 +249,21 @@ export default function AlertRules() {
     // Standard formatting
     let formatted = `${conditionName} ${operatorName}`
 
-    // Add threshold or value
-    if (threshold !== undefined && threshold !== null) {
-      if (metricName === 'medication_adherence_rate' && threshold <= 1) {
-        formatted += ` ${(threshold * 100).toFixed(0)}%`
+    // Add threshold or value (prefer threshold, fall back to value)
+    const numericValue = threshold !== undefined && threshold !== null ? threshold : value
+
+    if (numericValue !== undefined && numericValue !== null) {
+      if (metricName === 'medication_adherence_rate' && numericValue <= 1) {
+        formatted += ` ${(numericValue * 100).toFixed(0)}%`
+      } else if (typeof numericValue === 'string') {
+        formatted += ` "${numericValue}"`
       } else {
-        formatted += ` ${threshold}`
+        formatted += ` ${numericValue}`
       }
-    } else if (value !== undefined) {
-      formatted += ` "${value}"`
     }
 
-    // Add time context (handle both 'timeWindow' and 'duration')
-    const timeContext = timeWindow || duration
+    // Add time context (handle 'timeWindow', 'duration', and 'evaluationWindow')
+    const timeContext = timeWindow || duration || expression.evaluationWindow
     if (timeContext && timeContext !== 'immediate') {
       formatted += ` (${timeContext})`
     }
@@ -346,141 +395,141 @@ export default function AlertRules() {
         </div>
       </div>
 
-      {/* Rules Table */}
-      <div className="card">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rule Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Severity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Condition
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Window
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cooldown
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Presets
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {rules.map((rule) => (
-                <tr key={rule.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <BellIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900">{rule.name}</span>
-                          {rule.isStandardized && !rule.isCustomized && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                              ⭐ Standardized
-                            </span>
-                          )}
-                          {rule.isCustomized && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              🏥 Custom
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500">ID: {rule.id}</div>
-                      </div>
+      {/* Rules Grid */}
+      {rules.length === 0 ? (
+        <div className="card">
+          <div className="text-center py-12">
+            <BellIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No alert rules</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Get started by creating your first alert rule.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => {
+                  setEditingRule(null)
+                  setIsModalOpen(true)
+                }}
+                className="btn-primary"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Alert Rule
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {rules.map((rule) => (
+            <div key={rule.id} className="card hover:shadow-lg transition-shadow">
+              {/* Card Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start flex-1 min-w-0">
+                  <BellIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-semibold text-gray-900 mb-2">{rule.name}</h3>
+                    <div className="flex items-center space-x-2 flex-wrap gap-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(rule.severity)}`}>
+                        {getSeverityIcon(rule.severity)}
+                        <span className="ml-1 capitalize">{rule.severity}</span>
+                      </span>
+                      {rule.isStandardized && !rule.isCustomized && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                          ⭐ Standardized
+                        </span>
+                      )}
+                      {rule.isCustomized && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                          🏥 Custom
+                        </span>
+                      )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(rule.severity)}`}>
-                      {getSeverityIcon(rule.severity)}
-                      <span className="ml-1 capitalize">{rule.severity}</span>
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                  <button
+                    onClick={() => handleViewDetails(rule)}
+                    className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
+                    <EyeIcon className="h-4 w-4" />
+                  </button>
+
+                  {rule.isStandardized && !rule.isCustomized && (
+                    <button
+                      onClick={() => handleCustomize(rule)}
+                      className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Customize for your organization"
+                    >
+                      <DocumentDuplicateIcon className="h-4 w-4" />
+                    </button>
+                  )}
+
+                  {rule.isCustomized && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(rule)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit rule"
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(rule)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete rule"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Card Content */}
+              <div className="space-y-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start">
+                    <ExclamationTriangleIcon className="h-4 w-4 text-amber-600 mr-2 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-gray-700">
+                      <span className="font-medium">Condition: </span>
                       {formatExpression(rule.conditions)}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rule.conditions?.timeWindow || rule.conditions?.duration || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rule.conditions?.cooldown || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rule.conditionPresets?.length || 0} preset{rule.conditionPresets?.length !== 1 ? 's' : ''}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      {/* Show Customize button for standardized (non-customized) items */}
-                      {rule.isStandardized && !rule.isCustomized && (
-                        <button
-                          onClick={() => handleCustomize(rule)}
-                          className="text-purple-600 hover:text-purple-900"
-                          title="Customize for your organization"
-                        >
-                          <DocumentDuplicateIcon className="h-4 w-4" />
-                        </button>
-                      )}
+                  </div>
+                </div>
 
-                      {/* Only show Edit/Delete for customized (org-specific) items */}
-                      {rule.isCustomized && (
-                        <>
-                          <button
-                            onClick={() => handleEdit(rule)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Edit rule"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(rule)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete rule"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center">
+                    <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
+                    <div>
+                      <span className="font-medium text-gray-900">Window: </span>
+                      <span className="text-gray-600">{rule.conditions?.timeWindow || rule.conditions?.duration || 'Immediate'}</span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
 
-          {rules.length === 0 && (
-            <div className="text-center py-12">
-              <BellIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No alert rules</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first alert rule.
-              </p>
-              <div className="mt-6">
-                <button
-                  onClick={() => {
-                    setEditingRule(null)
-                    setIsModalOpen(true)
-                  }}
-                  className="btn-primary"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Create Alert Rule
-                </button>
+                  <div className="flex items-center">
+                    <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
+                    <div>
+                      <span className="font-medium text-gray-900">Cooldown: </span>
+                      <span className="text-gray-600">{rule.conditions?.cooldown || 'None'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center col-span-2">
+                    <DocumentTextIcon className="h-4 w-4 text-gray-400 mr-2" />
+                    <div>
+                      <span className="font-medium text-gray-900">Presets: </span>
+                      <span className="text-gray-600">{rule.conditionPresets?.length || 0} linked</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+          ))}
         </div>
-      </div>
+      )}
 
       {/* Modal */}
       <Modal
@@ -502,6 +551,15 @@ export default function AlertRules() {
           isLoading={createMutation.isLoading || updateMutation.isLoading}
         />
       </Modal>
+
+      {/* Details Modal */}
+      {ruleDetails?.data && (
+        <AlertRuleDetailsModal
+          rule={ruleDetails.data}
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+        />
+      )}
     </div>
   )
 }

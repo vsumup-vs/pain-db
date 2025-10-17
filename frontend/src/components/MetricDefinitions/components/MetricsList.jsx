@@ -7,6 +7,7 @@ export const MetricsList = ({
   onEdit,
   onDelete,
   onCustomize,
+  onViewDetails,
   onCreateFirst
 }) => {
   if (metrics.length === 0) {
@@ -39,6 +40,7 @@ export const MetricsList = ({
           onEdit={onEdit}
           onDelete={onDelete}
           onCustomize={onCustomize}
+          onViewDetails={onViewDetails}
         />
       ))}
     </div>

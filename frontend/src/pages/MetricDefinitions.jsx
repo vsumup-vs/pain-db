@@ -45,6 +45,7 @@ import { SearchAndFilters } from '../components/MetricDefinitions/components/Sea
 import { MetricsList } from '../components/MetricDefinitions/components/MetricsList'
 import { GroupedMetricsList } from '../components/MetricDefinitions/components/GroupedMetricsList'
 import MetricDefinitionForm from '../components/MetricDefinitions/forms/MetricDefinitionForm'
+import MetricDefinitionDetailsModal from '../components/MetricDefinitionDetailsModal'
 
 export default function MetricDefinitions() {
   // State management
@@ -53,6 +54,8 @@ export default function MetricDefinitions() {
   const [currentFlow, setCurrentFlow] = useState('typeSelection') // 'typeSelection', 'templateSelection', 'standardizedSelection', 'customForm'
   const [selectedType, setSelectedType] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState(null)
+  const [selectedMetricForDetails, setSelectedMetricForDetails] = useState(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
 
   // Custom hooks
   const {
@@ -148,6 +151,16 @@ export default function MetricDefinitions() {
         console.error('Error customizing metric:', error)
       }
     }
+  }
+
+  const handleViewDetails = (metric) => {
+    setSelectedMetricForDetails(metric)
+    setIsDetailsModalOpen(true)
+  }
+
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false)
+    setSelectedMetricForDetails(null)
   }
 
   // Flow handlers
@@ -249,6 +262,7 @@ export default function MetricDefinitions() {
           onEdit={openEditModal}
           onDelete={handleDelete}
           onCustomize={handleCustomize}
+          onViewDetails={handleViewDetails}
           onCreateFirst={openCreateModal}
         />
       ) : (
@@ -257,6 +271,7 @@ export default function MetricDefinitions() {
           onEdit={openEditModal}
           onDelete={handleDelete}
           onCustomize={handleCustomize}
+          onViewDetails={handleViewDetails}
           onCreateFirst={openCreateModal}
         />
       )}
@@ -315,6 +330,15 @@ export default function MetricDefinitions() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Details Modal */}
+      {selectedMetricForDetails && (
+        <MetricDefinitionDetailsModal
+          metric={selectedMetricForDetails}
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+        />
       )}
     </div>
   )
