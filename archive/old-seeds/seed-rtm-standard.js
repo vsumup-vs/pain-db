@@ -1,4 +1,4 @@
-const { PrismaClient } = require('./generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
@@ -32,7 +32,7 @@ const standardizedMetrics = [
   {
     key: 'pain_scale_0_10',
     displayName: 'Pain Scale (0-10)',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 10,
     unit: 'scale',
@@ -66,7 +66,7 @@ const standardizedMetrics = [
   {
     key: 'pain_location',
     displayName: 'Pain Location',
-    valueType: 'categorical',
+    valueType: 'TEXT',
     defaultFrequency: 'daily',
     options: {
       values: [
@@ -146,7 +146,7 @@ const standardizedMetrics = [
   {
     key: 'pain_interference',
     displayName: 'Pain Interference with Daily Activities',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 10,
     unit: 'scale',
@@ -170,7 +170,7 @@ const standardizedMetrics = [
   {
     key: 'oxygen_saturation',
     displayName: 'Oxygen Saturation (SpO2)',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 70,
     scaleMax: 100,
     unit: '%',
@@ -205,7 +205,7 @@ const standardizedMetrics = [
   {
     key: 'peak_flow',
     displayName: 'Peak Expiratory Flow Rate',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 50,
     scaleMax: 800,
     unit: 'L/min',
@@ -238,7 +238,7 @@ const standardizedMetrics = [
   {
     key: 'dyspnea_scale',
     displayName: 'Dyspnea (Shortness of Breath) Scale',
-    valueType: 'ordinal',
+    valueType: 'TEXT',
     scaleMin: 0,
     scaleMax: 4,
     unit: 'scale',
@@ -270,7 +270,7 @@ const standardizedMetrics = [
   {
     key: 'cough_severity',
     displayName: 'Cough Severity',
-    valueType: 'ordinal',
+    valueType: 'TEXT',
     scaleMin: 0,
     scaleMax: 4,
     unit: 'scale',
@@ -304,7 +304,7 @@ const standardizedMetrics = [
   {
     key: 'range_of_motion_shoulder',
     displayName: 'Shoulder Range of Motion',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 180,
     unit: 'degrees',
@@ -338,7 +338,7 @@ const standardizedMetrics = [
   {
     key: 'grip_strength',
     displayName: 'Grip Strength Assessment',
-    valueType: 'ordinal',
+    valueType: 'TEXT',
     scaleMin: 0,
     scaleMax: 4,
     unit: 'scale',
@@ -370,7 +370,7 @@ const standardizedMetrics = [
   {
     key: 'functional_mobility',
     displayName: 'Functional Mobility Assessment',
-    valueType: 'ordinal',
+    valueType: 'TEXT',
     scaleMin: 1,
     scaleMax: 5,
     unit: 'scale',
@@ -402,7 +402,7 @@ const standardizedMetrics = [
   {
     key: 'balance_assessment',
     displayName: 'Balance and Stability',
-    valueType: 'ordinal',
+    valueType: 'TEXT',
     scaleMin: 1,
     scaleMax: 4,
     unit: 'scale',
@@ -435,7 +435,7 @@ const standardizedMetrics = [
   {
     key: 'fatigue_level',
     displayName: 'Fatigue Level',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 10,
     unit: 'scale',
@@ -468,7 +468,7 @@ const standardizedMetrics = [
   {
     key: 'sleep_quality',
     displayName: 'Sleep Quality',
-    valueType: 'ordinal',
+    valueType: 'TEXT',
     scaleMin: 1,
     scaleMax: 5,
     unit: 'scale',
@@ -500,7 +500,7 @@ const standardizedMetrics = [
   {
     key: 'tender_points_count',
     displayName: 'Number of Tender Points',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 18,
     unit: 'count',
@@ -522,7 +522,7 @@ const standardizedMetrics = [
   {
     key: 'joint_stiffness',
     displayName: 'Joint Stiffness',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 10,
     unit: 'scale',
@@ -551,7 +551,7 @@ const standardizedMetrics = [
   {
     key: 'joint_swelling',
     displayName: 'Joint Swelling',
-    valueType: 'categorical',
+    valueType: 'TEXT',
     defaultFrequency: 'daily',
     coding: {
       primary: {
@@ -647,7 +647,7 @@ const standardizedMetrics = [
   {
     key: 'morning_stiffness_duration',
     displayName: 'Morning Stiffness Duration',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 480,
     unit: 'minutes',
@@ -678,7 +678,7 @@ const standardizedMetrics = [
   {
     key: 'blood_glucose',
     displayName: 'Blood Glucose',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 50,
     scaleMax: 600,
     unit: 'mg/dL',
@@ -710,7 +710,7 @@ const standardizedMetrics = [
   {
     key: 'hba1c',
     displayName: 'HbA1c',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 4.0,
     scaleMax: 15.0,
     unit: '%',
@@ -744,7 +744,7 @@ const standardizedMetrics = [
   {
     key: 'systolic_bp',
     displayName: 'Systolic Blood Pressure',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 70,
     scaleMax: 250,
     unit: 'mmHg',
@@ -774,7 +774,7 @@ const standardizedMetrics = [
   {
     key: 'diastolic_bp',
     displayName: 'Diastolic Blood Pressure',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 40,
     scaleMax: 150,
     unit: 'mmHg',
@@ -804,7 +804,7 @@ const standardizedMetrics = [
   {
     key: 'weight',
     displayName: 'Body Weight',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 50,
     scaleMax: 500,
     unit: 'lbs',
@@ -835,7 +835,7 @@ const standardizedMetrics = [
   {
     key: 'phq9_score',
     displayName: 'PHQ-9 Depression Score',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 27,
     unit: 'score',
@@ -871,7 +871,7 @@ const standardizedMetrics = [
   {
     key: 'gad7_score',
     displayName: 'GAD-7 Anxiety Score',
-    valueType: 'numeric',
+    valueType: 'NUMERIC',
     scaleMin: 0,
     scaleMax: 21,
     unit: 'score',
@@ -908,7 +908,7 @@ const standardizedMetrics = [
   {
     key: 'medication_adherence',
     displayName: 'Medication Adherence',
-    valueType: 'categorical',
+    valueType: 'TEXT',
     defaultFrequency: 'multiple_daily',
     coding: {
       primary: {
@@ -1186,20 +1186,40 @@ async function seedRTMStandard() {
   console.log('🌱 Starting Enhanced RTM Standard Seed...');
   
   try {
+    // Helper function to safely delete from models that may not exist
+    const safeDelete = async (modelName, operation) => {
+      try {
+        if (prisma[modelName] && typeof prisma[modelName][operation] === 'function') {
+          const result = await prisma[modelName][operation]();
+          console.log(`  ✅ Cleared ${modelName}: ${result.count || 0} records deleted`);
+          return result;
+        } else {
+          console.log(`  ⚠️  Model ${modelName} not found in Prisma client, skipping...`);
+          return { count: 0 };
+        }
+      } catch (error) {
+        console.log(`  ⚠️  Error deleting from ${modelName}: ${error.message}`);
+        return { count: 0 };
+      }
+    };
+
     // Clear existing data in correct order to avoid foreign key constraints
     console.log('🧹 Clearing existing data...');
     
-    // Delete junction tables first
-    await prisma.conditionPresetTemplate.deleteMany();
-    await prisma.conditionPresetDiagnosis.deleteMany();
+    // Delete dependent records first (in order of foreign key dependencies)
+    await safeDelete('observation', 'deleteMany'); // Delete observations that reference metricDefinitions
+    await safeDelete('assessment', 'deleteMany'); // Delete assessments that might reference templates
+    await safeDelete('timeLog', 'deleteMany'); // Delete time logs if they exist
     
-    // Delete dependent tables
-    await prisma.assessmentTemplateItem.deleteMany();
+    // Delete junction tables
+    await safeDelete('conditionPresetTemplate', 'deleteMany');
+    await safeDelete('conditionPresetDiagnosis', 'deleteMany');
+    await safeDelete('conditionPresetAlertRule', 'deleteMany');
     
     // Delete main tables
-    await prisma.conditionPreset.deleteMany();
-    await prisma.assessmentTemplate.deleteMany();
-    await prisma.metricDefinition.deleteMany();
+    await safeDelete('conditionPreset', 'deleteMany');
+    await safeDelete('assessmentTemplate', 'deleteMany');
+    await safeDelete('metricDefinition', 'deleteMany');
 
     // Create metric definitions
     console.log('📊 Creating enhanced metric definitions...');
@@ -1209,15 +1229,13 @@ async function seedRTMStandard() {
         data: {
           key: metric.key,
           displayName: metric.displayName,
-          valueType: metric.valueType,
-          scaleMin: metric.scaleMin,
-          scaleMax: metric.scaleMax,
+          description: metric.description || `${metric.displayName} measurement`,
           unit: metric.unit,
-          decimalPrecision: metric.decimalPrecision,
-          defaultFrequency: metric.defaultFrequency,
-          coding: metric.coding,
-          options: metric.options,
-          validation: metric.validation
+          valueType: metric.valueType,
+          isStandardized: true,
+          standardCoding: metric.coding || null,
+          validationInfo: metric.validation || null,
+          normalRange: metric.validation?.normalRange || null
         }
       });
       createdMetrics[metric.key] = created;
@@ -1225,62 +1243,45 @@ async function seedRTMStandard() {
     }
 
     // Create condition presets
-    console.log('🏥 Creating enhanced condition presets...');
+    console.log('🏥 Creating condition presets...');
     const createdPresets = {};
     for (const preset of conditionPresets) {
       const created = await prisma.conditionPreset.create({
         data: {
           name: preset.name,
-          defaultProtocolId: preset.defaultProtocolId
+          defaultProtocolId: preset.defaultProtocolId,
+          description: preset.description
         }
       });
-      
-      // Create diagnoses for this preset
+      createdPresets[preset.name] = created;
+      console.log(`  ✅ Created preset: ${preset.name}`);
+
+      // Create condition preset diagnoses
       for (const diagnosis of preset.diagnoses) {
         await prisma.conditionPresetDiagnosis.create({
           data: {
-            presetId: created.id,
+            conditionPresetId: created.id,
             icd10: diagnosis.icd10,
             snomed: diagnosis.snomed,
             label: diagnosis.label
           }
         });
       }
-      
-      createdPresets[preset.name] = created;
-      console.log(`  ✅ Created condition preset: ${preset.name}`);
     }
 
     // Create assessment templates
-console.log('📋 Creating enhanced assessment templates...');
-const createdTemplates = {};
-for (const template of assessmentTemplates) {
-  const createdTemplate = await prisma.assessmentTemplate.create({
-    data: {
-      name: template.name,
-      description: template.description,
-      version: template.version
-    }
-  });
-
-  // Create template items
-  for (const item of template.items) {
-    const metric = createdMetrics[item.metricKey];
-    if (metric) {
-      await prisma.assessmentTemplateItem.create({
+    console.log('📋 Creating assessment templates...');
+    const createdTemplates = {};
+    for (const template of assessmentTemplates) {
+      const created = await prisma.assessmentTemplate.create({
         data: {
-          templateId: createdTemplate.id,
-          metricDefinitionId: metric.id,
-          required: item.required,
-          displayOrder: item.displayOrder,
-          helpText: item.helpText
+          name: template.name,
+          description: template.description,
+          questions: template.items || []
         }
       });
-    }
-  }
-  
-  createdTemplates[template.name] = createdTemplate;
-  console.log(`  ✅ Created assessment template: ${template.name} with ${template.items.length} items`);
+      createdTemplates[template.name] = created;
+      console.log(`  ✅ Created template: ${template.name}`);
     }
 
     // Link condition presets to assessment templates
@@ -1320,7 +1321,7 @@ for (const link of presetTemplateLinks) {
       if (template) {
         await prisma.conditionPresetTemplate.create({
           data: {
-            presetId: preset.id,
+            conditionPresetId: preset.id,
             templateId: template.id
           }
         });
@@ -1330,20 +1331,10 @@ for (const link of presetTemplateLinks) {
   }
 }
 
-console.log('🎉 Enhanced RTM Standard Seed completed successfully!');
-    console.log(`📊 Created ${standardizedMetrics.length} metric definitions`);
-    console.log(`🏥 Created ${conditionPresets.length} condition presets`);
-    console.log(`📋 Created ${assessmentTemplates.length} assessment templates`);
-    console.log('');
-    console.log('🔍 Enhanced Coverage Summary:');
-    console.log('  ✅ Pain Management (Chronic Pain, Fibromyalgia, Arthritis)');
-    console.log('  ✅ Diabetes Management');
-    console.log('  ✅ Mental Health (Depression, Anxiety)');
-    console.log('  ✅ Cardiovascular Monitoring');
-    console.log('  ✅ Respiratory Health (COPD, Asthma) - NEW');
-    console.log('  ✅ Musculoskeletal Function (Range of Motion, Strength) - NEW');
-    console.log('');
-    console.log('💰 RTM Billing Compliance: All metrics support CPT 98976-98981');
+console.log('✅ Enhanced RTM Standard seed completed successfully!');
+    console.log(`📊 Created ${Object.keys(createdMetrics).length} metric definitions`);
+    console.log(`📋 Created ${Object.keys(createdTemplates).length} assessment templates`);
+    console.log(`🏥 Created ${Object.keys(createdPresets).length} condition presets`);
 
   } catch (error) {
     console.error('❌ Error seeding enhanced RTM standard data:', error);
