@@ -1668,6 +1668,106 @@ await prisma.patient.delete({ where: { id: patientId } });
 
 ---
 
+### Additional Utility Scripts
+
+#### seed-triage-queue-test-data.js
+**Purpose**: Seed test data specifically for triage queue functionality testing
+
+**Usage**:
+```bash
+node scripts/seed-triage-queue-test-data.js
+```
+
+**What it creates**:
+- Test patients with various alert severities and priorities
+- Pre-configured alerts in different states (PENDING, ACKNOWLEDGED, RESOLVED)
+- Risk scores and SLA breach times for queue testing
+
+**Use case**: Testing prioritized triage queue, alert claiming, and risk stratification features
+
+---
+
+#### setup-test-data.js
+**Purpose**: General-purpose test data seeding for development and testing environments
+
+**Usage**:
+```bash
+node scripts/setup-test-data.js
+```
+
+**What it creates**:
+- Sample patients, clinicians, and enrollments
+- Observations and assessments
+- Alert rules and triggered alerts
+- Complete dataset for comprehensive testing
+
+**Use case**: Initial setup of development environment with realistic test data
+
+---
+
+#### generate-api-docs.js
+**Purpose**: Generate API documentation from route definitions
+
+**Usage**:
+```bash
+node scripts/generate-api-docs.js
+```
+
+**What it does**:
+- Scans route files in `src/routes/`
+- Extracts endpoint definitions, methods, and parameters
+- Generates structured API documentation
+
+**Output**: API documentation in markdown or JSON format
+
+**Use case**: Keeping API documentation in sync with route definitions
+
+---
+
+#### generate-schema-reference.js
+**Purpose**: Generate database schema reference documentation from Prisma schema
+
+**Usage**:
+```bash
+node scripts/generate-schema-reference.js
+```
+
+**What it does**:
+- Parses `prisma/schema.prisma`
+- Extracts model definitions, fields, relationships
+- Generates comprehensive schema documentation
+
+**Output**: Database schema reference documentation
+
+**Use case**: Auto-generating developer documentation for database structure
+
+---
+
+### Archived Scripts
+
+The following scripts have been moved to `archive/old-scripts/` as they were one-time setup or debugging tools:
+
+**Setup Scripts** (completed their purpose):
+- `add-billing-prerequisites-simple.js` - Added initial billing program data
+- `add-billing-prerequisites.js` - Seeded comprehensive billing configuration
+- `add-missing-assessment-templates.js` - Populated missing templates
+- `link-alert-rules-to-presets.js` - Linked existing alert rules to condition presets
+- `seed-enrollments-with-billing.js` - Created test enrollments with billing programs
+- `create-test-billing-user.js` - Created test user for billing features
+
+**Debugging Scripts** (issue-specific tools):
+- `check-carol-data.js` - Inspected Carol test patient data
+- `test-carol-billing.js` - Tested billing calculations for Carol
+- `check-standardized-data.js` - Verified standardized condition presets
+- `inspect-billing-api.js` - Debugging tool for billing API
+- `inspect-billing-data.js` - Database inspection for billing data
+- `create-alerts-via-api.js` - Alert creation testing tool
+- `create-test-alerts.js` - Generated test alerts
+
+**Removed**: `scripts/testing/` folder (5 outdated alert testing scripts superseded by main scripts)
+
+---
+
 **Last Updated**: 2025-10-17
 **Maintainer**: Development Team
 **Review Frequency**: Update after each schema change or new feature addition
