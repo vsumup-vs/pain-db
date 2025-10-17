@@ -41,10 +41,12 @@ const taskRoutes = require('./src/routes/taskRoutes');
 const billingRoutes = require('./src/routes/billingRoutes');
 const encounterNoteRoutes = require('./src/routes/encounterNoteRoutes');
 const timeTrackingRoutes = require('./src/routes/timeTrackingRoutes');
+const analyticsRoutes = require('./src/routes/analyticsRoutes');
 
 // Import authentication
 const passport = require('passport');
 const authRoutes = require('./src/routes/authRoutes');
+const sseRoutes = require('./src/routes/sseRoutes');
 
 // Import alert scheduler for background jobs
 const alertScheduler = require('./src/services/alertScheduler');
@@ -58,6 +60,9 @@ const { injectOrganizationContext, auditOrganizationAccess } = require('./src/mi
 
 // Authentication routes (public)
 app.use('/api/auth', authRoutes);
+
+// SSE routes (real-time updates) - requires authentication but handled internally
+app.use('/api/sse', sseRoutes);
 
 // Add health check routes (public)
 const healthRoutes = require('./src/routes/healthRoutes');
@@ -137,6 +142,7 @@ app.use('/api/patient-medications', requireAuth, injectOrganizationContext, audi
 app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganizationAccess, continuityRoutes);
 app.use('/api/billing', requireAuth, injectOrganizationContext, auditOrganizationAccess, billingRoutes);
 app.use('/api/time-tracking', requireAuth, injectOrganizationContext, auditOrganizationAccess, timeTrackingRoutes);
+app.use('/api/analytics', requireAuth, injectOrganizationContext, auditOrganizationAccess, analyticsRoutes);
 
 // Platform configuration routes (platform-wide resources, no organization context needed)
 // These are managed by SUPER_ADMIN and available to all organizations

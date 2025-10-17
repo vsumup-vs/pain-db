@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { calculateAlertRiskScore, recalculatePriorityRanks } = require('../services/alertRiskScoringService');
+const { findBillingEnrollment } = require('../utils/billingHelpers');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -575,18 +576,43 @@ const resolveAlert = async (req, res) => {
       });
 
       // 2. Critical Fix #2: Create TimeLog entry for billing
-      const timeLog = await tx.timeLog.create({
-        data: {
-          patientId: alert.patientId,
-          clinicianId: alert.clinicianId || currentUserId,
-          activity,
-          duration: parseInt(timeSpentMinutes),
-          cptCode,
-          notes: resolutionNotes.trim(),
-          billable: cptCode !== null, // Only billable if CPT code assigned
-          loggedAt: new Date()
+      // Determine clinicianId: use alert's clinician, or find any clinician in organization, or skip TimeLog
+      let clinicianIdForTimeLog = alert.clinicianId;
+
+      if (!clinicianIdForTimeLog) {
+        // Try to find a clinician in the organization
+        const anyClinician = await tx.clinician.findFirst({
+          where: { organizationId },
+          select: { id: true }
+        });
+
+        if (anyClinician) {
+          clinicianIdForTimeLog = anyClinician.id;
         }
-      });
+      }
+
+      // Only create TimeLog if we have a valid clinicianId
+      let timeLog = null;
+      if (clinicianIdForTimeLog) {
+        // Find billing enrollment for this patient
+        const enrollmentId = await findBillingEnrollment(alert.patientId, organizationId, tx);
+
+        timeLog = await tx.timeLog.create({
+          data: {
+            patientId: alert.patientId,
+            clinicianId: clinicianIdForTimeLog,
+            enrollmentId, // Link to billing enrollment for accurate billing
+            activity,
+            duration: parseInt(timeSpentMinutes),
+            cptCode,
+            notes: resolutionNotes.trim(),
+            billable: cptCode !== null, // Only billable if CPT code assigned
+            loggedAt: new Date()
+          }
+        });
+      } else {
+        console.warn(`No clinician found for TimeLog creation. Alert ${id} resolved without billable time log.`);
+      }
 
       // 3. Critical Fix #3: Create audit log (HIPAA compliance)
       const auditLog = await tx.auditLog.create({
@@ -615,7 +641,7 @@ const resolveAlert = async (req, res) => {
             ruleId: alert.ruleId,
             ruleName: alert.rule?.name,
             severity: alert.severity,
-            timeLogId: timeLog.id,
+            timeLogId: timeLog?.id || null,
             cptCode,
             billable: cptCode !== null
           },
@@ -1086,6 +1112,21 @@ const getTriageQueue = async (req, res) => {
       where.severity = severity;
     }
 
+    // Filter out snoozed and suppressed alerts by default (Phase 1b)
+    // Snoozed: snoozedUntil is in the future
+    // Suppressed: isSuppressed is true
+    where.AND = [
+      {
+        OR: [
+          { snoozedUntil: null },
+          { snoozedUntil: { lt: new Date() } } // Include if snooze expired
+        ]
+      },
+      {
+        isSuppressed: false
+      }
+    ];
+
     // Risk score range filter
     if (minRiskScore !== undefined || maxRiskScore !== undefined) {
       where.riskScore = {};
@@ -1522,6 +1563,1177 @@ const unclaimAlert = async (req, res) => {
   }
 };
 
+// Snooze an alert (Phase 1b)
+const snoozeAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { snoozeMinutes } = req.body; // Duration in minutes
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Validate snooze duration
+    if (!snoozeMinutes || snoozeMinutes < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Snooze duration (minutes) is required and must be at least 1 minute'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      },
+      include: {
+        rule: true,
+        patient: true
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Check if alert is already resolved or dismissed
+    if (['RESOLVED', 'DISMISSED'].includes(alert.status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot snooze ${alert.status.toLowerCase()} alert`
+      });
+    }
+
+    // Calculate snooze expiration
+    const snoozedUntil = new Date(Date.now() + snoozeMinutes * 60 * 1000);
+
+    // Update alert with snooze details and create audit log
+    const [updatedAlert] = await prisma.$transaction([
+      prisma.alert.update({
+        where: { id },
+        data: {
+          snoozedUntil,
+          snoozedById: currentUserId,
+          snoozedAt: new Date()
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          },
+          snoozedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      }),
+      // Create audit log
+      prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          organizationId,
+          action: 'ALERT_SNOOZED',
+          resource: 'Alert',
+          resourceId: id,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          oldValues: {
+            snoozedUntil: alert.snoozedUntil,
+            snoozedById: alert.snoozedById,
+            snoozedAt: alert.snoozedAt
+          },
+          newValues: {
+            snoozedUntil,
+            snoozedById: currentUserId,
+            snoozedAt: new Date()
+          },
+          metadata: {
+            patientId: alert.patientId,
+            ruleId: alert.ruleId,
+            severity: alert.severity,
+            snoozeMinutes
+          },
+          hipaaRelevant: true
+        }
+      })
+    ]);
+
+    // Broadcast SSE update
+    const sseService = require('../services/sseService');
+    try {
+      sseService.broadcastAlertUpdate(updatedAlert);
+    } catch (sseError) {
+      console.error('Failed to broadcast SSE alert update:', sseError);
+    }
+
+    res.json({
+      success: true,
+      data: updatedAlert,
+      message: `Alert snoozed for ${snoozeMinutes} minutes`
+    });
+  } catch (error) {
+    console.error('Error snoozing alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while snoozing alert'
+    });
+  }
+};
+
+// Unsnooze an alert (Phase 1b)
+const unsnoozeAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Check if alert is snoozed
+    if (!alert.snoozedUntil) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert is not snoozed'
+      });
+    }
+
+    // Update alert to remove snooze and create audit log
+    const [updatedAlert] = await prisma.$transaction([
+      prisma.alert.update({
+        where: { id },
+        data: {
+          snoozedUntil: null,
+          snoozedById: null,
+          snoozedAt: null
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          }
+        }
+      }),
+      // Create audit log
+      prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          organizationId,
+          action: 'ALERT_UNSNOOZED',
+          resource: 'Alert',
+          resourceId: id,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          oldValues: {
+            snoozedUntil: alert.snoozedUntil,
+            snoozedById: alert.snoozedById,
+            snoozedAt: alert.snoozedAt
+          },
+          newValues: {
+            snoozedUntil: null,
+            snoozedById: null,
+            snoozedAt: null
+          },
+          metadata: {
+            patientId: alert.patientId,
+            ruleId: alert.ruleId,
+            severity: alert.severity
+          },
+          hipaaRelevant: true
+        }
+      })
+    ]);
+
+    // Broadcast SSE update
+    const sseService = require('../services/sseService');
+    try {
+      sseService.broadcastAlertUpdate(updatedAlert);
+    } catch (sseError) {
+      console.error('Failed to broadcast SSE alert update:', sseError);
+    }
+
+    res.json({
+      success: true,
+      data: updatedAlert,
+      message: 'Alert snooze removed'
+    });
+  } catch (error) {
+    console.error('Error unsnoozing alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while unsnoozing alert'
+    });
+  }
+};
+
+// Suppress an alert (Phase 1b)
+const suppressAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { suppressReason, suppressNotes } = req.body;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Validate suppress reason
+    if (!suppressReason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Suppress reason is required'
+      });
+    }
+
+    const validSuppressReasons = [
+      'FALSE_POSITIVE',
+      'PATIENT_CONTACTED',
+      'DUPLICATE_ALERT',
+      'PLANNED_INTERVENTION',
+      'PATIENT_HOSPITALIZED',
+      'DEVICE_MALFUNCTION',
+      'DATA_ENTRY_ERROR',
+      'CLINICAL_JUDGMENT',
+      'OTHER'
+    ];
+
+    if (!validSuppressReasons.includes(suppressReason)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid suppress reason. Must be one of: ${validSuppressReasons.join(', ')}`
+      });
+    }
+
+    // If reason is OTHER, require notes
+    if (suppressReason === 'OTHER' && (!suppressNotes || suppressNotes.trim().length < 10)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Suppress notes are required (minimum 10 characters) when reason is OTHER'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      },
+      include: {
+        rule: true,
+        patient: true
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Check if alert is already resolved
+    if (alert.status === 'RESOLVED') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot suppress resolved alert'
+      });
+    }
+
+    // Check if already suppressed
+    if (alert.isSuppressed) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert is already suppressed'
+      });
+    }
+
+    // Update alert with suppression details and create audit log
+    const [updatedAlert] = await prisma.$transaction([
+      prisma.alert.update({
+        where: { id },
+        data: {
+          isSuppressed: true,
+          suppressReason,
+          suppressedById: currentUserId,
+          suppressedAt: new Date(),
+          suppressNotes: suppressNotes?.trim() || null,
+          status: 'DISMISSED' // Change status to DISMISSED
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          },
+          suppressedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      }),
+      // Create audit log
+      prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          organizationId,
+          action: 'ALERT_SUPPRESSED',
+          resource: 'Alert',
+          resourceId: id,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          oldValues: {
+            isSuppressed: alert.isSuppressed,
+            suppressReason: alert.suppressReason,
+            status: alert.status
+          },
+          newValues: {
+            isSuppressed: true,
+            suppressReason,
+            suppressedById: currentUserId,
+            suppressedAt: new Date(),
+            suppressNotes: suppressNotes?.trim() || null,
+            status: 'DISMISSED'
+          },
+          metadata: {
+            patientId: alert.patientId,
+            ruleId: alert.ruleId,
+            severity: alert.severity,
+            suppressReason
+          },
+          hipaaRelevant: true
+        }
+      })
+    ]);
+
+    // Broadcast SSE update
+    const sseService = require('../services/sseService');
+    try {
+      sseService.broadcastAlertUpdate(updatedAlert);
+    } catch (sseError) {
+      console.error('Failed to broadcast SSE alert update:', sseError);
+    }
+
+    res.json({
+      success: true,
+      data: updatedAlert,
+      message: 'Alert suppressed successfully'
+    });
+  } catch (error) {
+    console.error('Error suppressing alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while suppressing alert'
+    });
+  }
+};
+
+// Unsuppress an alert (Phase 1b)
+const unsuppressAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Check if alert is suppressed
+    if (!alert.isSuppressed) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert is not suppressed'
+      });
+    }
+
+    // Update alert to remove suppression and create audit log
+    const [updatedAlert] = await prisma.$transaction([
+      prisma.alert.update({
+        where: { id },
+        data: {
+          isSuppressed: false,
+          suppressReason: null,
+          suppressedById: null,
+          suppressedAt: null,
+          suppressNotes: null,
+          status: 'PENDING' // Reactivate alert
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          }
+        }
+      }),
+      // Create audit log
+      prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          organizationId,
+          action: 'ALERT_UNSUPPRESSED',
+          resource: 'Alert',
+          resourceId: id,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          oldValues: {
+            isSuppressed: alert.isSuppressed,
+            suppressReason: alert.suppressReason,
+            status: alert.status
+          },
+          newValues: {
+            isSuppressed: false,
+            suppressReason: null,
+            suppressedById: null,
+            suppressedAt: null,
+            suppressNotes: null,
+            status: 'PENDING'
+          },
+          metadata: {
+            patientId: alert.patientId,
+            ruleId: alert.ruleId,
+            severity: alert.severity
+          },
+          hipaaRelevant: true
+        }
+      })
+    ]);
+
+    // Broadcast SSE update
+    const sseService = require('../services/sseService');
+    try {
+      sseService.broadcastAlertUpdate(updatedAlert);
+    } catch (sseError) {
+      console.error('Failed to broadcast SSE alert update:', sseError);
+    }
+
+    res.json({
+      success: true,
+      data: updatedAlert,
+      message: 'Alert suppression removed and alert reactivated'
+    });
+  } catch (error) {
+    console.error('Error unsuppressing alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while unsuppressing alert'
+    });
+  }
+};
+
+// Escalate an alert (Phase 1b - Manual or automatic escalation)
+const escalateAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { escalatedToId, escalationReason } = req.body;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Validate escalatedToId (required for manual escalation)
+    if (!escalatedToId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Escalation target user ID (escalatedToId) is required'
+      });
+    }
+
+    // Validate escalation target user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id: escalatedToId }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'Escalation target user not found'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      },
+      include: {
+        rule: true,
+        patient: true
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Check if alert is already resolved
+    if (alert.status === 'RESOLVED') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot escalate resolved alert'
+      });
+    }
+
+    // Calculate new escalation level
+    const newEscalationLevel = (alert.escalationLevel || 0) + 1;
+
+    // Update alert with escalation details and create audit log
+    const [updatedAlert] = await prisma.$transaction([
+      prisma.alert.update({
+        where: { id },
+        data: {
+          isEscalated: true,
+          escalatedAt: new Date(),
+          escalatedToId,
+          escalationLevel: newEscalationLevel,
+          escalationReason: escalationReason || 'Manual escalation'
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          },
+          escalatedTo: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      }),
+      // Create audit log
+      prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          organizationId,
+          action: 'ALERT_ESCALATED',
+          resource: 'Alert',
+          resourceId: id,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          oldValues: {
+            isEscalated: alert.isEscalated,
+            escalationLevel: alert.escalationLevel,
+            escalatedToId: alert.escalatedToId
+          },
+          newValues: {
+            isEscalated: true,
+            escalatedAt: new Date(),
+            escalatedToId,
+            escalationLevel: newEscalationLevel,
+            escalationReason: escalationReason || 'Manual escalation'
+          },
+          metadata: {
+            patientId: alert.patientId,
+            ruleId: alert.ruleId,
+            severity: alert.severity,
+            escalationLevel: newEscalationLevel,
+            escalatedToEmail: targetUser.email
+          },
+          hipaaRelevant: true
+        }
+      })
+    ]);
+
+    // Broadcast SSE update
+    const sseService = require('../services/sseService');
+    try {
+      sseService.broadcastAlertUpdate(updatedAlert);
+    } catch (sseError) {
+      console.error('Failed to broadcast SSE alert update:', sseError);
+    }
+
+    // TODO: Send escalation notification email to escalatedTo user
+    // This will be implemented when we add email notification service
+
+    res.json({
+      success: true,
+      data: updatedAlert,
+      message: `Alert escalated to ${updatedAlert.escalatedTo?.firstName} ${updatedAlert.escalatedTo?.lastName} (Level ${newEscalationLevel})`
+    });
+  } catch (error) {
+    console.error('Error escalating alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while escalating alert'
+    });
+  }
+};
+
+// Get escalation history for an alert (Phase 1b)
+const getEscalationHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Get all escalation-related audit logs for this alert
+    const escalationLogs = await prisma.auditLog.findMany({
+      where: {
+        resource: 'Alert',
+        resourceId: id,
+        action: 'ALERT_ESCALATED'
+      },
+      orderBy: {
+        createdAt: 'asc'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Extract escalation details from metadata
+    const escalationHistory = escalationLogs.map(log => ({
+      escalatedAt: log.createdAt,
+      escalatedBy: log.user,
+      escalatedToId: log.newValues?.escalatedToId,
+      escalatedToEmail: log.metadata?.escalatedToEmail,
+      escalationLevel: log.metadata?.escalationLevel,
+      escalationReason: log.newValues?.escalationReason,
+      severity: log.metadata?.severity
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        alertId: id,
+        currentEscalationLevel: alert.escalationLevel,
+        isEscalated: alert.isEscalated,
+        history: escalationHistory
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching escalation history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while fetching escalation history'
+    });
+  }
+};
+
+// Bulk alert actions (Phase 1b - Multi-select operations)
+const bulkAlertActions = async (req, res) => {
+  try {
+    const { alertIds, action, actionData } = req.body;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Validate alertIds array
+    if (!alertIds || !Array.isArray(alertIds) || alertIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert IDs array is required and must contain at least one alert ID'
+      });
+    }
+
+    // Validate action
+    const validActions = ['acknowledge', 'resolve', 'snooze', 'suppress', 'assign', 'dismiss'];
+    if (!action || !validActions.includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid action. Must be one of: ${validActions.join(', ')}`
+      });
+    }
+
+    // Fetch all alerts to verify they exist and belong to organization
+    const alerts = await prisma.alert.findMany({
+      where: {
+        id: { in: alertIds },
+        organizationId
+      },
+      include: {
+        patient: { select: { id: true, firstName: true, lastName: true } },
+        rule: { select: { id: true, name: true, severity: true } }
+      }
+    });
+
+    if (alerts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No matching alerts found'
+      });
+    }
+
+    if (alerts.length !== alertIds.length) {
+      return res.status(400).json({
+        success: false,
+        error: `Only ${alerts.length} of ${alertIds.length} alerts found or belong to your organization`
+      });
+    }
+
+    // Execute bulk action based on type
+    let results = { success: [], failed: [], summary: {} };
+    const sseService = require('../services/sseService');
+
+    switch (action) {
+      case 'acknowledge':
+        for (const alert of alerts) {
+          try {
+            if (alert.status === 'PENDING') {
+              const [updatedAlert] = await prisma.$transaction([
+                prisma.alert.update({
+                  where: { id: alert.id },
+                  data: {
+                    status: 'ACKNOWLEDGED',
+                    acknowledgedAt: new Date()
+                  }
+                }),
+                prisma.auditLog.create({
+                  data: {
+                    userId: currentUserId,
+                    organizationId,
+                    action: 'ALERT_ACKNOWLEDGED_BULK',
+                    resource: 'Alert',
+                    resourceId: alert.id,
+                    ipAddress: req.ip,
+                    userAgent: req.get('user-agent'),
+                    oldValues: { status: alert.status },
+                    newValues: { status: 'ACKNOWLEDGED' },
+                    metadata: { patientId: alert.patientId, bulkAction: true },
+                    hipaaRelevant: true
+                  }
+                })
+              ]);
+              results.success.push({ id: alert.id, message: 'Acknowledged' });
+              try {
+                sseService.broadcastAlertUpdate(updatedAlert);
+              } catch (sseError) {
+                console.error('SSE broadcast failed:', sseError);
+              }
+            } else {
+              results.failed.push({ id: alert.id, reason: `Already ${alert.status.toLowerCase()}` });
+            }
+          } catch (error) {
+            results.failed.push({ id: alert.id, reason: error.message });
+          }
+        }
+        break;
+
+      case 'snooze':
+        const snoozeMinutes = actionData?.snoozeMinutes || 60;
+        const snoozedUntil = new Date(Date.now() + snoozeMinutes * 60 * 1000);
+
+        for (const alert of alerts) {
+          try {
+            if (!['RESOLVED', 'DISMISSED'].includes(alert.status)) {
+              const [updatedAlert] = await prisma.$transaction([
+                prisma.alert.update({
+                  where: { id: alert.id },
+                  data: {
+                    snoozedUntil,
+                    snoozedById: currentUserId,
+                    snoozedAt: new Date()
+                  }
+                }),
+                prisma.auditLog.create({
+                  data: {
+                    userId: currentUserId,
+                    organizationId,
+                    action: 'ALERT_SNOOZED_BULK',
+                    resource: 'Alert',
+                    resourceId: alert.id,
+                    ipAddress: req.ip,
+                    userAgent: req.get('user-agent'),
+                    oldValues: { snoozedUntil: alert.snoozedUntil },
+                    newValues: { snoozedUntil },
+                    metadata: { patientId: alert.patientId, snoozeMinutes, bulkAction: true },
+                    hipaaRelevant: true
+                  }
+                })
+              ]);
+              results.success.push({ id: alert.id, message: `Snoozed for ${snoozeMinutes} minutes` });
+              try {
+                sseService.broadcastAlertUpdate(updatedAlert);
+              } catch (sseError) {
+                console.error('SSE broadcast failed:', sseError);
+              }
+            } else {
+              results.failed.push({ id: alert.id, reason: `Cannot snooze ${alert.status.toLowerCase()} alert` });
+            }
+          } catch (error) {
+            results.failed.push({ id: alert.id, reason: error.message });
+          }
+        }
+        break;
+
+      case 'suppress':
+        const suppressReason = actionData?.suppressReason || 'CLINICAL_JUDGMENT';
+        const suppressNotes = actionData?.suppressNotes;
+
+        for (const alert of alerts) {
+          try {
+            if (alert.status !== 'RESOLVED' && !alert.isSuppressed) {
+              const [updatedAlert] = await prisma.$transaction([
+                prisma.alert.update({
+                  where: { id: alert.id },
+                  data: {
+                    isSuppressed: true,
+                    suppressReason,
+                    suppressedById: currentUserId,
+                    suppressedAt: new Date(),
+                    suppressNotes,
+                    status: 'DISMISSED'
+                  }
+                }),
+                prisma.auditLog.create({
+                  data: {
+                    userId: currentUserId,
+                    organizationId,
+                    action: 'ALERT_SUPPRESSED_BULK',
+                    resource: 'Alert',
+                    resourceId: alert.id,
+                    ipAddress: req.ip,
+                    userAgent: req.get('user-agent'),
+                    oldValues: { isSuppressed: alert.isSuppressed, status: alert.status },
+                    newValues: { isSuppressed: true, suppressReason, status: 'DISMISSED' },
+                    metadata: { patientId: alert.patientId, suppressReason, bulkAction: true },
+                    hipaaRelevant: true
+                  }
+                })
+              ]);
+              results.success.push({ id: alert.id, message: 'Suppressed' });
+              try {
+                sseService.broadcastAlertUpdate(updatedAlert);
+              } catch (sseError) {
+                console.error('SSE broadcast failed:', sseError);
+              }
+            } else {
+              results.failed.push({ id: alert.id, reason: 'Already resolved or suppressed' });
+            }
+          } catch (error) {
+            results.failed.push({ id: alert.id, reason: error.message });
+          }
+        }
+        break;
+
+      case 'assign':
+        const assignToId = actionData?.assignToId;
+        if (!assignToId) {
+          return res.status(400).json({
+            success: false,
+            error: 'assignToId is required for assign action'
+          });
+        }
+
+        // Verify target user exists
+        const targetUser = await prisma.user.findUnique({
+          where: { id: assignToId }
+        });
+        if (!targetUser) {
+          return res.status(404).json({
+            success: false,
+            error: 'Target user not found'
+          });
+        }
+
+        for (const alert of alerts) {
+          try {
+            const [updatedAlert] = await prisma.$transaction([
+              prisma.alert.update({
+                where: { id: alert.id },
+                data: {
+                  claimedById: assignToId,
+                  claimedAt: new Date()
+                }
+              }),
+              prisma.auditLog.create({
+                data: {
+                  userId: currentUserId,
+                  organizationId,
+                  action: 'ALERT_ASSIGNED_BULK',
+                  resource: 'Alert',
+                  resourceId: alert.id,
+                  ipAddress: req.ip,
+                  userAgent: req.get('user-agent'),
+                  oldValues: { claimedById: alert.claimedById },
+                  newValues: { claimedById: assignToId },
+                  metadata: { patientId: alert.patientId, assignedToEmail: targetUser.email, bulkAction: true },
+                  hipaaRelevant: true
+                }
+              })
+            ]);
+            results.success.push({ id: alert.id, message: `Assigned to ${targetUser.firstName} ${targetUser.lastName}` });
+            try {
+              sseService.broadcastAlertUpdate(updatedAlert);
+            } catch (sseError) {
+              console.error('SSE broadcast failed:', sseError);
+            }
+          } catch (error) {
+            results.failed.push({ id: alert.id, reason: error.message });
+          }
+        }
+        break;
+
+      case 'dismiss':
+        for (const alert of alerts) {
+          try {
+            if (alert.status !== 'RESOLVED' && alert.status !== 'DISMISSED') {
+              const [updatedAlert] = await prisma.$transaction([
+                prisma.alert.update({
+                  where: { id: alert.id },
+                  data: {
+                    status: 'DISMISSED'
+                  }
+                }),
+                prisma.auditLog.create({
+                  data: {
+                    userId: currentUserId,
+                    organizationId,
+                    action: 'ALERT_DISMISSED_BULK',
+                    resource: 'Alert',
+                    resourceId: alert.id,
+                    ipAddress: req.ip,
+                    userAgent: req.get('user-agent'),
+                    oldValues: { status: alert.status },
+                    newValues: { status: 'DISMISSED' },
+                    metadata: { patientId: alert.patientId, bulkAction: true },
+                    hipaaRelevant: true
+                  }
+                })
+              ]);
+              results.success.push({ id: alert.id, message: 'Dismissed' });
+              try {
+                sseService.broadcastAlertUpdate(updatedAlert);
+              } catch (sseError) {
+                console.error('SSE broadcast failed:', sseError);
+              }
+            } else {
+              results.failed.push({ id: alert.id, reason: `Already ${alert.status.toLowerCase()}` });
+            }
+          } catch (error) {
+            results.failed.push({ id: alert.id, reason: error.message });
+          }
+        }
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: `Action ${action} not implemented yet`
+        });
+    }
+
+    // Generate summary
+    results.summary = {
+      total: alertIds.length,
+      successful: results.success.length,
+      failed: results.failed.length,
+      action
+    };
+
+    res.json({
+      success: true,
+      data: results,
+      message: `Bulk ${action} completed: ${results.success.length} successful, ${results.failed.length} failed`
+    });
+  } catch (error) {
+    console.error('Error performing bulk alert actions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while performing bulk actions'
+    });
+  }
+};
+
 module.exports = {
   createAlert,
   getAlerts,
@@ -1535,5 +2747,12 @@ module.exports = {
   claimAlert,
   unclaimAlert,
   acknowledgeAlert,
-  resolveAlert
+  resolveAlert,
+  snoozeAlert,
+  unsnoozeAlert,
+  suppressAlert,
+  unsuppressAlert,
+  escalateAlert,
+  getEscalationHistory,
+  bulkAlertActions
 };

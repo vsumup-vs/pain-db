@@ -18,7 +18,14 @@ const {
   claimAlert,
   unclaimAlert,
   acknowledgeAlert,
-  resolveAlert
+  resolveAlert,
+  snoozeAlert,
+  unsnoozeAlert,
+  suppressAlert,
+  unsuppressAlert,
+  escalateAlert,
+  getEscalationHistory,
+  bulkAlertActions
 } = require('../controllers/alertController');
 
 // Create a new alert with validation
@@ -38,6 +45,9 @@ router.get('/triage-queue', commonValidations.pagination, handleValidationErrors
 
 // Evaluate alert rules
 router.post('/evaluate', evaluateAlerts);
+
+// Bulk alert actions (Phase 1b - Multi-select operations)
+router.post('/bulk-actions', handleValidationErrors, bulkAlertActions);
 
 // Get alert by ID with validation
 router.get('/:id', commonValidations.id, handleValidationErrors, getAlertById);
@@ -59,5 +69,23 @@ router.post('/:id/acknowledge', commonValidations.id, handleValidationErrors, ac
 
 // Resolve alert with required documentation (Critical Fixes #1, #2, #3, #4)
 router.post('/:id/resolve', commonValidations.id, handleValidationErrors, resolveAlert);
+
+// Snooze alert (Phase 1b)
+router.post('/:id/snooze', commonValidations.id, handleValidationErrors, snoozeAlert);
+
+// Unsnooze alert (Phase 1b)
+router.post('/:id/unsnooze', commonValidations.id, handleValidationErrors, unsnoozeAlert);
+
+// Suppress alert (Phase 1b)
+router.post('/:id/suppress', commonValidations.id, handleValidationErrors, suppressAlert);
+
+// Unsuppress alert (Phase 1b)
+router.post('/:id/unsuppress', commonValidations.id, handleValidationErrors, unsuppressAlert);
+
+// Escalate alert (Phase 1b - Manual escalation)
+router.post('/:id/escalate', commonValidations.id, handleValidationErrors, escalateAlert);
+
+// Get escalation history for an alert (Phase 1b)
+router.get('/:id/escalation-history', commonValidations.id, handleValidationErrors, getEscalationHistory);
 
 module.exports = router;

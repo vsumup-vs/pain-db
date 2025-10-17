@@ -3,6 +3,8 @@ const {
   calculateRiskScore: calculateRiskScoreAdvanced,
   calculateMedicationAdherence
 } = require('./riskScoringService');
+const notificationService = require('./notificationService');
+const sseService = require('./sseService');
 
 // Use global prisma client in test environment
 const prisma = global.prisma || new PrismaClient();
@@ -197,6 +199,45 @@ async function evaluateObservation(observation) {
           triggeredAlerts.push(alert);
 
           console.log(`✅ Alert triggered: ${rule.name} for patient ${observation.patientId} (Risk Score: ${riskScore})`);
+
+          // Send notification for MEDIUM, HIGH, and CRITICAL alerts
+          if (['MEDIUM', 'HIGH', 'CRITICAL'].includes(alert.severity)) {
+            try {
+              // Clinician data is already available from enrollment (with email, phone)
+              if (enrollment?.clinician) {
+                // Fetch complete clinician details with email and phone
+                const clinician = await prisma.clinician.findUnique({
+                  where: { id: enrollment.clinician.id },
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true
+                  }
+                });
+
+                // Patient data is already fetched above (line 149)
+                if (clinician && patient) {
+                  await notificationService.sendAlertNotification(alert, clinician, patient);
+                  console.log(`📧 Notification sent to ${clinician.email} for ${alert.severity} alert`);
+                }
+              } else {
+                console.log(`⚠️  No clinician assigned for alert ${alert.id}, skipping notification`);
+              }
+            } catch (notificationError) {
+              // Log but don't fail alert creation if notification fails
+              console.error('Failed to send alert notification:', notificationError);
+            }
+          }
+
+          // Broadcast real-time alert via SSE to connected clinicians
+          try {
+            sseService.broadcastNewAlert(alert);
+            console.log(`📡 Real-time alert broadcast for alert ${alert.id}`);
+          } catch (sseError) {
+            console.error('Failed to broadcast SSE alert:', sseError);
+          }
         } else {
           console.log(`⏸️  Alert cooldown active: ${rule.name} for patient ${observation.patientId}`);
         }

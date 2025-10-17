@@ -13,6 +13,7 @@ const cron = require('node-cron');
 const { PrismaClient } = require('@prisma/client');
 const { evaluateObservation, calculateSLABreachTime } = require('./alertEvaluationService');
 const { calculateRiskScore, calculateMedicationAdherence } = require('./riskScoringService');
+const notificationService = require('./notificationService');
 
 const prisma = new PrismaClient();
 
@@ -77,13 +78,59 @@ function startScheduledJobs() {
     timezone: 'America/New_York'
   });
 
-  activeJobs.push(missedAssessmentJob, medicationAdherenceJob, trendEvaluationJob, staleAlertCleanupJob);
+  // Job 5: Assessment reminders (twice daily at 9 AM and 6 PM)
+  const assessmentReminderJob = cron.schedule('0 9,18 * * *', async () => {
+    try {
+      console.log('⏰ Running assessment reminder check...');
+      const remindersSent = await sendAssessmentReminders();
+      console.log(`✅ Assessment reminders sent: ${remindersSent} reminders`);
+    } catch (error) {
+      console.error('❌ Error sending assessment reminders:', error);
+    }
+  }, {
+    timezone: 'America/New_York'
+  });
+
+  // Job 6: Reactivate snoozed alerts (every 5 minutes)
+  const reactivateSnoozedAlertsJob = cron.schedule('*/5 * * * *', async () => {
+    try {
+      console.log('⏰ Checking for expired snoozed alerts...');
+      const reactivated = await reactivateSnoozedAlerts();
+      if (reactivated > 0) {
+        console.log(`✅ Reactivated ${reactivated} snoozed alerts`);
+      }
+    } catch (error) {
+      console.error('❌ Error reactivating snoozed alerts:', error);
+    }
+  }, {
+    timezone: 'America/New_York'
+  });
+
+  // Job 7: Check SLA breaches and auto-escalate (every 1 minute) - Phase 1b
+  const slaEscalationJob = cron.schedule('* * * * *', async () => {
+    try {
+      console.log('⏰ Checking for SLA breaches...');
+      const escalated = await checkAndEscalateSLABreaches();
+      if (escalated > 0) {
+        console.log(`✅ Escalated ${escalated} alerts for SLA breach`);
+      }
+    } catch (error) {
+      console.error('❌ Error checking SLA breaches:', error);
+    }
+  }, {
+    timezone: 'America/New_York'
+  });
+
+  activeJobs.push(missedAssessmentJob, medicationAdherenceJob, trendEvaluationJob, staleAlertCleanupJob, assessmentReminderJob, reactivateSnoozedAlertsJob, slaEscalationJob);
 
   console.log('✅ All alert evaluation jobs scheduled:');
   console.log('  - Missed assessments: Every hour');
   console.log('  - Medication adherence: Every 6 hours');
   console.log('  - Trend evaluation: Daily at 2 AM');
   console.log('  - Stale alert cleanup: Daily at 3 AM');
+  console.log('  - Assessment reminders: Twice daily at 9 AM and 6 PM');
+  console.log('  - Reactivate snoozed alerts: Every 5 minutes');
+  console.log('  - SLA breach escalation: Every minute');
 }
 
 /**
@@ -655,11 +702,391 @@ async function getOrCreateTrendAlertRule() {
   return rule;
 }
 
+/**
+ * Send assessment reminders to patients who have assessments coming due
+ * Sends reminders 24 hours before assessment is due based on frequency
+ */
+async function sendAssessmentReminders() {
+  try {
+    let remindersSent = 0;
+
+    // Get all active enrollments with condition presets
+    const enrollments = await prisma.enrollment.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
+          }
+        },
+        conditionPreset: {
+          include: {
+            templates: {
+              where: {
+                isRequired: true
+              },
+              include: {
+                template: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    for (const enrollment of enrollments) {
+      if (!enrollment.conditionPreset || !enrollment.conditionPreset.templates.length) {
+        continue;
+      }
+
+      // Check each required template
+      for (const presetTemplate of enrollment.conditionPreset.templates) {
+        const template = presetTemplate.template;
+        const frequency = presetTemplate.frequency || 'weekly';
+        const expectedHours = getExpectedHoursFromFrequency(frequency);
+
+        // Get last assessment for this template
+        const lastAssessment = await prisma.assessment.findFirst({
+          where: {
+            patientId: enrollment.patientId,
+            templateId: template.id,
+            completedAt: {
+              not: null
+            }
+          },
+          orderBy: {
+            completedAt: 'desc'
+          }
+        });
+
+        // Calculate when next assessment is due
+        const now = new Date();
+        const lastCompletedAt = lastAssessment?.completedAt || enrollment.startDate;
+        const hoursSinceLastAssessment = (now - new Date(lastCompletedAt)) / (1000 * 60 * 60);
+        const hoursUntilDue = expectedHours - hoursSinceLastAssessment;
+
+        // Send reminder if assessment is due within 24 hours (but not yet overdue)
+        const shouldRemind = hoursUntilDue > 0 && hoursUntilDue <= 24;
+
+        if (shouldRemind) {
+          // Check if we already sent a reminder recently (within last 12 hours)
+          const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+          const recentReminder = await prisma.assessmentReminder.findFirst({
+            where: {
+              patientId: enrollment.patientId,
+              templateId: template.id,
+              enrollmentId: enrollment.id,
+              sentAt: {
+                gte: twelveHoursAgo
+              }
+            }
+          });
+
+          if (!recentReminder && enrollment.patient.email) {
+            try {
+              // Send reminder notification
+              await notificationService.sendAssessmentReminder(
+                enrollment.patient,
+                enrollment,
+                template
+              );
+
+              // Log the reminder
+              await prisma.assessmentReminder.create({
+                data: {
+                  patientId: enrollment.patientId,
+                  templateId: template.id,
+                  enrollmentId: enrollment.id,
+                  sentAt: new Date(),
+                  dueAt: new Date(new Date(lastCompletedAt).getTime() + expectedHours * 60 * 60 * 1000),
+                  reminderType: 'UPCOMING'
+                }
+              });
+
+              remindersSent++;
+              console.log(`📧 Sent assessment reminder: ${template.name} to ${enrollment.patient.firstName} ${enrollment.patient.lastName} (due in ${Math.round(hoursUntilDue)} hours)`);
+            } catch (reminderError) {
+              console.error(`Failed to send reminder for template ${template.id}:`, reminderError);
+            }
+          }
+        }
+      }
+    }
+
+    return remindersSent;
+
+  } catch (error) {
+    console.error('Error sending assessment reminders:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reactivate snoozed alerts whose snooze period has expired (Phase 1b)
+ * Checks every 5 minutes for alerts where snoozedUntil < now
+ */
+async function reactivateSnoozedAlerts() {
+  try {
+    const sseService = require('./sseService');
+    const now = new Date();
+
+    // Find all alerts with expired snooze
+    const expiredSnoozedAlerts = await prisma.alert.findMany({
+      where: {
+        snoozedUntil: {
+          lt: now // Snooze time has passed
+        },
+        status: {
+          notIn: ['RESOLVED', 'DISMISSED'] // Don't reactivate resolved/dismissed alerts
+        }
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        rule: {
+          select: {
+            id: true,
+            name: true,
+            severity: true
+          }
+        }
+      }
+    });
+
+    // Reactivate each alert
+    for (const alert of expiredSnoozedAlerts) {
+      const updatedAlert = await prisma.alert.update({
+        where: { id: alert.id },
+        data: {
+          snoozedUntil: null,
+          snoozedById: null,
+          snoozedAt: null
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          }
+        }
+      });
+
+      // Broadcast SSE update for reactivated alert
+      try {
+        sseService.broadcastAlertUpdate(updatedAlert);
+        console.log(`🔔 Reactivated snoozed alert ${alert.id}: ${alert.rule.name} for patient ${alert.patient.firstName} ${alert.patient.lastName}`);
+      } catch (sseError) {
+        console.error('Failed to broadcast SSE alert reactivation:', sseError);
+      }
+    }
+
+    return expiredSnoozedAlerts.length;
+
+  } catch (error) {
+    console.error('Error reactivating snoozed alerts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check for SLA breaches and automatically escalate alerts (Phase 1b)
+ * Runs every minute to check alerts where slaBreachTime < now
+ */
+async function checkAndEscalateSLABreaches() {
+  try {
+    const sseService = require('./sseService');
+    const now = new Date();
+
+    // Find all PENDING alerts where SLA is breached and not already escalated
+    const breachedAlerts = await prisma.alert.findMany({
+      where: {
+        status: {
+          in: ['PENDING', 'ACKNOWLEDGED'] // Escalate even acknowledged alerts if SLA breached
+        },
+        slaBreachTime: {
+          lt: now // SLA breach time has passed
+        },
+        isEscalated: false, // Not yet escalated
+        isSuppressed: false // Don't escalate suppressed alerts
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        clinician: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        rule: {
+          select: {
+            id: true,
+            name: true,
+            severity: true
+          }
+        }
+      }
+    });
+
+    let escalatedCount = 0;
+
+    for (const alert of breachedAlerts) {
+      // Determine escalation target based on organization hierarchy
+      // For now, we'll escalate to the organization admin
+      // TODO: Implement proper escalation hierarchy (supervisor lookup)
+
+      // Find an ORG_ADMIN for this organization
+      const orgAdmin = await prisma.userOrganization.findFirst({
+        where: {
+          organizationId: alert.organizationId,
+          role: 'ORG_ADMIN',
+          isActive: true
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      if (!orgAdmin) {
+        console.warn(`No ORG_ADMIN found for organization ${alert.organizationId}, cannot escalate alert ${alert.id}`);
+        continue;
+      }
+
+      // Calculate time since SLA breach
+      const minutesSinceBreach = Math.floor((now - alert.slaBreachTime) / (60 * 1000));
+
+      // Update alert with escalation details and create audit log
+      const [updatedAlert] = await prisma.$transaction([
+        prisma.alert.update({
+          where: { id: alert.id },
+          data: {
+            isEscalated: true,
+            escalatedAt: now,
+            escalatedToId: orgAdmin.userId,
+            escalationLevel: 1, // First escalation
+            escalationReason: `Automatic escalation: SLA breach (${minutesSinceBreach} minutes overdue)`
+          },
+          include: {
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            rule: {
+              select: {
+                id: true,
+                name: true,
+                severity: true
+              }
+            },
+            escalatedTo: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true
+              }
+            }
+          }
+        }),
+        // Create audit log for automatic escalation
+        prisma.auditLog.create({
+          data: {
+            userId: orgAdmin.userId, // System action on behalf of org admin
+            organizationId: alert.organizationId,
+            action: 'ALERT_ESCALATED',
+            resource: 'Alert',
+            resourceId: alert.id,
+            oldValues: {
+              isEscalated: false,
+              escalationLevel: null
+            },
+            newValues: {
+              isEscalated: true,
+              escalatedAt: now,
+              escalatedToId: orgAdmin.userId,
+              escalationLevel: 1,
+              escalationReason: `Automatic escalation: SLA breach (${minutesSinceBreach} minutes overdue)`
+            },
+            metadata: {
+              patientId: alert.patientId,
+              ruleId: alert.ruleId,
+              severity: alert.severity,
+              escalationLevel: 1,
+              escalatedToEmail: orgAdmin.user.email,
+              minutesSinceBreach,
+              autoEscalated: true
+            },
+            hipaaRelevant: true
+          }
+        })
+      ]);
+
+      // Broadcast SSE update
+      try {
+        sseService.broadcastAlertUpdate(updatedAlert);
+      } catch (sseError) {
+        console.error('Failed to broadcast SSE alert escalation:', sseError);
+      }
+
+      // TODO: Send escalation notification email to escalatedTo user
+      // await notificationService.sendEscalationNotification(updatedAlert, orgAdmin.user, minutesSinceBreach);
+
+      escalatedCount++;
+      console.log(`🚨 Auto-escalated alert ${alert.id}: ${alert.rule.name} for patient ${alert.patient.firstName} ${alert.patient.lastName} to ${orgAdmin.user.firstName} ${orgAdmin.user.lastName} (${minutesSinceBreach} min overdue)`);
+    }
+
+    return escalatedCount;
+
+  } catch (error) {
+    console.error('Error checking and escalating SLA breaches:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   startScheduledJobs,
   stopScheduledJobs,
   evaluateMissedAssessments,
   evaluateMedicationAdherenceAlerts,
   evaluateDailyTrends,
-  cleanupStaleAlerts
+  cleanupStaleAlerts,
+  sendAssessmentReminders,
+  reactivateSnoozedAlerts,
+  checkAndEscalateSLABreaches
 };
