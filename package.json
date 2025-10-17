@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "seed": "node seed.js",
+    "seed:production": "node prisma/seed-production.js",
     "seed:rtm": "node seed-rtm-standard.js",
     "seed:standard": "node seed-rtm-standard.js",
     "seed:enhanced": "node seed-robust-enhanced.js",
@@ -42,7 +43,10 @@
     "prisma:studio": "prisma studio",
     "validate-fields": "node validate-field-usage.js",
     "schema:enhance": "./apply-schema-enhancements.sh",
-    "schema:verify": "node verify-enhanced-schema.js"
+    "schema:verify": "node verify-enhanced-schema.js",
+    "docs:schema": "node scripts/generate-schema-reference.js",
+    "docs:api": "node scripts/generate-api-docs.js",
+    "docs:generate": "node scripts/generate-schema-reference.js && node scripts/generate-api-docs.js"
   },
   "devDependencies": {
     "@jest/globals": "^30.1.2",
@@ -77,5 +81,8 @@
     "uuid": "^13.0.0",
     "validator": "^13.15.15",
     "xss": "^1.0.15"
+  },
+  "prisma": {
+    "seed": "node prisma/seed-production.js"
   }
 }

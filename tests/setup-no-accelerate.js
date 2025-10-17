@@ -33,6 +33,9 @@ async function cleanDatabase() {
   await global.prisma.timeLog.deleteMany({});
   await global.prisma.observation.deleteMany({});
   await global.prisma.alert.deleteMany({});
+  await global.prisma.medicationAdherence.deleteMany({});
+  await global.prisma.patientMedication.deleteMany({});
+  await global.prisma.assessment.deleteMany({});
 
   // Then tables that depend on enrollments
   await global.prisma.enrollment.deleteMany({});
