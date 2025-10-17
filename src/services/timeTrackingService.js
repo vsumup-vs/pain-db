@@ -11,6 +11,7 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
+const { findBillingEnrollment } = require('../utils/billingHelpers');
 const prisma = new PrismaClient();
 
 // In-memory timer storage (keyed by userId-patientId)
@@ -74,8 +75,18 @@ async function startTimer({ userId, patientId, activity = 'Patient engagement', 
 
 /**
  * Stop timer and create TimeLog entry
+ *
+ * @param {Object} params
+ * @param {string} params.userId - User ID
+ * @param {string} params.patientId - Patient ID
+ * @param {string} params.clinicianId - Clinician ID
+ * @param {string} params.organizationId - Organization ID (required for billing enrollment lookup)
+ * @param {string} params.enrollmentId - Optional enrollment ID (if not provided, will auto-detect)
+ * @param {string} params.cptCode - CPT code for billing
+ * @param {string} params.notes - Notes for time log
+ * @param {boolean} params.billable - Whether this time is billable
  */
-async function stopTimer({ userId, patientId, clinicianId, cptCode = null, notes = '', billable = true }) {
+async function stopTimer({ userId, patientId, clinicianId, organizationId, enrollmentId = null, cptCode = null, notes = '', billable = true }) {
   const timerKey = getTimerKey(userId, patientId);
 
   // Check if timer exists
@@ -96,19 +107,26 @@ async function stopTimer({ userId, patientId, clinicianId, cptCode = null, notes
 
   // Create TimeLog entry
   try {
+    // Auto-detect billing enrollment if not provided
+    let finalEnrollmentId = enrollmentId;
+    if (!finalEnrollmentId && organizationId) {
+      finalEnrollmentId = await findBillingEnrollment(patientId, organizationId);
+    }
+
     const timeLog = await prisma.timeLog.create({
       data: {
         patientId,
         clinicianId,
+        enrollmentId: finalEnrollmentId, // Link to billing enrollment for accurate billing
         activity: timer.activity,
         duration: finalDuration,
         cptCode,
         notes,
         billable,
         loggedAt: timer.startedAt,
-        autoStarted: true, // NEW: Mark as auto-started
-        source: 'AUTO', // NEW: Source is AUTO
-        startedAt: timer.startedAt // NEW: Track original start time
+        autoStarted: true, // Mark as auto-started
+        source: 'AUTO', // Source is AUTO
+        startedAt: timer.startedAt // Track original start time
       }
     });
 

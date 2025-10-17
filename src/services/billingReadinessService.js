@@ -70,10 +70,13 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
   if (!billingProgram.isActive) {
     return {
       enrollmentId,
+      patientId: enrollment.patientId,
+      patientName: `${enrollment.patient.firstName} ${enrollment.patient.lastName}`,
       billingMonth,
       eligible: false,
       reason: 'Billing program is not active',
       billingProgram: null,
+      billingProgramCode: null,
       cptCodes: []
     };
   }
@@ -84,10 +87,13 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
   if (startDate < effectiveFrom || (effectiveTo && endDate > effectiveTo)) {
     return {
       enrollmentId,
+      patientId: enrollment.patientId,
+      patientName: `${enrollment.patient.firstName} ${enrollment.patient.lastName}`,
       billingMonth,
       eligible: false,
       reason: `Billing program not effective for ${billingMonth}`,
       billingProgram: billingProgram.name,
+      billingProgramCode: billingProgram.code,
       cptCodes: []
     };
   }
@@ -103,10 +109,13 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
   if (!allRulesPassed) {
     return {
       enrollmentId,
+      patientId: enrollment.patientId,
+      patientName: `${enrollment.patient.firstName} ${enrollment.patient.lastName}`,
       billingMonth,
       eligible: false,
       reason: 'Failed eligibility requirements',
       billingProgram: billingProgram.name,
+      billingProgramCode: billingProgram.code,
       eligibilityRules: eligibilityResults,
       cptCodes: []
     };
@@ -125,7 +134,20 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
     .reduce((sum, c) => sum + (parseFloat(c.reimbursementRate) || 0), 0);
 
   const eligibleCPTCodes = cptCodeResults.filter(c => c.eligible);
-  const isEligible = eligibleCPTCodes.length > 0;
+
+  // Determine eligibility based on CRITICAL CPT code categories
+  // A patient is only eligible if they pass ALL critical CPT codes
+  // Critical categories: DATA_COLLECTION and CLINICAL_TIME (or TREATMENT_TIME, CARE_COORDINATION)
+  const dataCollectionCodes = cptCodeResults.filter(c => c.category === 'DATA_COLLECTION');
+  const clinicalTimeCodes = cptCodeResults.filter(c =>
+    ['CLINICAL_TIME', 'TREATMENT_TIME', 'CARE_COORDINATION'].includes(c.category)
+  );
+
+  const dataCollectionMet = dataCollectionCodes.length === 0 || dataCollectionCodes.some(c => c.eligible);
+  const clinicalTimeMet = clinicalTimeCodes.length === 0 || clinicalTimeCodes.some(c => c.eligible);
+
+  // Patient is eligible ONLY if both critical requirements are met
+  const isEligible = dataCollectionMet && clinicalTimeMet;
 
   return {
     enrollmentId,
@@ -143,10 +165,8 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
       totalCPTCodes: cptCodeResults.length,
       eligibleCPTCodes: eligibleCPTCodes.length,
       setupCompleted: cptCodeResults.some(c => c.category === 'SETUP' && c.eligible),
-      dataCollectionMet: cptCodeResults.some(c => c.category === 'DATA_COLLECTION' && c.eligible),
-      clinicalTimeMet: cptCodeResults.some(c =>
-        ['CLINICAL_TIME', 'TREATMENT_TIME', 'CARE_COORDINATION'].includes(c.category) && c.eligible
-      )
+      dataCollectionMet: dataCollectionMet,
+      clinicalTimeMet: clinicalTimeMet
     }
   };
 }
@@ -293,6 +313,11 @@ async function evaluateCPTCode(enrollment, cptCode, startDate, endDate, billingM
       eligible = evaluateOperator(uniqueDays, criteria.operator, criteria.threshold);
       actualValue = uniqueDays;
       details = `${uniqueDays} days with data (requires ${criteria.operator} ${criteria.threshold})`;
+
+      // Add reason for frontend parsing (for near-eligibility detection)
+      if (!eligible) {
+        details += ` - Only ${uniqueDays} days with data, need ${criteria.threshold}`;
+      }
       break;
 
     case 'CLINICAL_TIME':
@@ -309,6 +334,11 @@ async function evaluateCPTCode(enrollment, cptCode, startDate, endDate, billingM
       eligible = totalMinutes >= criteria.thresholdMinutes;
       actualValue = totalMinutes;
       details = `${totalMinutes} minutes logged (requires ≥ ${criteria.thresholdMinutes})`;
+
+      // Add reason for frontend parsing (for near-eligibility detection)
+      if (!eligible) {
+        details += ` - Only ${totalMinutes} minutes logged, need ${criteria.thresholdMinutes}`;
+      }
       break;
 
     case 'CLINICAL_TIME_INCREMENTAL':
@@ -366,6 +396,7 @@ async function evaluateCPTCode(enrollment, cptCode, startDate, endDate, billingM
     eligible,
     actualValue,
     details,
+    reason: details, // Frontend expects 'reason' field for parsing near-eligibility
     reimbursementRate: cptCode.reimbursementRate ? parseFloat(cptCode.reimbursementRate) : 0,
     currency: cptCode.currency || 'USD',
     isRecurring: cptCode.isRecurring
@@ -390,7 +421,7 @@ async function calculateUniqueDaysWithData(enrollmentId, startDate, endDate, cal
   if (!enrollment) return 0;
 
   let whereClause = {
-    patientId: enrollment.patientId,
+    enrollmentId: enrollmentId, // Filter by specific enrollment for accurate billing
     recordedAt: {
       gte: startDate,
       lte: endDate
@@ -437,7 +468,7 @@ async function calculateBillableTime(enrollmentId, startDate, endDate, calculati
   if (!enrollment) return 0;
 
   const whereClause = {
-    patientId: enrollment.patientId,
+    enrollmentId: enrollmentId, // Filter by specific enrollment for accurate billing
     loggedAt: {
       gte: startDate,
       lte: endDate

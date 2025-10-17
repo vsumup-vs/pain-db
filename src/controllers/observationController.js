@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { evaluateObservation } = require('../services/alertEvaluationService');
 const { updateAlertRiskScores } = require('../services/riskScoringService');
+const { findBillingEnrollment } = require('../utils/billingHelpers');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -21,23 +22,19 @@ const createObservation = async (req, res) => {
       context
     } = req.body;
 
-    // Validate required fields
-    if (!patientId || !metricDefinitionId || !enrollmentId || value === undefined) {
+    // Validate required fields (enrollmentId is now optional - will auto-detect)
+    if (!patientId || !metricDefinitionId || value === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'PatientId, metricDefinitionId, enrollmentId, and value are required'
+        message: 'PatientId, metricDefinitionId, and value are required'
       });
     }
 
     // OPTIMIZATION 1: Batch all validation queries into a single Promise.all
-    const [patient, enrollment, metricDefinition] = await Promise.all([
+    const queries = [
       prisma.patient.findUnique({
         where: { id: patientId },
         select: { id: true, medicalRecordNumber: true } // Only select needed fields
-      }),
-      prisma.enrollment.findUnique({
-        where: { id: enrollmentId },
-        select: { id: true, patientId: true, status: true } // Only select needed fields
       }),
       prisma.metricDefinition.findUnique({
         where: { id: metricDefinitionId },
@@ -52,21 +49,40 @@ const createObservation = async (req, res) => {
           normalRange: true
         }
       })
-    ]);
+    ];
+
+    // Only fetch enrollment if enrollmentId is provided
+    if (enrollmentId) {
+      queries.push(
+        prisma.enrollment.findUnique({
+          where: { id: enrollmentId },
+          select: { id: true, patientId: true, status: true } // Only select needed fields
+        })
+      );
+    }
+
+    const results = await Promise.all(queries);
+    const patient = results[0];
+    const metricDefinition = results[1];
+    const enrollment = enrollmentId ? results[2] : null;
 
     // OPTIMIZATION 2: Batch validation checks
     const validationErrors = [];
-    
+
     if (!patient) validationErrors.push('Patient not found');
-    if (!enrollment) validationErrors.push('Enrollment not found');
     if (!metricDefinition) validationErrors.push('Metric definition not found');
-    
-    if (enrollment && enrollment.patientId !== patientId) {
-      validationErrors.push('Enrollment does not belong to the specified patient');
-    }
-    
-    if (enrollment && enrollment.status !== 'ACTIVE') {
-      validationErrors.push('Enrollment is not active');
+
+    // Only validate enrollment if it was provided
+    if (enrollmentId) {
+      if (!enrollment) validationErrors.push('Enrollment not found');
+
+      if (enrollment && enrollment.patientId !== patientId) {
+        validationErrors.push('Enrollment does not belong to the specified patient');
+      }
+
+      if (enrollment && enrollment.status !== 'ACTIVE') {
+        validationErrors.push('Enrollment is not active');
+      }
     }
 
     if (validationErrors.length > 0) {
@@ -96,11 +112,18 @@ const createObservation = async (req, res) => {
       });
     }
 
+    // Auto-detect billing enrollment if not provided
+    let finalEnrollmentId = enrollmentId;
+    if (!finalEnrollmentId && organizationId) {
+      finalEnrollmentId = await findBillingEnrollment(patientId, organizationId);
+    }
+
     // OPTIMIZATION 4: Create observation with minimal includes
     const observation = await prisma.observation.create({
       data: {
         organizationId,  // SECURITY: Always include organizationId
         patientId: patientId,
+        enrollmentId: finalEnrollmentId,  // Link to billing enrollment for accurate billing
         metricId: metricDefinitionId,  // Schema uses metricId, not metricDefinitionId
         value: validationResult.processedValue,  // Schema uses single JSON value field
         unit: metricDefinition.unit,

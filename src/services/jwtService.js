@@ -104,15 +104,10 @@ class JWTService {
         isActive: access.organization.isActive,
         role: access.role,
         permissions: access.permissions,
-        programAccess: access.programAccess,
-        canBill: access.canBill,
-        billingRate: access.billingRate,
         availablePrograms: access.organization.carePrograms.map(program => ({
           id: program.id,
           name: program.name,
-          type: program.type,
-          cptCodes: program.cptCodes,
-          requiredPermissions: program.requiredPermissions
+          type: program.type
         }))
       }));
 
@@ -120,11 +115,8 @@ class JWTService {
       const firstOrg = organizations.length > 0 ? organizations[0] : null;
       const currentOrganization = firstOrg?.organizationId || null;
 
-      // Get accessible programs for current organization
-      const accessiblePrograms = firstOrg?.availablePrograms.filter(program =>
-        firstOrg.programAccess.includes(program.id) ||
-        this.hasRequiredPermissions(firstOrg.permissions, program.requiredPermissions)
-      ) || [];
+      // Get accessible programs for current organization (all programs accessible for now)
+      const accessiblePrograms = firstOrg?.availablePrograms || [];
 
       return this.generateToken({
         userId: userWithOrgs.id,
@@ -135,11 +127,7 @@ class JWTService {
         role: firstOrg?.role,
         permissions: firstOrg?.permissions || [],
         programAccess: accessiblePrograms.map(p => p.id),
-        currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null,
-        billingContext: firstOrg ? {
-          canBill: firstOrg.canBill,
-          billingRate: firstOrg.billingRate
-        } : null
+        currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null
       });
     } catch (error) {
       console.error('Error generating user token:', error);
@@ -202,28 +190,18 @@ class JWTService {
       isActive: access.organization.isActive,
       role: access.role,
       permissions: access.permissions,
-      programAccess: access.programAccess,
-      canBill: access.canBill,
-      billingRate: access.billingRate,
       availablePrograms: access.organization.carePrograms.map(program => ({
         id: program.id,
         name: program.name,
-        type: program.type,
-        cptCodes: program.cptCodes,
-        requiredPermissions: program.requiredPermissions
+        type: program.type
       }))
     }));
 
-    // Get accessible programs for selected organization
-    const accessiblePrograms = orgAccess.organization.carePrograms.filter(program =>
-      orgAccess.programAccess.includes(program.id) ||
-      this.hasRequiredPermissions(orgAccess.permissions, program.requiredPermissions)
-    ).map(p => ({
+    // Get accessible programs for selected organization (all programs accessible for now)
+    const accessiblePrograms = orgAccess.organization.carePrograms.map(p => ({
       id: p.id,
       name: p.name,
-      type: p.type,
-      cptCodes: p.cptCodes,
-      requiredPermissions: p.requiredPermissions
+      type: p.type
     }));
 
     return this.generateToken({
@@ -235,11 +213,7 @@ class JWTService {
       role: orgAccess.role,
       permissions: orgAccess.permissions || [],
       programAccess: accessiblePrograms.map(p => p.id),
-      currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null,
-      billingContext: {
-        canBill: orgAccess.canBill,
-        billingRate: orgAccess.billingRate
-      }
+      currentProgram: accessiblePrograms.length > 0 ? accessiblePrograms[0] : null
     });
   }
 
