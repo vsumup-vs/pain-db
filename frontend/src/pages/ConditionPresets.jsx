@@ -18,16 +18,20 @@ import {
   ClipboardDocumentCheckIcon,
   HeartIcon,
   ShieldCheckIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline'
 import Modal from '../components/Modal'
 import ConditionPresetForm from '../components/ConditionPresetForm'
+import ConditionPresetDetailsModal from '../components/ConditionPresetDetailsModal'
 
 export default function ConditionPresets() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPreset, setEditingPreset] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
+  const [selectedPresetForDetails, setSelectedPresetForDetails] = useState(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: presets, isLoading, error } = useQuery({
@@ -38,6 +42,13 @@ export default function ConditionPresets() {
   const { data: assessmentTemplates } = useQuery({
     queryKey: ['assessment-templates'],
     queryFn: () => api.getAssessmentTemplates({ limit: 1000 }), // Fetch all templates
+  })
+
+  // Fetch detailed preset data when viewing details
+  const { data: presetDetails, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ['condition-preset-details', selectedPresetForDetails?.id],
+    queryFn: () => api.getConditionPreset(selectedPresetForDetails.id),
+    enabled: !!selectedPresetForDetails,
   })
 
   const createMutation = useMutation({
@@ -108,6 +119,16 @@ export default function ConditionPresets() {
     if (window.confirm(`Create a customizable copy of "${preset.name}" for your organization? You will be able to modify the customized version.`)) {
       customizeMutation.mutate(preset.id)
     }
+  }
+
+  const handleViewDetails = (preset) => {
+    setSelectedPresetForDetails(preset)
+    setIsDetailsModalOpen(true)
+  }
+
+  const handleCloseDetailsModal = () => {
+    setIsDetailsModalOpen(false)
+    setSelectedPresetForDetails(null)
   }
 
   const handleSubmit = (data) => {
@@ -283,28 +304,17 @@ export default function ConditionPresets() {
                   className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
                 >
                   <div className="p-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center">
-                        <div className={`p-3 rounded-lg ${colorClasses}`}>
+                    {/* Header - Vertical Stacking Layout */}
+                    <div className="space-y-3 mb-4">
+                      {/* Row 1: Icon + Title */}
+                      <div className="flex items-start">
+                        <div className={`p-3 rounded-lg ${colorClasses} flex-shrink-0`}>
                           <PresetIcon className="h-6 w-6" />
                         </div>
-                        <div className="ml-3">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-lg font-semibold text-gray-900 truncate">
-                              {preset.name}
-                            </h3>
-                            {preset.isStandardized && !preset.isCustomized && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                ⭐ Standardized
-                              </span>
-                            )}
-                            {preset.isCustomized && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                🏥 Custom
-                              </span>
-                            )}
-                          </div>
+                        <div className="ml-3 flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {preset.name}
+                          </h3>
                           <p className="text-sm text-gray-500">
                             Care Program
                           </p>
@@ -315,37 +325,62 @@ export default function ConditionPresets() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        {/* Show Customize button for standardized (non-customized) items */}
-                        {preset.isStandardized && !preset.isCustomized && (
-                          <button
-                            onClick={() => handleCustomize(preset)}
-                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                            title="Customize for your organization"
-                          >
-                            <DocumentDuplicateIcon className="h-4 w-4" />
-                          </button>
-                        )}
 
-                        {/* Only show Edit/Delete for customized (org-specific) items */}
-                        {preset.isCustomized && (
-                          <>
+                      {/* Row 2: Badges + Actions */}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center space-x-2">
+                          {preset.isStandardized && !preset.isCustomized && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              ⭐ Standardized
+                            </span>
+                          )}
+                          {preset.isCustomized && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              🏥 Custom
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          {/* View Details button for all presets */}
+                          <button
+                            onClick={() => handleViewDetails(preset)}
+                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                          </button>
+
+                          {/* Show Customize button for standardized (non-customized) items */}
+                          {preset.isStandardized && !preset.isCustomized && (
                             <button
-                              onClick={() => handleEdit(preset)}
-                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Edit"
+                              onClick={() => handleCustomize(preset)}
+                              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Customize for your organization"
                             >
-                              <PencilIcon className="h-4 w-4" />
+                              <DocumentDuplicateIcon className="h-4 w-4" />
                             </button>
-                            <button
-                              onClick={() => handleDelete(preset.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
+                          )}
+
+                          {/* Only show Edit/Delete for customized (org-specific) items */}
+                          {preset.isCustomized && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(preset)}
+                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Edit"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(preset.id)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -466,6 +501,15 @@ export default function ConditionPresets() {
           isLoading={createMutation.isLoading || updateMutation.isLoading}
         />
       </Modal>
+
+      {/* Details Modal */}
+      {presetDetails?.data && (
+        <ConditionPresetDetailsModal
+          preset={presetDetails.data}
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+        />
+      )}
     </div>
   )
 }

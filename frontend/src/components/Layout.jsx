@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Fragment } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, Transition } from '@headlessui/react'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import {
   HomeIcon,
@@ -74,6 +75,20 @@ export default function Layout({ children }) {
   const [isSwitchingOrg, setIsSwitchingOrg] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+
+  // Fetch unclaimed alerts count for badge
+  const { data: unclaimedData } = useQuery({
+    queryKey: ['unclaimedAlertsCount'],
+    queryFn: () => api.getTriageQueue({
+      status: 'PENDING',
+      claimedBy: 'unclaimed',
+      limit: 1
+    }),
+    refetchInterval: 60000, // Refresh every 60 seconds
+    enabled: !!currentUser // Only fetch when user is authenticated
+  })
+
+  const unclaimedCount = unclaimedData?.data?.pagination?.total || 0
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -170,11 +185,18 @@ export default function Layout({ children }) {
                     location.pathname === item.href
                       ? 'bg-gray-100 text-gray-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                    'group flex items-center px-2 py-2 text-base font-medium rounded-md'
+                    'group flex items-center justify-between px-2 py-2 text-base font-medium rounded-md'
                   )}
                 >
-                  <item.icon className="mr-4 h-6 w-6 flex-shrink-0" />
-                  {item.name}
+                  <div className="flex items-center">
+                    <item.icon className="mr-4 h-6 w-6 flex-shrink-0" />
+                    {item.name}
+                  </div>
+                  {item.name === 'Triage Queue' && unclaimedCount > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-pulse">
+                      {unclaimedCount}
+                    </span>
+                  )}
                 </Link>
               ))}
 
@@ -240,11 +262,18 @@ export default function Layout({ children }) {
                     location.pathname === item.href
                       ? 'bg-gray-100 text-gray-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
-                    'group flex items-center px-2 py-2 text-sm font-medium rounded-md'
+                    'group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md'
                   )}
                 >
-                  <item.icon className="mr-3 h-6 w-6 flex-shrink-0" />
-                  {item.name}
+                  <div className="flex items-center">
+                    <item.icon className="mr-3 h-6 w-6 flex-shrink-0" />
+                    {item.name}
+                  </div>
+                  {item.name === 'Triage Queue' && unclaimedCount > 0 && (
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-pulse">
+                      {unclaimedCount}
+                    </span>
+                  )}
                 </Link>
               ))}
 

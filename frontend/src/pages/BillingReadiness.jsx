@@ -51,20 +51,31 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color = 'blue', isLoadin
   )
 }
 
-const StatusBadge = ({ eligible }) => {
-  const config = eligible
-    ? {
-        bg: 'bg-green-100',
-        text: 'text-green-800',
-        icon: CheckCircleIcon,
-        label: 'Eligible'
-      }
-    : {
-        bg: 'bg-red-100',
-        text: 'text-red-800',
-        icon: XCircleIcon,
-        label: 'Not Eligible'
-      }
+const StatusBadge = ({ eligible, nearEligible }) => {
+  let config
+
+  if (eligible) {
+    config = {
+      bg: 'bg-green-100',
+      text: 'text-green-800',
+      icon: CheckCircleIcon,
+      label: 'Eligible'
+    }
+  } else if (nearEligible) {
+    config = {
+      bg: 'bg-yellow-100',
+      text: 'text-yellow-800',
+      icon: ClockIcon,
+      label: 'Near Eligible'
+    }
+  } else {
+    config = {
+      bg: 'bg-red-100',
+      text: 'text-red-800',
+      icon: XCircleIcon,
+      label: 'Not Eligible'
+    }
+  }
 
   const Icon = config.icon
 
@@ -74,6 +85,68 @@ const StatusBadge = ({ eligible }) => {
       {config.label}
     </span>
   )
+}
+
+// Helper function to determine if patient is near eligible (within 3 days/minutes of threshold)
+const calculateNearEligibility = (patient) => {
+  if (patient.eligible) return false
+
+  // Check if patient has cptCodes data with eligibility details
+  if (!patient.cptCodes || patient.cptCodes.length === 0) return false
+
+  // Check if any CPT code is close to being eligible
+  return patient.cptCodes.some(code => {
+    if (code.eligible) return false // Already eligible
+
+    // Parse the reason string to extract "Only X ... need Y" format
+    const match = code.reason?.match(/Only (\d+).*need (\d+)/)
+    if (!match) return false
+
+    const current = parseInt(match[1])
+    const required = parseInt(match[2])
+
+    // Near eligible if within 3 units of requirement (days/minutes)
+    return required - current <= 3 && required - current > 0
+  })
+}
+
+// Helper function to generate action items for non-eligible patients
+const generateActionItems = (patient) => {
+  if (patient.eligible || !patient.cptCodes) return []
+
+  const actions = []
+
+  patient.cptCodes.forEach(code => {
+    if (!code.eligible && code.reason) {
+      // Parse reason to extract specific requirements
+      const daysMatch = code.reason.match(/Only (\d+) days.*need (\d+)/)
+      const minutesMatch = code.reason.match(/Only (\d+) minutes.*need (\d+)/)
+
+      if (daysMatch) {
+        const current = parseInt(daysMatch[1])
+        const required = parseInt(daysMatch[2])
+        const needed = required - current
+        actions.push({
+          type: 'data_collection',
+          priority: needed <= 3 ? 'high' : 'medium',
+          message: `Need ${needed} more day${needed > 1 ? 's' : ''} of device readings`,
+          code: code.code
+        })
+      } else if (minutesMatch) {
+        const current = parseInt(minutesMatch[1])
+        const required = parseInt(minutesMatch[2])
+        const needed = required - current
+        actions.push({
+          type: 'clinical_time',
+          priority: needed <= 5 ? 'high' : 'medium',
+          message: `Need ${needed} more minute${needed > 1 ? 's' : ''} of clinical time`,
+          code: code.code
+        })
+      }
+    }
+  })
+
+  return actions
 }
 
 export default function BillingReadiness() {
@@ -132,6 +205,10 @@ export default function BillingReadiness() {
   // Calculate stats
   const totalPatients = (summary.eligibleEnrollments || 0) + (summary.notEligibleEnrollments || 0)
   const eligibilityPercentage = summary.eligibilityRate || '0.0'
+
+  // Calculate near-eligible patients
+  const nearEligiblePatients = notEligiblePatients.filter(p => calculateNearEligibility(p))
+  const nearEligibleCount = nearEligiblePatients.length
 
   // Handle CSV export
   const handleExport = async () => {
@@ -221,6 +298,47 @@ export default function BillingReadiness() {
             <div className="flex items-center">
               <ExclamationCircleIcon className="h-5 w-5 text-red-600 mr-2" />
               <p className="text-red-800">Failed to load billing data: {error.message}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Near-Eligible Alert */}
+        {!isLoading && nearEligibleCount > 0 && (
+          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-6 shadow-sm">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <div className="h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <ClockIcon className="h-6 w-6 text-yellow-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+                  {nearEligibleCount} Patient{nearEligibleCount > 1 ? 's' : ''} Close to Billing Eligibility
+                </h3>
+                <p className="text-sm text-yellow-800 mb-3">
+                  These patients need just a few more days of readings or minutes of clinical time to become eligible for billing this month.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {nearEligiblePatients.slice(0, 3).map((patient, idx) => {
+                    const actions = generateActionItems(patient)
+                    return (
+                      <div key={idx} className="bg-white rounded-lg px-3 py-2 border border-yellow-200">
+                        <div className="text-sm font-medium text-gray-900">{patient.patientName}</div>
+                        {actions.length > 0 && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            {actions[0].message}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {nearEligibleCount > 3 && (
+                    <div className="flex items-center px-3 py-2 text-sm text-yellow-700">
+                      +{nearEligibleCount - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -352,7 +470,10 @@ export default function BillingReadiness() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge eligible={patient.eligible} />
+                        <StatusBadge
+                          eligible={patient.eligible}
+                          nearEligible={calculateNearEligibility(patient)}
+                        />
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900">
@@ -414,43 +535,79 @@ export default function BillingReadiness() {
                       Program
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reason
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Action Items
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {notEligiblePatients.map((patient) => (
-                    <tr key={patient.enrollmentId} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-8 w-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center">
-                            <UserIcon className="h-4 w-4 text-white" />
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-gray-900">
-                              {patient.patientName}
+                  {notEligiblePatients.map((patient) => {
+                    const actionItems = generateActionItems(patient)
+                    const nearEligible = calculateNearEligibility(patient)
+
+                    return (
+                      <tr key={patient.enrollmentId} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className={`h-8 w-8 bg-gradient-to-r rounded-full flex items-center justify-center ${
+                              nearEligible ? 'from-yellow-400 to-yellow-500' : 'from-gray-400 to-gray-500'
+                            }`}>
+                              <UserIcon className="h-4 w-4 text-white" />
                             </div>
-                            <div className="text-xs text-gray-500">
-                              ID: {patient.patientId}
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {patient.patientName}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                ID: {patient.patientId}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <div className="font-medium text-gray-900">{patient.billingProgram || 'N/A'}</div>
-                          {patient.billingProgramCode && (
-                            <div className="text-xs text-gray-500">{patient.billingProgramCode}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">{patient.billingProgram || 'N/A'}</div>
+                            {patient.billingProgramCode && (
+                              <div className="text-xs text-gray-500">{patient.billingProgramCode}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <StatusBadge eligible={false} nearEligible={nearEligible} />
+                        </td>
+                        <td className="px-6 py-4">
+                          {actionItems.length > 0 ? (
+                            <div className="space-y-2">
+                              {actionItems.map((action, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`flex items-start space-x-2 text-xs ${
+                                    action.priority === 'high' ? 'text-red-700' : 'text-gray-700'
+                                  }`}
+                                >
+                                  <ExclamationCircleIcon
+                                    className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
+                                      action.priority === 'high' ? 'text-red-500' : 'text-gray-400'
+                                    }`}
+                                  />
+                                  <div>
+                                    <div className="font-medium">{action.message}</div>
+                                    <div className="text-gray-500">CPT {action.code}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">
+                              {patient.reason || 'Requirements not met'}
+                            </div>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-700">
-                          {patient.reason || 'Requirements not met'}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

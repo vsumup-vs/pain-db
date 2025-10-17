@@ -294,29 +294,18 @@ export default function AssessmentTemplates() {
                   key={template.id} 
                   className="bg-white rounded-xl shadow-sm border-2 border-gray-200 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 overflow-hidden"
                 >
-                  {/* Card Header */}
+                  {/* Card Header - Vertical Stacking Layout */}
                   <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 border-b border-gray-100">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 rounded-lg bg-white border border-indigo-200">
+                    <div className="space-y-3">
+                      {/* Row 1: Icon + Title */}
+                      <div className="flex items-start">
+                        <div className="p-2 rounded-lg bg-white border border-indigo-200 flex-shrink-0">
                           <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                              {template.name}
-                            </h3>
-                            {template.isStandardized && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                ⭐ Standardized
-                              </span>
-                            )}
-                            {template.isCustomized && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                                🏥 Custom
-                              </span>
-                            )}
-                          </div>
+                        <div className="ml-3 flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 leading-tight">
+                            {template.name}
+                          </h3>
                           <div className="flex items-center mt-1 space-x-2">
                             <span className="text-xs text-gray-500">Version {template.version}</span>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor}`}>
@@ -325,42 +314,58 @@ export default function AssessmentTemplates() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex space-x-1">
-                        {template.isStandardized && !template.isCustomized && (
+
+                      {/* Row 2: Badges + Actions */}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center space-x-2">
+                          {template.isStandardized && !template.isCustomized && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                              ⭐ Standardized
+                            </span>
+                          )}
+                          {template.isCustomized && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                              🏥 Custom
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex space-x-1 flex-shrink-0">
+                          {template.isStandardized && !template.isCustomized && (
+                            <button
+                              onClick={() => handleCustomize(template)}
+                              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Customize for your organization"
+                            >
+                              <DocumentDuplicateIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleCustomize(template)}
-                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                            title="Customize for your organization"
+                            onClick={() => handlePreview(template)}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Preview template"
                           >
-                            <DocumentDuplicateIcon className="h-4 w-4" />
+                            <EyeIcon className="h-4 w-4" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => handlePreview(template)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Preview template"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        {/* Only show Edit/Delete for customized (org-specific) templates */}
-                        {template.isCustomized && (
-                          <>
-                            <button
-                              onClick={() => handleEdit(template)}
-                              className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Edit template"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(template.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete template"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
+                          {/* Only show Edit/Delete for customized (org-specific) templates */}
+                          {template.isCustomized && (
+                            <>
+                              <button
+                                onClick={() => handleEdit(template)}
+                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Edit template"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(template.id)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete template"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
