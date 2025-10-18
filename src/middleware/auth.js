@@ -10,10 +10,11 @@ async function requireAuth(req, res, next) {
   try {
     const token = req.cookies?.authToken ||
                   req.headers.authorization?.replace('Bearer ', '') ||
-                  req.headers['x-auth-token'];
-    
+                  req.headers['x-auth-token'] ||
+                  req.query.token;  // Support query param for SSE (EventSource can't set headers)
+
     if (!token) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Authentication required',
         code: 'AUTH_TOKEN_MISSING'
       });

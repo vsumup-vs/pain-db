@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import {
@@ -12,12 +12,15 @@ import {
   BellIcon,
   ChartBarIcon,
   FunnelIcon,
-  PlusCircleIcon
+  PlusCircleIcon,
+  SignalIcon,
+  SignalSlashIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
 import ResolutionModal from '../components/ResolutionModal'
 import PatientContextPanel from '../components/PatientContextPanel'
+import { useRealTimeAlerts } from '../hooks/useRealTimeAlerts'
 
 export default function TriageQueue() {
   const [filters, setFilters] = useState({
@@ -49,7 +52,13 @@ export default function TriageQueue() {
 
   const queryClient = useQueryClient()
 
-  // Fetch triage queue data
+  // Real-time SSE connection for instant alert updates
+  const { alerts: sseAlerts, connectionStatus, error: sseError, reconnect } = useRealTimeAlerts()
+
+  // Track previous alert count for notification
+  const prevAlertCountRef = useRef(0)
+
+  // Fetch triage queue data (with reduced polling since SSE provides real-time updates)
   const { data: triageData, isLoading } = useQuery({
     queryKey: ['triageQueue', filters, page],
     queryFn: () => api.getTriageQueue({
@@ -62,10 +71,22 @@ export default function TriageQueue() {
       page,
       limit
     }),
-    refetchInterval: 30000 // Refresh every 30 seconds for real-time updates
+    refetchInterval: 120000 // Reduced to 2 minutes since SSE provides real-time updates
   })
 
-  const alerts = triageData?.data?.alerts || []
+  // Merge SSE alerts with query alerts (SSE takes precedence for real-time updates)
+  const queryAlerts = triageData?.data?.alerts || []
+  const alertsMap = new Map()
+
+  // First, add query alerts to map
+  queryAlerts.forEach(alert => alertsMap.set(alert.id, alert))
+
+  // Then, overlay SSE alerts (they're more up-to-date)
+  sseAlerts.forEach(alert => alertsMap.set(alert.id, alert))
+
+  // Convert back to array
+  const alerts = Array.from(alertsMap.values())
+
   const pagination = triageData?.data?.pagination || {}
   const summary = triageData?.data?.summary || {}
 
@@ -80,6 +101,43 @@ export default function TriageQueue() {
       alert.message?.toLowerCase().includes(searchLower)
     )
   })
+
+  // Show toast notification when new alerts arrive via SSE
+  useEffect(() => {
+    const currentAlertCount = sseAlerts.length
+    if (prevAlertCountRef.current > 0 && currentAlertCount > prevAlertCountRef.current) {
+      const newAlertCount = currentAlertCount - prevAlertCountRef.current
+      const latestAlert = sseAlerts[0] // SSE alerts are prepended (newest first)
+
+      toast.info(
+        <div>
+          <div className="font-semibold">
+            {newAlertCount === 1 ? 'New Alert!' : `${newAlertCount} New Alerts!`}
+          </div>
+          {newAlertCount === 1 && latestAlert && (
+            <div className="text-sm mt-1">
+              {latestAlert.patient?.firstName} {latestAlert.patient?.lastName}: {latestAlert.rule?.name}
+            </div>
+          )}
+        </div>,
+        {
+          autoClose: 5000,
+          icon: <BellIcon className="h-5 w-5 text-blue-500" />
+        }
+      )
+    }
+    prevAlertCountRef.current = currentAlertCount
+  }, [sseAlerts])
+
+  // Show error toast if SSE connection fails
+  useEffect(() => {
+    if (sseError) {
+      toast.error(sseError, {
+        autoClose: false,
+        toastId: 'sse-error' // Prevent duplicate error toasts
+      })
+    }
+  }, [sseError])
 
   // Claim alert mutation (with auto-start timer)
   const claimAlertMutation = useMutation({
@@ -315,9 +373,42 @@ export default function TriageQueue() {
               </h1>
               <p className="mt-2 text-gray-600">Risk-scored alerts sorted by priority</p>
             </div>
-            <div className="mt-4 sm:mt-0 flex items-center space-x-2 text-sm text-gray-500">
-              <FireIcon className="h-5 w-5 text-red-500 animate-pulse" />
-              <span className="font-medium">{summary.pending || 0} pending alerts</span>
+            <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row items-end sm:items-center gap-3">
+              {/* SSE Connection Status */}
+              <div className="flex items-center space-x-2">
+                {connectionStatus === 'connected' ? (
+                  <>
+                    <SignalIcon className="h-5 w-5 text-green-500 animate-pulse" />
+                    <span className="text-sm font-medium text-green-600">Live Updates</span>
+                  </>
+                ) : connectionStatus === 'connecting' ? (
+                  <>
+                    <SignalIcon className="h-5 w-5 text-yellow-500 animate-spin" />
+                    <span className="text-sm font-medium text-yellow-600">Connecting...</span>
+                  </>
+                ) : connectionStatus === 'error' ? (
+                  <>
+                    <SignalSlashIcon className="h-5 w-5 text-red-500" />
+                    <button
+                      onClick={reconnect}
+                      className="text-sm font-medium text-red-600 hover:text-red-800 underline"
+                    >
+                      Reconnect
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <SignalSlashIcon className="h-5 w-5 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-500">Disconnected</span>
+                  </>
+                )}
+              </div>
+
+              {/* Pending Alerts Count */}
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <FireIcon className="h-5 w-5 text-red-500 animate-pulse" />
+                <span className="font-medium">{summary.pending || 0} pending alerts</span>
+              </div>
             </div>
           </div>
         </div>

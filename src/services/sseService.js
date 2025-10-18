@@ -7,8 +7,14 @@
  * Phase 1b: Real-Time Alert Updates
  */
 
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 // Store active SSE connections: Map<userId, Set<Response objects>>
 const connections = new Map();
+
+// Store clinician ID to user ID mapping for alert broadcasts
+const clinicianToUser = new Map();
 
 /**
  * Initialize SSE connection for a clinician
@@ -16,12 +22,34 @@ const connections = new Map();
  * @param {Object} res - Express response object
  * @param {String} userId - User ID from authenticated request
  */
-function initializeConnection(req, res, userId) {
+async function initializeConnection(req, res, userId) {
   // Set SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+  // Look up clinician ID for this user (for alert broadcasting)
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true }
+    });
+
+    if (user) {
+      const clinician = await prisma.clinician.findFirst({
+        where: { email: user.email },
+        select: { id: true }
+      });
+
+      if (clinician) {
+        clinicianToUser.set(clinician.id, userId);
+        console.log(`🔗 Mapped clinician ${clinician.id} → user ${userId}`);
+      }
+    }
+  } catch (err) {
+    console.error('⚠️  Error looking up clinician for SSE mapping:', err.message);
+  }
 
   // Store connection
   if (!connections.has(userId)) {
@@ -46,6 +74,16 @@ function initializeConnection(req, res, userId) {
   req.on('close', () => {
     clearInterval(heartbeatInterval);
     removeConnection(userId, res);
+
+    // Also remove clinician → user ID mapping
+    for (const [clinicianId, mappedUserId] of clinicianToUser.entries()) {
+      if (mappedUserId === userId) {
+        clinicianToUser.delete(clinicianId);
+        console.log(`🔗 Removed clinician mapping for ${clinicianId}`);
+        break;
+      }
+    }
+
     console.log(`❌ SSE connection closed for user ${userId}`);
   });
 
@@ -87,6 +125,51 @@ function removeConnection(userId, res) {
 }
 
 /**
+ * Enrich alert with computed fields (same logic as alertController.js)
+ * @param {Object} alert - Raw alert object
+ * @param {String} userId - User ID for isClaimedByMe check
+ * @returns {Object} - Alert with computed fields
+ */
+function enrichAlertWithComputedFields(alert, userId) {
+  const now = new Date();
+
+  // Calculate time remaining until SLA breach
+  const timeRemainingMs = alert.slaBreachTime ? new Date(alert.slaBreachTime).getTime() - now.getTime() : null;
+  const timeRemainingMinutes = timeRemainingMs ? Math.floor(timeRemainingMs / (60 * 1000)) : null;
+
+  // Determine SLA status
+  let slaStatusValue = 'ok';
+  if (timeRemainingMs !== null) {
+    if (timeRemainingMs < 0) {
+      slaStatusValue = 'breached';
+    } else if (timeRemainingMs < 30 * 60 * 1000) { // Less than 30 minutes
+      slaStatusValue = 'approaching';
+    }
+  }
+
+  // Risk level label based on score
+  let riskLevel = 'low';
+  if (alert.riskScore >= 8) {
+    riskLevel = 'critical';
+  } else if (alert.riskScore >= 6) {
+    riskLevel = 'high';
+  } else if (alert.riskScore >= 4) {
+    riskLevel = 'medium';
+  }
+
+  return {
+    ...alert,
+    computed: {
+      timeRemainingMinutes,
+      slaStatus: slaStatusValue,
+      riskLevel,
+      isClaimed: !!alert.claimedById,
+      isClaimedByMe: alert.claimedById === userId
+    }
+  };
+}
+
+/**
  * Broadcast a new alert to all connected clinicians in the organization
  * @param {Object} alert - Alert object with organizationId, clinicianId, severity, etc.
  */
@@ -94,14 +177,20 @@ function broadcastNewAlert(alert) {
   try {
     // If alert is assigned to a specific clinician, send to them
     if (alert.clinicianId) {
-      sendAlertToUser(alert.clinicianId, alert);
+      // Look up user ID from clinician ID
+      const userId = clinicianToUser.get(alert.clinicianId);
+
+      if (userId) {
+        sendAlertToUser(userId, alert);
+        console.log(`📡 Broadcast new alert ${alert.id} to clinician ${alert.clinicianId} (user ${userId})`);
+      } else {
+        console.log(`⚠️  No SSE connection found for clinician ${alert.clinicianId}`);
+      }
     }
 
     // Also send to all org admins and supervisors (for visibility)
     // This would require fetching org admins, but for now we'll skip
     // to keep it simple and only notify the assigned clinician
-
-    console.log(`📡 Broadcast new alert ${alert.id} to clinician ${alert.clinicianId}`);
   } catch (error) {
     console.error('Error broadcasting alert:', error);
   }
@@ -121,18 +210,11 @@ function sendAlertToUser(userId, alert) {
   const userConnections = connections.get(userId);
   console.log(`📨 Sending alert to ${userConnections.size} connection(s) for user ${userId}`);
 
+  // Enrich alert with computed fields before sending
+  const enrichedAlert = enrichAlertWithComputedFields(alert, userId);
+
   userConnections.forEach(res => {
-    sendEvent(res, 'alert', {
-      id: alert.id,
-      severity: alert.severity,
-      status: alert.status,
-      message: alert.message,
-      patientId: alert.patientId,
-      riskScore: alert.riskScore,
-      slaBreachTime: alert.slaBreachTime,
-      triggeredAt: alert.triggeredAt,
-      data: alert.data
-    });
+    sendEvent(res, 'alert', enrichedAlert);
   });
 }
 

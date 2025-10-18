@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { calculateAlertRiskScore, recalculatePriorityRanks } = require('../services/alertRiskScoringService');
 const { findBillingEnrollment } = require('../utils/billingHelpers');
+const { broadcastNewAlert } = require('../services/sseService');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -38,28 +39,35 @@ const createAlert = async (req, res) => {
       });
     }
 
+    // Extract patientId and clinicianId from enrollment
+    const patientId = enrollment.patientId;
+    const clinicianId = enrollment.clinicianId;
+
     const alert = await prisma.alert.create({
       data: {
         organizationId,  // SECURITY: Always include organizationId
         ruleId,
-        enrollmentId,
-        facts: facts || {},
-        status: 'open'
+        patientId,
+        clinicianId,
+        severity: rule.severity || 'MEDIUM',
+        message: facts?.message || rule.name || 'Alert triggered',
+        data: facts || {}
       },
       include: {
         rule: {
           select: { id: true, name: true, severity: true }
         },
-        enrollment: {
-          select: { 
-            id: true, 
-            patient: {
-              select: { id: true, mrn: true, firstName: true, lastName: true }
-            }
-          }
+        patient: {
+          select: { id: true, firstName: true, lastName: true }
+        },
+        clinician: {
+          select: { id: true, firstName: true, lastName: true }
         }
       }
     });
+
+    // Broadcast the new alert via SSE to connected clients
+    broadcastNewAlert(alert);
 
     res.status(201).json(alert);
   } catch (error) {
@@ -94,7 +102,8 @@ const getAlerts = async (req, res) => {
     const where = {
       organizationId  // SECURITY: Always filter by organization
     };
-    if (enrollmentId) where.enrollmentId = enrollmentId;
+    // Note: Alert doesn't have enrollmentId field, use patientId instead if needed
+    // if (enrollmentId) where.enrollmentId = enrollmentId;
     if (ruleId) where.ruleId = ruleId;
     if (status) where.status = status;
 
@@ -939,7 +948,8 @@ const getAlertStats = async (req, res) => {
     const { enrollmentId, timeframe = '7d' } = req.query;
 
     const where = {};
-    if (enrollmentId) where.enrollmentId = enrollmentId;
+    // Note: Alert doesn't have enrollmentId field, use patientId instead if needed
+    // if (enrollmentId) where.enrollmentId = enrollmentId;
 
     // Calculate date range based on timeframe
     const now = new Date();

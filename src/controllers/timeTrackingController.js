@@ -76,12 +76,14 @@ const stopTimer = [
 
     const { patientId, clinicianId, cptCode, notes, billable } = req.body;
     const userId = req.user.id;
+    const organizationId = req.user.currentOrganization; // Extract organization from authenticated user
 
     try {
       const result = await timeTrackingService.stopTimer({
         userId,
         patientId,
         clinicianId,
+        organizationId, // Pass organization ID for billing enrollment lookup
         cptCode,
         notes,
         billable: billable !== false // Default true

@@ -234,16 +234,13 @@ const observationValidations = {
 // Alert validation rules
 const alertValidations = {
   create: [
-    body('patientId').isUUID().withMessage('Patient ID must be a valid UUID'),
-    body('metricDefinitionId').isUUID().withMessage('Metric definition ID must be a valid UUID'),
-    body('ruleType').isIn(['THRESHOLD_EXCEEDED', 'THRESHOLD_BELOW', 'TREND_INCREASING', 'TREND_DECREASING', 'MISSING_DATA'])
-      .withMessage('Rule type must be a valid alert rule type'),
-    body('threshold').isNumeric().withMessage('Threshold must be a number'),
-    body('message').optional().trim().isLength({ max: 200 })
-      .withMessage('Message must be less than 200 characters'),
-    body('severity').optional().isIn(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])
-      .withMessage('Severity must be LOW, MEDIUM, HIGH, or CRITICAL'),
-    body('isActive').optional().isBoolean().withMessage('Is active must be a boolean')
+    body('ruleId')
+      .matches(/^c[a-z0-9]{24}$/)
+      .withMessage('Rule ID must be a valid CUID'),
+    body('enrollmentId')
+      .matches(/^c[a-z0-9]{24}$/)
+      .withMessage('Enrollment ID must be a valid CUID'),
+    body('facts').optional().isObject().withMessage('Facts must be an object')
   ],
   
   update: [
