@@ -21,18 +21,20 @@ const handleValidationErrors = (req, res, next) => {
 
 // Common validation rules
 const commonValidations = {
-  // Accept both UUID and CUID formats
+  // Accept UUID, CUID, and standardized resource ID formats
   id: param('id').custom((value) => {
     // UUID format: 8-4-4-4-12 characters
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     // CUID format: starts with 'c' followed by alphanumeric characters
     const cuidRegex = /^c[a-z0-9]{24,}$/i;
+    // Standardized resource IDs: preset-, metric-, template-, rule-, etc.
+    const standardizedIdRegex = /^(preset|metric|template|rule|cpd|cpt|cpar|tpl|alert)-[a-z0-9-]+$/i;
 
-    if (!uuidRegex.test(value) && !cuidRegex.test(value)) {
-      throw new Error('ID must be a valid UUID or CUID');
+    if (!uuidRegex.test(value) && !cuidRegex.test(value) && !standardizedIdRegex.test(value)) {
+      throw new Error('ID must be a valid UUID, CUID, or standardized resource ID');
     }
     return true;
-  }).withMessage('ID must be a valid UUID or CUID'),
+  }).withMessage('ID must be a valid UUID, CUID, or standardized resource ID'),
   
   pagination: [
     query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),

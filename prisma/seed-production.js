@@ -397,6 +397,24 @@ async function main() {
     }
   });
 
+  metrics.coughSeverity = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-cough-standard' },
+    update: {},
+    create: {
+      id: 'metric-cough-standard',
+      key: 'cough_severity',
+      displayName: 'Cough Severity',
+      description: 'Severity of cough symptoms',
+      valueType: 'numeric',
+      category: 'Respiratory',
+      isStandardized: true,
+      scaleMin: 0,
+      scaleMax: 10,
+      decimalPrecision: 0,
+      normalRange: { min: 0, max: 2, note: 'Minimal cough' }
+    }
+  });
+
   // Functional Metrics
   metrics.activityLevel = await prisma.metricDefinition.upsert({
     where: { id: 'metric-activity-standard' },
@@ -478,6 +496,166 @@ async function main() {
         { value: 4, label: 'Good' },
         { value: 5, label: 'Very Good' }
       ]
+    }
+  });
+
+  metrics.exerciseDays = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-exercise-days-standard' },
+    update: {},
+    create: {
+      id: 'metric-exercise-days-standard',
+      key: 'days_exercised',
+      displayName: 'Days Exercised',
+      description: 'Number of days with exercise/physical activity in the week',
+      unit: 'days',
+      valueType: 'numeric',
+      category: 'Functional',
+      isStandardized: true,
+      scaleMin: 0,
+      scaleMax: 7,
+      decimalPrecision: 0,
+      validationInfo: {
+        description: '0-7 days of exercise per week'
+      },
+      normalRange: {
+        min: 3,
+        max: 7,
+        note: 'Recommended 3+ days of physical activity per week'
+      }
+    }
+  });
+
+  metrics.dietQuality = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-diet-quality-standard' },
+    update: {},
+    create: {
+      id: 'metric-diet-quality-standard',
+      key: 'diet_quality_scale',
+      displayName: 'Diet Quality',
+      description: 'Self-rated overall diet quality',
+      unit: 'scale',
+      valueType: 'numeric',
+      category: 'Functional',
+      isStandardized: true,
+      scaleMin: 0,
+      scaleMax: 10,
+      decimalPrecision: 0,
+      validationInfo: {
+        description: '0 = Very poor diet, 10 = Excellent diet'
+      },
+      normalRange: {
+        min: 6,
+        max: 10,
+        note: 'Good to excellent diet quality'
+      }
+    }
+  });
+
+  metrics.motivationLevel = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-motivation-standard' },
+    update: {},
+    create: {
+      id: 'metric-motivation-standard',
+      key: 'motivation_scale',
+      displayName: 'Motivation Level',
+      description: 'Self-rated motivation for health behavior change',
+      unit: 'scale',
+      valueType: 'numeric',
+      category: 'Functional',
+      isStandardized: true,
+      scaleMin: 0,
+      scaleMax: 10,
+      decimalPrecision: 0,
+      validationInfo: {
+        description: '0 = No motivation, 10 = Very highly motivated'
+      }
+    }
+  });
+
+  // Mental Health Metrics
+  metrics.painInterference = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-pain-interference-standard' },
+    update: {},
+    create: {
+      id: 'metric-pain-interference-standard',
+      key: 'pain_interference_score',
+      displayName: 'Pain Interference Score',
+      description: 'PROMIS Pain Interference score (impact on daily activities)',
+      valueType: 'numeric',
+      category: 'Pain Assessment',
+      isStandardized: true,
+      scaleMin: 4,
+      scaleMax: 20,
+      decimalPrecision: 0,
+      normalRange: { min: 4, max: 8, note: 'Low interference' },
+      standardCoding: {
+        standard: 'NIH PROMIS',
+        instrument: 'PROMIS Pain Interference 4a',
+        version: '2.0'
+      }
+    }
+  });
+
+  metrics.phq9Score = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-phq9-standard' },
+    update: {},
+    create: {
+      id: 'metric-phq9-standard',
+      key: 'phq9_total_score',
+      displayName: 'PHQ-9 Total Score',
+      description: 'Patient Health Questionnaire-9 depression severity score',
+      valueType: 'numeric',
+      category: 'Mental Health',
+      isStandardized: true,
+      scaleMin: 0,
+      scaleMax: 27,
+      decimalPrecision: 0,
+      normalRange: { min: 0, max: 4, note: 'Minimal depression' },
+      standardCoding: {
+        loinc: '44261-6',
+        snomed: '720433000',
+        standard: 'PHQ-9'
+      },
+      validationInfo: {
+        interpretation: {
+          '0-4': 'Minimal depression',
+          '5-9': 'Mild depression',
+          '10-14': 'Moderate depression',
+          '15-19': 'Moderately severe depression',
+          '20-27': 'Severe depression'
+        }
+      }
+    }
+  });
+
+  metrics.gad7Score = await prisma.metricDefinition.upsert({
+    where: { id: 'metric-gad7-standard' },
+    update: {},
+    create: {
+      id: 'metric-gad7-standard',
+      key: 'gad7_total_score',
+      displayName: 'GAD-7 Total Score',
+      description: 'Generalized Anxiety Disorder-7 anxiety severity score',
+      valueType: 'numeric',
+      category: 'Mental Health',
+      isStandardized: true,
+      scaleMin: 0,
+      scaleMax: 21,
+      decimalPrecision: 0,
+      normalRange: { min: 0, max: 4, note: 'Minimal anxiety' },
+      standardCoding: {
+        loinc: '69737-5',
+        snomed: '445260002',
+        standard: 'GAD-7'
+      },
+      validationInfo: {
+        interpretation: {
+          '0-4': 'Minimal anxiety',
+          '5-9': 'Mild anxiety',
+          '10-14': 'Moderate anxiety',
+          '15-21': 'Severe anxiety'
+        }
+      }
     }
   });
 
@@ -978,6 +1156,231 @@ async function main() {
     }
   });
 
+  templates.heartFailureSymptoms = await prisma.assessmentTemplate.upsert({
+    where: { id: 'template-heart-failure-symptoms' },
+    update: {},
+    create: {
+      id: 'template-heart-failure-symptoms',
+      name: 'Heart Failure Symptom Monitoring',
+      description: 'Daily monitoring of heart failure symptoms including weight, shortness of breath, and edema',
+      category: 'Cardiac',
+      isStandardized: true,
+      questions: {
+        sections: [
+          {
+            title: 'Daily Symptoms',
+            questions: [
+              {
+                id: 'q1',
+                text: 'Current weight (lbs)',
+                scale: 'numeric',
+                metricKey: 'body_weight',
+                required: true
+              },
+              {
+                id: 'q2',
+                text: 'Shortness of breath (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'dyspnea_severity',
+                required: true
+              },
+              {
+                id: 'q3',
+                text: 'Swelling in legs/ankles (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'edema_severity',
+                required: true
+              },
+              {
+                id: 'q4',
+                text: 'Fatigue level (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'fatigue_level',
+                required: true
+              }
+            ]
+          }
+        ]
+      },
+      scoring: {
+        method: 'individual_tracking',
+        note: 'Track daily symptoms for heart failure management and early decompensation detection'
+      },
+      standardCoding: {
+        standard: 'AHA/ACC Heart Failure Guidelines',
+        basedOn: 'American Heart Association heart failure symptom monitoring recommendations'
+      },
+      clinicalUse: 'Daily symptom monitoring for heart failure patients to detect early signs of decompensation'
+    }
+  });
+
+  templates.copdSymptoms = await prisma.assessmentTemplate.upsert({
+    where: { id: 'template-copd-symptoms' },
+    update: {},
+    create: {
+      id: 'template-copd-symptoms',
+      name: 'COPD Symptom Monitoring Log',
+      description: 'Daily tracking of COPD symptoms including dyspnea, cough, and oxygen saturation',
+      category: 'Respiratory',
+      isStandardized: true,
+      questions: {
+        sections: [
+          {
+            title: 'Respiratory Symptoms',
+            questions: [
+              {
+                id: 'q1',
+                text: 'Shortness of breath severity (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'dyspnea_severity',
+                required: true
+              },
+              {
+                id: 'q2',
+                text: 'Cough severity (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'cough_severity',
+                required: true
+              },
+              {
+                id: 'q3',
+                text: 'Oxygen saturation (SpO2)',
+                scale: '85-100%',
+                metricKey: 'oxygen_saturation',
+                required: true
+              }
+            ]
+          }
+        ]
+      },
+      scoring: {
+        method: 'individual_tracking',
+        note: 'Monitor respiratory symptoms and oxygen levels for COPD exacerbation detection'
+      },
+      standardCoding: {
+        standard: 'GOLD COPD Guidelines',
+        basedOn: 'Global Initiative for Chronic Obstructive Lung Disease symptom tracking'
+      },
+      clinicalUse: 'Daily monitoring for COPD patients to detect early exacerbations and maintain optimal oxygen levels'
+    }
+  });
+
+  templates.ckdSymptoms = await prisma.assessmentTemplate.upsert({
+    where: { id: 'template-ckd-symptoms' },
+    update: {},
+    create: {
+      id: 'template-ckd-symptoms',
+      name: 'CKD Symptom Monitoring Log',
+      description: 'Daily monitoring of chronic kidney disease symptoms including blood pressure, edema, and fatigue',
+      category: 'Renal',
+      isStandardized: true,
+      questions: {
+        sections: [
+          {
+            title: 'Daily Monitoring',
+            questions: [
+              {
+                id: 'q1',
+                text: 'Blood Pressure (Systolic)',
+                scale: 'numeric',
+                metricKey: 'systolic_bp',
+                required: true
+              },
+              {
+                id: 'q2',
+                text: 'Blood Pressure (Diastolic)',
+                scale: 'numeric',
+                metricKey: 'diastolic_bp',
+                required: true
+              },
+              {
+                id: 'q3',
+                text: 'Swelling/Edema (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'edema_severity',
+                required: true
+              },
+              {
+                id: 'q4',
+                text: 'Fatigue level (0 = none, 10 = severe)',
+                scale: '0-10',
+                metricKey: 'fatigue_level',
+                required: true
+              }
+            ]
+          }
+        ]
+      },
+      scoring: {
+        method: 'individual_tracking',
+        note: 'Track kidney disease symptoms and blood pressure control'
+      },
+      standardCoding: {
+        standard: 'KDIGO Clinical Practice Guidelines',
+        basedOn: 'Kidney Disease: Improving Global Outcomes guidelines for CKD monitoring'
+      },
+      clinicalUse: 'Daily monitoring for CKD patients to track blood pressure control and symptom progression'
+    }
+  });
+
+  templates.weeklyWeightLifestyle = await prisma.assessmentTemplate.upsert({
+    where: { id: 'template-weekly-weight-lifestyle' },
+    update: {},
+    create: {
+      id: 'template-weekly-weight-lifestyle',
+      name: 'Weekly Weight and Lifestyle Log',
+      description: 'Weekly tracking of weight, exercise, diet quality, and motivation for lifestyle management',
+      category: 'Wellness',
+      isStandardized: true,
+      questions: {
+        sections: [
+          {
+            title: 'Weekly Check-In',
+            questions: [
+              {
+                id: 'q1',
+                text: 'Current weight (lbs)',
+                scale: 'numeric',
+                metricKey: 'body_weight',
+                required: true
+              },
+              {
+                id: 'q2',
+                text: 'Days exercised this week',
+                scale: '0-7',
+                metricKey: 'days_exercised',
+                required: true
+              },
+              {
+                id: 'q3',
+                text: 'Overall diet quality (0 = poor, 10 = excellent)',
+                scale: '0-10',
+                metricKey: 'diet_quality_scale',
+                required: true
+              },
+              {
+                id: 'q4',
+                text: 'Motivation level (0 = none, 10 = very motivated)',
+                scale: '0-10',
+                metricKey: 'motivation_scale',
+                required: true
+              }
+            ]
+          }
+        ]
+      },
+      scoring: {
+        method: 'individual_tracking',
+        note: 'Weekly lifestyle behavior tracking to support weight management and health behavior change'
+      },
+      standardCoding: {
+        standard: 'CDC Lifestyle Medicine Guidelines',
+        basedOn: 'Evidence-based lifestyle intervention monitoring'
+      },
+      clinicalUse: 'Weekly wellness check for patients in weight management or lifestyle modification programs'
+    }
+  });
+
   console.log(`  ✓ Created ${Object.keys(templates).length} standardized assessment templates\n`);
 
   // ============================================================================
@@ -1105,6 +1508,373 @@ async function main() {
         displayOrder: 5,
         isRequired: false,
         helpText: 'Rate your physical activity level today'
+      }
+    })
+  );
+
+  // PROMIS Pain Interference Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.painInterference.id,
+          metricDefinitionId: metrics.painInterference.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-pain-interference',
+        templateId: templates.painInterference.id,
+        metricDefinitionId: metrics.painInterference.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'PROMIS Pain Interference score (sum of 4 questions, each rated 1-5)'
+      }
+    })
+  );
+
+  // PHQ-9 Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.phq9.id,
+          metricDefinitionId: metrics.phq9Score.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-phq9-score',
+        templateId: templates.phq9.id,
+        metricDefinitionId: metrics.phq9Score.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'PHQ-9 total score (sum of 9 questions, each rated 0-3)'
+      }
+    })
+  );
+
+  // GAD-7 Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.gad7.id,
+          metricDefinitionId: metrics.gad7Score.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-gad7-score',
+        templateId: templates.gad7.id,
+        metricDefinitionId: metrics.gad7Score.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'GAD-7 total score (sum of 7 questions, each rated 0-3)'
+      }
+    })
+  );
+
+  // Heart Failure Symptom Monitoring Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.heartFailureSymptoms.id,
+          metricDefinitionId: metrics.weight.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-hf-weight',
+        templateId: templates.heartFailureSymptoms.id,
+        metricDefinitionId: metrics.weight.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'Daily weight tracking for fluid retention monitoring'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.heartFailureSymptoms.id,
+          metricDefinitionId: metrics.dyspnea.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-hf-dyspnea',
+        templateId: templates.heartFailureSymptoms.id,
+        metricDefinitionId: metrics.dyspnea.id,
+        displayOrder: 2,
+        isRequired: true,
+        helpText: 'Shortness of breath severity (0-10 scale)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.heartFailureSymptoms.id,
+          metricDefinitionId: metrics.edema.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-hf-edema',
+        templateId: templates.heartFailureSymptoms.id,
+        metricDefinitionId: metrics.edema.id,
+        displayOrder: 3,
+        isRequired: true,
+        helpText: 'Leg/ankle swelling severity (0-10 scale)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.heartFailureSymptoms.id,
+          metricDefinitionId: metrics.fatigueLevel.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-hf-fatigue',
+        templateId: templates.heartFailureSymptoms.id,
+        metricDefinitionId: metrics.fatigueLevel.id,
+        displayOrder: 4,
+        isRequired: true,
+        helpText: 'Overall fatigue level (0-10 scale)'
+      }
+    })
+  );
+
+  // COPD Symptom Monitoring Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.copdSymptoms.id,
+          metricDefinitionId: metrics.dyspnea.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-copd-dyspnea',
+        templateId: templates.copdSymptoms.id,
+        metricDefinitionId: metrics.dyspnea.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'Shortness of breath severity (0-10 scale)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.copdSymptoms.id,
+          metricDefinitionId: metrics.coughSeverity.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-copd-cough',
+        templateId: templates.copdSymptoms.id,
+        metricDefinitionId: metrics.coughSeverity.id,
+        displayOrder: 2,
+        isRequired: true,
+        helpText: 'Cough severity (0-10 scale)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.copdSymptoms.id,
+          metricDefinitionId: metrics.o2Sat.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-copd-spo2',
+        templateId: templates.copdSymptoms.id,
+        metricDefinitionId: metrics.o2Sat.id,
+        displayOrder: 3,
+        isRequired: true,
+        helpText: 'Blood oxygen saturation percentage (SpO2)'
+      }
+    })
+  );
+
+  // CKD Symptom Monitoring Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.ckdSymptoms.id,
+          metricDefinitionId: metrics.sbp.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-ckd-systolic',
+        templateId: templates.ckdSymptoms.id,
+        metricDefinitionId: metrics.sbp.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'Systolic blood pressure (top number)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.ckdSymptoms.id,
+          metricDefinitionId: metrics.dbp.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-ckd-diastolic',
+        templateId: templates.ckdSymptoms.id,
+        metricDefinitionId: metrics.dbp.id,
+        displayOrder: 2,
+        isRequired: true,
+        helpText: 'Diastolic blood pressure (bottom number)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.ckdSymptoms.id,
+          metricDefinitionId: metrics.edema.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-ckd-edema',
+        templateId: templates.ckdSymptoms.id,
+        metricDefinitionId: metrics.edema.id,
+        displayOrder: 3,
+        isRequired: true,
+        helpText: 'Swelling/edema severity (0-10 scale)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.ckdSymptoms.id,
+          metricDefinitionId: metrics.fatigueLevel.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-ckd-fatigue',
+        templateId: templates.ckdSymptoms.id,
+        metricDefinitionId: metrics.fatigueLevel.id,
+        displayOrder: 4,
+        isRequired: true,
+        helpText: 'Overall fatigue level (0-10 scale)'
+      }
+    })
+  );
+
+  // Weekly Weight and Lifestyle Log Template Items
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.weeklyWeightLifestyle.id,
+          metricDefinitionId: metrics.weight.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-weekly-weight',
+        templateId: templates.weeklyWeightLifestyle.id,
+        metricDefinitionId: metrics.weight.id,
+        displayOrder: 1,
+        isRequired: true,
+        helpText: 'Current weight for weekly tracking'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.weeklyWeightLifestyle.id,
+          metricDefinitionId: metrics.exerciseDays.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-weekly-exercise',
+        templateId: templates.weeklyWeightLifestyle.id,
+        metricDefinitionId: metrics.exerciseDays.id,
+        displayOrder: 2,
+        isRequired: true,
+        helpText: 'Number of days with exercise this week (0-7)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.weeklyWeightLifestyle.id,
+          metricDefinitionId: metrics.dietQuality.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-weekly-diet',
+        templateId: templates.weeklyWeightLifestyle.id,
+        metricDefinitionId: metrics.dietQuality.id,
+        displayOrder: 3,
+        isRequired: true,
+        helpText: 'Overall diet quality this week (0-10 scale)'
+      }
+    })
+  );
+
+  templateItems.push(
+    await prisma.assessmentTemplateItem.upsert({
+      where: {
+        templateId_metricDefinitionId: {
+          templateId: templates.weeklyWeightLifestyle.id,
+          metricDefinitionId: metrics.motivationLevel.id
+        }
+      },
+      update: {},
+      create: {
+        id: 'ti-weekly-motivation',
+        templateId: templates.weeklyWeightLifestyle.id,
+        metricDefinitionId: metrics.motivationLevel.id,
+        displayOrder: 4,
+        isRequired: true,
+        helpText: 'Current motivation level for health goals (0-10 scale)'
       }
     })
   );
@@ -1841,6 +2611,140 @@ async function main() {
       conditionPresetId: conditionPresets.copd.id,
       alertRuleId: alertRules.hypoxia.id,
       priority: 1
+    }
+  });
+
+  // 6. GENERAL WELLNESS
+  conditionPresets.generalWellness = await prisma.conditionPreset.upsert({
+    where: { id: 'preset-general-wellness' },
+    update: {},
+    create: {
+      id: 'preset-general-wellness',
+      name: 'General Wellness Program',
+      description: 'Preventive health monitoring and wellness tracking for general health maintenance',
+      category: 'General Wellness',
+      isStandardized: true,
+      clinicalGuidelines: {
+        overview: 'General health monitoring and wellness tracking based on preventive care best practices',
+        assessmentFrequency: 'Weekly vitals + daily symptom tracking',
+        alertThresholds: 'Critical vital sign abnormalities (BP crisis, hypoxia, extreme HR)',
+        source: 'Preventive care and wellness program best practices',
+        note: 'Suitable for health maintenance programs, wellness coaching, and preventive care monitoring'
+      }
+    }
+  });
+
+  // General Wellness Diagnoses (optional - general health encounter codes)
+  await prisma.conditionPresetDiagnosis.upsert({
+    where: { id: 'cpd-wellness-exam' },
+    update: {},
+    create: {
+      id: 'cpd-wellness-exam',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      icd10: 'Z00.00',
+      label: 'Encounter for general adult medical examination without abnormal findings',
+      isPrimary: true,
+      snomed: '185349003'
+    }
+  });
+
+  await prisma.conditionPresetDiagnosis.upsert({
+    where: { id: 'cpd-wellness-health' },
+    update: {},
+    create: {
+      id: 'cpd-wellness-health',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      icd10: 'Z76.2',
+      label: 'Encounter for health supervision and care of other healthy infant and child',
+      isPrimary: false,
+      snomed: '410620009'
+    }
+  });
+
+  // General Wellness Templates
+  await prisma.conditionPresetTemplate.upsert({
+    where: { id: 'cpt-wellness-daily' },
+    update: {},
+    create: {
+      id: 'cpt-wellness-daily',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      templateId: templates.dailySymptoms.id,
+      frequency: "1",
+      isRequired: true,
+      displayOrder: 1
+    }
+  });
+
+  // General Wellness Alert Rules (generic vital sign monitoring)
+  await prisma.conditionPresetAlertRule.upsert({
+    where: { id: 'cpar-wellness-critical-bp' },
+    update: {},
+    create: {
+      id: 'cpar-wellness-critical-bp',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      alertRuleId: alertRules.criticalHighBP.id,
+      priority: 1,
+      isEnabled: true
+    }
+  });
+
+  await prisma.conditionPresetAlertRule.upsert({
+    where: { id: 'cpar-wellness-hypotension' },
+    update: {},
+    create: {
+      id: 'cpar-wellness-hypotension',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      alertRuleId: alertRules.hypotension.id,
+      priority: 2,
+      isEnabled: true
+    }
+  });
+
+  await prisma.conditionPresetAlertRule.upsert({
+    where: { id: 'cpar-wellness-tachycardia' },
+    update: {},
+    create: {
+      id: 'cpar-wellness-tachycardia',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      alertRuleId: alertRules.tachycardia.id,
+      priority: 3,
+      isEnabled: true
+    }
+  });
+
+  await prisma.conditionPresetAlertRule.upsert({
+    where: { id: 'cpar-wellness-bradycardia' },
+    update: {},
+    create: {
+      id: 'cpar-wellness-bradycardia',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      alertRuleId: alertRules.bradycardia.id,
+      priority: 3,
+      isEnabled: true
+    }
+  });
+
+  await prisma.conditionPresetAlertRule.upsert({
+    where: { id: 'cpar-wellness-hypoxia' },
+    update: {},
+    create: {
+      id: 'cpar-wellness-hypoxia',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      alertRuleId: alertRules.hypoxia.id,
+      priority: 1,
+      isEnabled: true
+    }
+  });
+
+  await prisma.conditionPresetAlertRule.upsert({
+    where: { id: 'cpar-wellness-missed' },
+    update: {},
+    create: {
+      id: 'cpar-wellness-missed',
+      conditionPresetId: conditionPresets.generalWellness.id,
+      alertRuleId: alertRules.missedAssessments.id,
+      priority: 4,
+      isEnabled: true
     }
   });
 
