@@ -1069,12 +1069,12 @@ async function checkAndEscalateSLABreaches() {
       // Calculate time since SLA breach
       const minutesSinceBreach = Math.floor((now - alert.slaBreachTime) / (60 * 1000));
 
-      // Find supervisors (ORG_ADMIN or SUPER_ADMIN) for this organization
+      // Find supervisors (ORG_ADMIN) for this organization
       const supervisors = await prisma.userOrganization.findMany({
         where: {
           organizationId: alert.organizationId,
           isActive: true,
-          role: { in: ['ORG_ADMIN', 'SUPER_ADMIN'] }
+          role: 'ORG_ADMIN'
         },
         include: {
           user: {

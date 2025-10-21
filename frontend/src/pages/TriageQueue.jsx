@@ -35,6 +35,7 @@ export default function TriageQueue() {
     riskLevel: 'all',
     claimedBy: 'all',
     slaStatus: 'all',
+    escalationStatus: 'all', // Supervisor escalation filter
     sortBy: 'priorityRank',
     sortOrder: 'asc'
   })
@@ -66,6 +67,12 @@ export default function TriageQueue() {
 
   const queryClient = useQueryClient()
 
+  // Fetch current user profile to determine clinical access
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: api.getCurrentUserProfile
+  })
+
   // Real-time SSE connection for instant alert updates
   const { alerts: sseAlerts, connectionStatus, error: sseError, reconnect } = useRealTimeAlerts()
 
@@ -85,6 +92,7 @@ export default function TriageQueue() {
       maxRiskScore: filters.riskLevel === 'critical' ? 10 : filters.riskLevel === 'high' ? 7.99 : filters.riskLevel === 'medium' ? 5.99 : filters.riskLevel === 'low' ? 3.99 : undefined,
       claimedBy: filters.claimedBy !== 'all' ? filters.claimedBy : undefined,
       slaStatus: filters.slaStatus !== 'all' ? filters.slaStatus : undefined,
+      escalationStatus: filters.escalationStatus !== 'all' ? filters.escalationStatus : undefined, // Supervisor escalation filter
       page,
       limit
     }),
@@ -645,7 +653,7 @@ export default function TriageQueue() {
             <FunnelIcon className="h-5 w-5 text-gray-500 mr-2" />
             <h3 className="text-lg font-semibold text-gray-900">Filters & Search</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -700,6 +708,17 @@ export default function TriageQueue() {
               <option value="all">All Claims</option>
               <option value="me">My Claims</option>
               <option value="unclaimed">Unclaimed</option>
+            </select>
+
+            <select
+              value={filters.escalationStatus}
+              onChange={(e) => setFilters({ ...filters, escalationStatus: e.target.value })}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-purple-50 border-purple-200"
+            >
+              <option value="all">All Alerts</option>
+              <option value="escalated-to-me">🚨 Escalated to Me</option>
+              <option value="all-escalated">⚠️ All Escalated</option>
+              <option value="sla-breached-only">🔥 SLA Breached Only</option>
             </select>
           </div>
         </div>
@@ -808,63 +827,77 @@ export default function TriageQueue() {
                   {/* Action Buttons */}
                   <div className="flex flex-col space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      {!alert.computed.isClaimed ? (
-                        <button
-                          onClick={() => handleClaim(alert)}
-                          disabled={claimAlertMutation.isLoading}
-                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                        >
-                          <UserIcon className="h-4 w-4 mr-2" />
-                          Claim Alert
-                        </button>
-                      ) : alert.computed.isClaimedByMe ? (
+                      {currentUser?.hasClinician ? (
+                        // User has clinician access - show clinical action buttons
                         <>
-                          <button
-                            onClick={() => handleUnclaim(alert.id)}
-                            disabled={unclaimAlertMutation.isLoading}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-sm font-medium rounded-lg hover:from-gray-600 hover:to-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          >
-                            <XMarkIcon className="h-4 w-4 mr-2" />
-                            Unclaim
-                          </button>
-                          <button
-                            onClick={() => handleAcknowledge(alert.id)}
-                            disabled={acknowledgeAlertMutation.isLoading}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-sm font-medium rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          >
-                            <CheckIcon className="h-4 w-4 mr-2" />
-                            Acknowledge
-                          </button>
-                          <button
-                            onClick={() => handleResolve(alert.id)}
-                            disabled={resolveAlertMutation.isLoading}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          >
-                            <CheckIcon className="h-4 w-4 mr-2" />
-                            Resolve
-                          </button>
-                          <button
-                            onClick={() => handleSnooze(alert.id)}
-                            disabled={snoozeAlertMutation.isLoading}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          >
-                            <BellSlashIcon className="h-4 w-4 mr-2" />
-                            Snooze
-                          </button>
-                          <button
-                            onClick={() => handleSuppress(alert.id)}
-                            disabled={suppressAlertMutation.isLoading}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-medium rounded-lg hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
-                          >
-                            <NoSymbolIcon className="h-4 w-4 mr-2" />
-                            Suppress
-                          </button>
+                          {!alert.computed.isClaimed ? (
+                            <button
+                              onClick={() => handleClaim(alert)}
+                              disabled={claimAlertMutation.isLoading}
+                              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                            >
+                              <UserIcon className="h-4 w-4 mr-2" />
+                              Claim Alert
+                            </button>
+                          ) : alert.computed.isClaimedByMe ? (
+                            <>
+                              <button
+                                onClick={() => handleUnclaim(alert.id)}
+                                disabled={unclaimAlertMutation.isLoading}
+                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white text-sm font-medium rounded-lg hover:from-gray-600 hover:to-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                              >
+                                <XMarkIcon className="h-4 w-4 mr-2" />
+                                Unclaim
+                              </button>
+                              <button
+                                onClick={() => handleAcknowledge(alert.id)}
+                                disabled={acknowledgeAlertMutation.isLoading}
+                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white text-sm font-medium rounded-lg hover:from-yellow-600 hover:to-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                              >
+                                <CheckIcon className="h-4 w-4 mr-2" />
+                                Acknowledge
+                              </button>
+                              <button
+                                onClick={() => handleResolve(alert.id)}
+                                disabled={resolveAlertMutation.isLoading}
+                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                              >
+                                <CheckIcon className="h-4 w-4 mr-2" />
+                                Resolve
+                              </button>
+                              <button
+                                onClick={() => handleSnooze(alert.id)}
+                                disabled={snoozeAlertMutation.isLoading}
+                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                              >
+                                <BellSlashIcon className="h-4 w-4 mr-2" />
+                                Snooze
+                              </button>
+                              <button
+                                onClick={() => handleSuppress(alert.id)}
+                                disabled={suppressAlertMutation.isLoading}
+                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-medium rounded-lg hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                              >
+                                <NoSymbolIcon className="h-4 w-4 mr-2" />
+                                Suppress
+                              </button>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg">
+                              <UserIcon className="h-4 w-4 mr-2" />
+                              Claimed by {alert.claimedBy?.firstName}
+                            </span>
+                          )}
                         </>
                       ) : (
-                        <span className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg">
-                          <UserIcon className="h-4 w-4 mr-2" />
-                          Claimed by {alert.claimedBy?.firstName}
-                        </span>
+                        // User is admin without clinician access - show informative message
+                        <div className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                          <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
+                          <div className="text-sm">
+                            <span className="font-medium text-blue-900">Admin View Only</span>
+                            <span className="text-blue-700 ml-1">- Clinical actions require a clinician account</span>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

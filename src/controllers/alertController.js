@@ -1117,6 +1117,7 @@ const getTriageQueue = async (req, res) => {
       maxRiskScore,
       claimedBy,
       slaStatus, // 'breached', 'approaching', 'ok'
+      escalationStatus, // 'escalated-to-me', 'all-escalated', 'sla-breached-only'
       page = 1,
       limit = 20,
       sortBy = 'priorityRank', // Default: sort by priority rank
@@ -1202,6 +1203,23 @@ const getTriageQueue = async (req, res) => {
       } else if (slaStatus === 'ok') {
         const warningTime = new Date(now.getTime() + slaWarningBuffer);
         where.slaBreachTime = { gte: warningTime };
+      }
+    }
+
+    // Escalation status filter (Supervisor filters - Phase 1b)
+    if (escalationStatus) {
+      const now = new Date();
+
+      if (escalationStatus === 'escalated-to-me') {
+        // Show only alerts escalated to current user
+        where.isEscalated = true;
+        where.escalatedToId = currentUserId;
+      } else if (escalationStatus === 'all-escalated') {
+        // Show all escalated alerts in organization
+        where.isEscalated = true;
+      } else if (escalationStatus === 'sla-breached-only') {
+        // Show only alerts where SLA breach time has passed
+        where.slaBreachTime = { lt: now };
       }
     }
 

@@ -25,15 +25,15 @@ import api from '../services/api'
  * - followUpTaskType, followUpTaskTitle, followUpTaskDescription, followUpTaskDueDate
  */
 export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLoading, activeTimerMinutes }) {
-  // Fetch all users for task assignment (not just clinicians - can be nurses, care coordinators, etc.)
-  const { data: usersResponse } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => api.getUsers({ limit: 100 }),
+  // Fetch clinicians for task assignment (includes nurses, care coordinators, etc.)
+  const { data: cliniciansResponse } = useQuery({
+    queryKey: ['clinicians'],
+    queryFn: () => api.getClinicians({ limit: 100 }),
     enabled: isOpen,
   })
 
-  // Extract users array from response (users API has different structure: { users: [...] })
-  const users = usersResponse?.users || []
+  // Extract clinicians array from response
+  const users = cliniciansResponse?.clinicians || []
 
   const {
     register,

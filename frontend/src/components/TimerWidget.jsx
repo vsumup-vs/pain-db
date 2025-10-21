@@ -165,15 +165,69 @@ export default function TimerWidget({ patientId, patientName, onTimeStopped }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select CPT Code</option>
-                  <option value="99453">99453 - Initial setup (RPM)</option>
-                  <option value="99454">99454 - Device supply (RPM)</option>
-                  <option value="99457">99457 - First 20 min clinical time (RPM)</option>
-                  <option value="99458">99458 - Additional 20 min (RPM)</option>
-                  <option value="98975">98975 - Initial setup (RTM)</option>
-                  <option value="98977">98977 - First 20 min treatment (RTM)</option>
-                  <option value="99490">99490 - CCM first 20 min</option>
-                  <option value="99439">99439 - CCM additional 20 min</option>
+
+                  {/* Alert-related timers: Show only clinical time codes */}
+                  {timer?.source === 'alert' && (
+                    <>
+                      <option value="99457">99457 - First 20 min clinical time (RPM)</option>
+                      <option value="99458">99458 - Additional 20 min (RPM)</option>
+                      <option value="98977">98977 - First 20 min treatment (RTM)</option>
+                      <option value="98980">98980 - Additional 20 min (RTM - respiratory)</option>
+                      <option value="98981">98981 - Additional 20 min (RTM - musculoskeletal)</option>
+                      <option value="99490">99490 - CCM first 20 min</option>
+                      <option value="99439">99439 - CCM additional 20 min</option>
+                    </>
+                  )}
+
+                  {/* Task-related timers: Show clinical time codes */}
+                  {timer?.source === 'task' && (
+                    <>
+                      <option value="99457">99457 - First 20 min clinical time (RPM)</option>
+                      <option value="99458">99458 - Additional 20 min (RPM)</option>
+                      <option value="98977">98977 - First 20 min treatment (RTM)</option>
+                      <option value="98980">98980 - Additional 20 min (RTM - respiratory)</option>
+                      <option value="98981">98981 - Additional 20 min (RTM - musculoskeletal)</option>
+                      <option value="99490">99490 - CCM first 20 min</option>
+                      <option value="99439">99439 - CCM additional 20 min</option>
+                    </>
+                  )}
+
+                  {/* Manual timers or enrollment-related: Show all codes */}
+                  {(timer?.source === 'manual' || !timer?.source) && (
+                    <>
+                      {/* Setup codes - for enrollment/device activation */}
+                      <optgroup label="Setup & Device Supply">
+                        <option value="99453">99453 - Initial setup (RPM)</option>
+                        <option value="99454">99454 - Device supply (RPM)</option>
+                        <option value="98975">98975 - Initial setup (RTM)</option>
+                        <option value="98976">98976 - Device supply (RTM)</option>
+                      </optgroup>
+
+                      {/* Clinical time codes */}
+                      <optgroup label="Clinical Time">
+                        <option value="99457">99457 - First 20 min clinical time (RPM)</option>
+                        <option value="99458">99458 - Additional 20 min (RPM)</option>
+                        <option value="98977">98977 - First 20 min treatment (RTM)</option>
+                        <option value="98980">98980 - Additional 20 min (RTM - respiratory)</option>
+                        <option value="98981">98981 - Additional 20 min (RTM - musculoskeletal)</option>
+                        <option value="99490">99490 - CCM first 20 min</option>
+                        <option value="99439">99439 - CCM additional 20 min</option>
+                      </optgroup>
+                    </>
+                  )}
                 </select>
+
+                {/* Help text based on timer source */}
+                {timer?.source === 'alert' && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    💡 Showing clinical time codes relevant for alert resolution
+                  </p>
+                )}
+                {timer?.source === 'manual' && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    💡 Setup codes (99453, 98975) should be used during enrollment/device activation
+                  </p>
+                )}
               </div>
 
               {/* Billable */}

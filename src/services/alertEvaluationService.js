@@ -272,7 +272,9 @@ async function evaluateCondition(conditions, observation, metric) {
     // Handle numeric comparisons
     if (typeof observationValue === 'object' && observationValue !== null) {
       // If it's a JSON object, try to extract a numeric value
-      if (observationValue.value !== undefined) {
+      if (observationValue.numeric !== undefined) {
+        observationValue = observationValue.numeric;
+      } else if (observationValue.value !== undefined) {
         observationValue = observationValue.value;
       } else if (observationValue.code !== undefined) {
         observationValue = observationValue.code;
@@ -285,12 +287,56 @@ async function evaluateCondition(conditions, observation, metric) {
 
     switch (operator) {
       case 'gt':
+        // Check if consecutive days evaluation is required
+        if (conditions.consecutive && conditions.evaluationWindow) {
+          return await evaluateConsecutiveDays(
+            observation.patientId,
+            metric.key,
+            observationValue,
+            threshold,
+            operator,
+            conditions.evaluationWindow
+          );
+        }
         return Number(observationValue) > Number(threshold);
       case 'gte':
+        // Check if consecutive days evaluation is required
+        if (conditions.consecutive && conditions.evaluationWindow) {
+          return await evaluateConsecutiveDays(
+            observation.patientId,
+            metric.key,
+            observationValue,
+            threshold,
+            operator,
+            conditions.evaluationWindow
+          );
+        }
         return Number(observationValue) >= Number(threshold);
       case 'lt':
+        // Check if consecutive days evaluation is required
+        if (conditions.consecutive && conditions.evaluationWindow) {
+          return await evaluateConsecutiveDays(
+            observation.patientId,
+            metric.key,
+            observationValue,
+            threshold,
+            operator,
+            conditions.evaluationWindow
+          );
+        }
         return Number(observationValue) < Number(threshold);
       case 'lte':
+        // Check if consecutive days evaluation is required
+        if (conditions.consecutive && conditions.evaluationWindow) {
+          return await evaluateConsecutiveDays(
+            observation.patientId,
+            metric.key,
+            observationValue,
+            threshold,
+            operator,
+            conditions.evaluationWindow
+          );
+        }
         return Number(observationValue) <= Number(threshold);
       case 'eq':
       case 'equals':
@@ -370,8 +416,12 @@ async function evaluateTrend(patientId, metricKey, currentValue, operator, thres
 
     // Get the earliest value in the window
     let earliestValue = previousObservations[0].value;
-    if (typeof earliestValue === 'object' && earliestValue !== null && earliestValue.value !== undefined) {
-      earliestValue = earliestValue.value;
+    if (typeof earliestValue === 'object' && earliestValue !== null) {
+      if (earliestValue.numeric !== undefined) {
+        earliestValue = earliestValue.numeric;
+      } else if (earliestValue.value !== undefined) {
+        earliestValue = earliestValue.value;
+      }
     }
 
     const change = Number(currentValue) - Number(earliestValue);
@@ -386,6 +436,122 @@ async function evaluateTrend(patientId, metricKey, currentValue, operator, thres
 
   } catch (error) {
     console.error('Error evaluating trend:', error);
+    return false;
+  }
+}
+
+/**
+ * Evaluate consecutive days condition
+ * @param {String} patientId - Patient ID
+ * @param {String} metricKey - Metric key
+ * @param {Number} currentValue - Current observation value
+ * @param {Number} threshold - The threshold value
+ * @param {String} operator - Comparison operator (gt, gte, lt, lte)
+ * @param {String} evaluationWindow - Time window (e.g., '3 days', '72h')
+ * @returns {Promise<Boolean>} True if consecutive days condition is met
+ */
+async function evaluateConsecutiveDays(patientId, metricKey, currentValue, threshold, operator, evaluationWindow) {
+  try {
+    // Parse evaluation window (e.g., "3 days" -> 3, "72h" -> 3)
+    let days;
+    if (evaluationWindow.includes('day')) {
+      days = parseInt(evaluationWindow);
+    } else if (evaluationWindow.includes('h')) {
+      days = Math.ceil(parseInt(evaluationWindow) / 24);
+    } else {
+      console.warn(`Unable to parse evaluation window: ${evaluationWindow}`);
+      return false;
+    }
+
+    if (isNaN(days) || days <= 0) {
+      console.warn(`Invalid evaluation window: ${evaluationWindow}`);
+      return false;
+    }
+
+    // Get the metric
+    const metric = await prisma.metricDefinition.findFirst({
+      where: { key: metricKey }
+    });
+
+    if (!metric) return false;
+
+    // Calculate start date (N days ago)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0); // Start of day
+
+    // Get all observations in the window
+    const observations = await prisma.observation.findMany({
+      where: {
+        patientId,
+        metricId: metric.id,
+        recordedAt: {
+          gte: startDate
+        }
+      },
+      orderBy: { recordedAt: 'asc' }
+    });
+
+    if (observations.length === 0) {
+      return false; // No data to evaluate
+    }
+
+    // Group observations by calendar day and check if they meet threshold
+    const daysMeetingThreshold = new Map();
+
+    for (const obs of observations) {
+      // Extract numeric value
+      let value = obs.value;
+      if (typeof value === 'object' && value !== null) {
+        if (value.numeric !== undefined) {
+          value = value.numeric;
+        } else if (value.value !== undefined) {
+          value = value.value;
+        }
+      }
+
+      const numValue = Number(value);
+      if (isNaN(numValue)) continue;
+
+      // Get calendar day (YYYY-MM-DD)
+      const day = obs.recordedAt.toISOString().split('T')[0];
+
+      // Check if value meets threshold based on operator
+      let meetsThreshold = false;
+      switch (operator) {
+        case 'gt':
+          meetsThreshold = numValue > Number(threshold);
+          break;
+        case 'gte':
+          meetsThreshold = numValue >= Number(threshold);
+          break;
+        case 'lt':
+          meetsThreshold = numValue < Number(threshold);
+          break;
+        case 'lte':
+          meetsThreshold = numValue <= Number(threshold);
+          break;
+      }
+
+      // Track if ANY reading on this day meets threshold
+      if (!daysMeetingThreshold.has(day)) {
+        daysMeetingThreshold.set(day, false); // Start with false
+      }
+
+      // If any reading on this day meets threshold, mark day as meeting
+      if (meetsThreshold) {
+        daysMeetingThreshold.set(day, true); // Set to true if ANY reading meets
+      }
+    }
+
+    // Count days where AT LEAST ONE reading met the threshold
+    const validDays = Array.from(daysMeetingThreshold.values()).filter(v => v === true).length;
+
+    // Return true if we have enough days meeting the threshold
+    return validDays >= days;
+
+  } catch (error) {
+    console.error('Error evaluating consecutive days:', error);
     return false;
   }
 }
@@ -451,8 +617,12 @@ function calculateRiskScore(observation, rule, metric) {
     // Adjust based on how far outside normal range (if applicable)
     if (metric.normalRange) {
       let value = observation.value;
-      if (typeof value === 'object' && value !== null && value.value !== undefined) {
-        value = value.value;
+      if (typeof value === 'object' && value !== null) {
+        if (value.numeric !== undefined) {
+          value = value.numeric;
+        } else if (value.value !== undefined) {
+          value = value.value;
+        }
       }
 
       const numValue = Number(value);
@@ -506,8 +676,12 @@ function calculateSLABreachTime(severity) {
 function generateAlertMessage(observation, rule, metric) {
   try {
     let value = observation.value;
-    if (typeof value === 'object' && value !== null && value.value !== undefined) {
-      value = value.value;
+    if (typeof value === 'object' && value !== null) {
+      if (value.numeric !== undefined) {
+        value = value.numeric;
+      } else if (value.value !== undefined) {
+        value = value.value;
+      }
     }
 
     const unit = metric.unit || '';
@@ -567,6 +741,7 @@ module.exports = {
   evaluateObservation,
   evaluateCondition,
   evaluateTrend,
+  evaluateConsecutiveDays,
   checkAlertCooldown,
   calculateRiskScore,
   calculateSLABreachTime,

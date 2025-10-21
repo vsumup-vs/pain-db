@@ -578,6 +578,25 @@ router.get('/me', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Check if user has a Clinician record in their current organization
+    // This determines if they can perform clinical actions (claim alerts, log time, etc.)
+    const currentOrgId = req.user.currentOrganization;
+    let clinicianRecord = null;
+
+    if (currentOrgId) {
+      clinicianRecord = await prisma.clinician.findFirst({
+        where: {
+          email: user.email,
+          organizationId: currentOrgId
+        },
+        select: {
+          id: true,
+          specialization: true,
+          licenseNumber: true
+        }
+      });
+    }
+
     res.json({
       id: user.id,
       email: user.email,
@@ -597,7 +616,14 @@ router.get('/me', requireAuth, async (req, res) => {
         joinedAt: uo.joinedAt
       })),
       currentOrganization: req.user.currentOrganization,
-      permissions: req.user.permissions || []
+      permissions: req.user.permissions || [],
+      // Clinical access flags (Phase 1a: Role-based UI)
+      hasClinician: !!clinicianRecord,
+      clinician: clinicianRecord ? {
+        id: clinicianRecord.id,
+        specialization: clinicianRecord.specialization,
+        licenseNumber: clinicianRecord.licenseNumber
+      } : null
     });
   } catch (error) {
     console.error('Get profile error:', error);

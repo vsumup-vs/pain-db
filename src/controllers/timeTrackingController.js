@@ -155,11 +155,13 @@ const stopTimer = [
       });
 
       if (!clinician) {
-        // Gracefully handle missing clinician - still create time log without billing linkage
-        console.warn(`No active clinician found for user ${req.user.email} in organization ${clinicianOrganizationId}`);
+        return res.status(400).json({
+          success: false,
+          message: `No active clinician record found for user ${req.user.email} in organization ${clinicianOrganizationId}. Time logs require a valid clinician for billing purposes.`
+        });
       }
 
-      const clinicianId = clinician?.id || null;
+      const clinicianId = clinician.id;
 
       const result = await timeTrackingService.stopTimer({
         userId,
