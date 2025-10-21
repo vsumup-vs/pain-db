@@ -102,6 +102,7 @@ enum UserRole {
 }
 
 enum OrganizationType {
+  PLATFORM   // Internal platform organization for SaaS operations
   HOSPITAL
   CLINIC
   PRACTICE
@@ -229,6 +230,57 @@ enum Permission {
   BILLING_READ
   BILLING_MANAGE
   COMPLIANCE_READ
+  // Platform Admin Permissions
+  PLATFORM_ORG_CREATE
+  PLATFORM_ORG_READ
+  PLATFORM_ORG_UPDATE
+  PLATFORM_ORG_DELETE
+  PLATFORM_USER_MANAGE
+  PLATFORM_BILLING_READ
+  PLATFORM_BILLING_MANAGE
+  PLATFORM_SUPPORT_READ
+  PLATFORM_SUPPORT_MANAGE
+  PLATFORM_ANALYTICS_READ
+  PLATFORM_SETTINGS_MANAGE
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+enum SubscriptionTier {
+  BASIC
+  PRO
+  ENTERPRISE
+  CUSTOM
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CLIENT
+  RESOLVED
+  CLOSED
+}
+
+enum TicketCategory {
+  TECHNICAL_SUPPORT
+  BILLING
+  FEATURE_REQUEST
+  BUG_REPORT
+  TRAINING
+  GENERAL
 }
 
 // Authentication Models
@@ -284,6 +336,29 @@ model Organization {
   website   String?
   isActive  Boolean          @default(true)
   settings  Json?
+
+  // Subscription & Billing Fields (for CLIENT organizations)
+  subscriptionStatus    SubscriptionStatus?  @default(TRIAL)
+  subscriptionTier      SubscriptionTier?    @default(BASIC)
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  trialEndsAt           DateTime?
+
+  // Usage Limits
+  maxUsers      Int? @default(10)
+  maxPatients   Int? @default(100)
+  maxClinicians Int? @default(10)
+
+  // Billing Contact
+  billingContactName  String?
+  billingContactEmail String?
+  billingContactPhone String?
+
+  // Metadata
+  onboardedBy String?   // User ID of platform admin who onboarded this org
+  onboardedAt DateTime?
+  notes       String?   // Internal notes about this organization
+
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -297,13 +372,19 @@ model Organization {
   assessmentTemplates AssessmentTemplate[] // Custom templates for this org
   conditionPresets    ConditionPreset[]    // Custom condition presets for this org
   alertRules          AlertRule[]          // Custom alert rules for this org
+  alerts              Alert[]              // Alerts for this organization
   tasks               Task[]
   encounterNotes      EncounterNote[]
+  supportTickets      SupportTicket[]      // Support tickets raised by this org
+  subscriptionHistory SubscriptionHistory[]
+  invoices            Invoice[]
 
   // ENHANCEMENT: Add indexes
   @@index([name])
   @@index([type])
   @@index([isActive])
+  @@index([subscriptionStatus])
+  @@index([subscriptionTier])
   @@map("organizations")
 }
 
@@ -458,11 +539,11 @@ model Clinician {
   email            String   @unique
   phone            String?
   address          String?
-  licenseNumber    String?  @unique // ENHANCEMENT: License numbers should be unique
+  licenseNumber    String?  @unique @map("license_number") // ENHANCEMENT: License numbers should be unique
   specialization   String?
   department       String?
   credentials      String?
-  emergencyContact String?
+  emergencyContact String?  @map("emergency_contact")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -489,7 +570,7 @@ model Enrollment {
   patientId         String
   clinicianId       String
   careProgramId     String
-  conditionPresetId String?
+  conditionPresetId String           // REQUIRED: Clinical monitoring protocol
   billingProgramId  String?          // NEW: Link to specific billing configuration
   status            EnrollmentStatus @default(PENDING)
   startDate         DateTime
@@ -519,7 +600,7 @@ model Enrollment {
   patient         Patient          @relation(fields: [patientId], references: [id])
   clinician       Clinician        @relation(fields: [clinicianId], references: [id])
   careProgram     CareProgram      @relation(fields: [careProgramId], references: [id])
-  conditionPreset ConditionPreset? @relation(fields: [conditionPresetId], references: [id])
+  conditionPreset ConditionPreset  @relation(fields: [conditionPresetId], references: [id])
   billingProgram  BillingProgram?  @relation(fields: [billingProgramId], references: [id])
   observations    Observation[]    // PHASE 3: Observations linked to this enrollment
   timeLogs        TimeLog[]        // PHASE 3: Time logs linked to this enrollment
@@ -917,6 +998,7 @@ model Alert {
   escalationReason String?         @db.Text // Why alert was escalated (e.g., "SLA breach", "Manual escalation")
 
   // Relationships
+  organization   Organization    @relation(fields: [organizationId], references: [id])
   rule           AlertRule       @relation(fields: [ruleId], references: [id])
   patient        Patient         @relation(fields: [patientId], references: [id])
   clinician      Clinician?      @relation(fields: [clinicianId], references: [id])
@@ -1311,4 +1393,100 @@ model BillingEligibilityRule {
   @@index([ruleType])
   @@index([priority])
   @@map("billing_eligibility_rules")
+}
+
+// Platform Administration Models
+
+model SupportTicket {
+  id              String          @id @default(cuid())
+  organizationId  String
+  ticketNumber    String          @unique
+  subject         String
+  description     String          @db.Text
+  priority        TicketPriority  @default(MEDIUM)
+  status          TicketStatus    @default(OPEN)
+  category        TicketCategory
+  contactName     String
+  contactEmail    String
+  assignedTo      String?         // Platform admin user ID
+  resolvedBy      String?         // Platform admin user ID who resolved
+  resolvedAt      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relationships
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  responses    TicketResponse[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedTo])
+  @@index([category])
+  @@map("support_tickets")
+}
+
+model TicketResponse {
+  id              String        @id @default(cuid())
+  ticketId        String
+  respondedBy     String        // User ID (platform admin or client user)
+  responseText    String        @db.Text
+  isInternal      Boolean       @default(false) // Internal notes only visible to platform admins
+  attachments     Json?         // Array of attachment URLs
+  createdAt       DateTime      @default(now())
+
+  // Relationships
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([respondedBy])
+  @@index([createdAt])
+  @@map("ticket_responses")
+}
+
+model SubscriptionHistory {
+  id               String              @id @default(cuid())
+  organizationId   String
+  previousStatus   SubscriptionStatus?
+  newStatus        SubscriptionStatus
+  previousTier     SubscriptionTier?
+  newTier          SubscriptionTier
+  changeReason     String              @db.Text
+  changedBy        String              // Platform admin user ID
+  effectiveDate    DateTime
+  notes            String?             @db.Text
+  createdAt        DateTime            @default(now())
+
+  // Relationships
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([effectiveDate])
+  @@map("subscription_history")
+}
+
+model Invoice {
+  id               String              @id @default(cuid())
+  organizationId   String
+  invoiceNumber    String              @unique
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  amount           Decimal             @db.Decimal(10, 2)
+  currency         String              @default("USD")
+  status           String              // "DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"
+  dueDate          DateTime
+  paidDate         DateTime?
+  paymentMethod    String?
+  items            Json                // Array of line items
+  notes            String?             @db.Text
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relationships
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
 }

@@ -171,6 +171,43 @@ const createAlertRule = async (req, res) => {
       actions
     } = req.body;
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check organization type - block PLATFORM organizations from creating alert rules
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from creating alert rules (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Alert rule creation is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Accept either 'expression' or 'conditions' for backwards compatibility
     const ruleConditions = conditions || expression;
 

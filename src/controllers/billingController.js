@@ -61,6 +61,31 @@ const getEnrollmentBillingReadiness = async (req, res) => {
       }
     }
 
+    // Check organization type - block PLATFORM organizations from accessing billing features
+    const organization = await prisma.organization.findUnique({
+      where: { id: enrollment.organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing billing (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Billing and reimbursement tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Calculate billing readiness
     const result = await billingService.calculateBillingReadiness(enrollmentId, billingMonth);
 
@@ -103,6 +128,31 @@ const getOrganizationBillingReadiness = async (req, res) => {
       if (!hasAccess) {
         return res.status(403).json({ error: 'Access denied to this organization' });
       }
+    }
+
+    // Check organization type - block PLATFORM organizations from accessing billing features
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing billing (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Billing and reimbursement tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
     }
 
     // Calculate billing readiness for all enrollments
@@ -164,6 +214,31 @@ const getOrganizationBillingSummary = async (req, res) => {
       if (!hasAccess) {
         return res.status(403).json({ error: 'Access denied to this organization' });
       }
+    }
+
+    // Check organization type - block PLATFORM organizations from accessing billing features
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing billing (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Billing and reimbursement tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
     }
 
     // Generate billing summary
@@ -447,6 +522,31 @@ const exportBillingSummaryCSV = async (req, res) => {
       if (!hasAccess) {
         return res.status(403).json({ error: 'Access denied to this organization' });
       }
+    }
+
+    // Check organization type - block PLATFORM organizations from accessing billing features
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing billing (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Billing and reimbursement tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
     }
 
     // Generate billing summary

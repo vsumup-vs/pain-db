@@ -1,35 +1,30 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  PlusIcon, 
-  TrashIcon, 
+import {
+  PlusIcon,
+  TrashIcon,
   MagnifyingGlassIcon,
-  InformationCircleIcon,
-  BellIcon 
+  InformationCircleIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 
-export default function EnhancedEnrollmentForm({ 
-  patients, 
-  clinicians, 
-  conditionPresets, 
-  onSubmit, 
-  isLoading 
+export default function EnhancedEnrollmentForm({
+  patients,
+  clinicians,
+  carePrograms,  // Changed from conditionPresets
+  conditionPresets,  // Optional condition presets
+  onSubmit,
+  isLoading
 }) {
   const [formData, setFormData] = useState({
     patientId: '',
     clinicianId: '',
-    presetId: '',
-    diagnosisCode: '',
+    careProgramId: '',  // Changed from presetId
+    conditionPresetId: '',  // Optional condition preset
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     notes: '',
-    medications: [],
-    reminderSettings: {
-      dailyAssessment: false,
-      reminderTime: '09:00',
-      methods: []
-    }
+    medications: []
   })
 
   const [selectedPreset, setSelectedPreset] = useState(null)
@@ -48,15 +43,15 @@ export default function EnhancedEnrollmentForm({
 
   const drugs = drugsResponse?.data || []
 
-  // Update selected preset when presetId changes
+  // Update selected preset when conditionPresetId changes
   useEffect(() => {
-    if (formData.presetId) {
-      const preset = conditionPresets.find(p => p.id === formData.presetId)
+    if (formData.conditionPresetId && conditionPresets) {
+      const preset = conditionPresets.find(p => p.id === formData.conditionPresetId)
       setSelectedPreset(preset)
     } else {
       setSelectedPreset(null)
     }
-  }, [formData.presetId, conditionPresets])
+  }, [formData.conditionPresetId, conditionPresets])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -107,26 +102,6 @@ export default function EnhancedEnrollmentForm({
   const getDrugName = (drugId) => {
     const drug = drugs.find(d => d.id === drugId)
     return drug ? `${drug.name} ${drug.strength}` : 'Select medication'
-  }
-
-  // Add method change handler for reminder settings
-  const handleMethodChange = (method, checked) => {
-    setFormData(prev => ({
-      ...prev,
-      reminderSettings: {
-        ...prev.reminderSettings,
-        methods: checked 
-          ? [...prev.reminderSettings.methods, method]
-          : prev.reminderSettings.methods.filter(m => m !== method)
-      }
-    }))
-  }
-
-  const setReminderSettings = (newSettings) => {
-    setFormData(prev => ({
-      ...prev,
-      reminderSettings: newSettings
-    }))
   }
 
   return (
@@ -181,14 +156,34 @@ export default function EnhancedEnrollmentForm({
               Care Program *
             </label>
             <select
-              name="presetId"
-              value={formData.presetId}
+              name="careProgramId"
+              value={formData.careProgramId}
               onChange={handleChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Select a care program</option>
-              {conditionPresets.map((preset) => (
+              {carePrograms && carePrograms.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name} ({program.type})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Condition Preset *
+            </label>
+            <select
+              name="conditionPresetId"
+              value={formData.conditionPresetId}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select a condition preset</option>
+              {conditionPresets && conditionPresets.map((preset) => (
                 <option key={preset.id} value={preset.id}>
                   {preset.name}
                 </option>
@@ -201,30 +196,10 @@ export default function EnhancedEnrollmentForm({
                   <div className="text-sm text-blue-700">
                     <p className="font-medium">{selectedPreset.name}</p>
                     <p className="mt-1">{selectedPreset.description}</p>
-                    {selectedPreset.diagnosisCodes && (
-                      <p className="mt-1">
-                        <span className="font-medium">Diagnosis codes:</span> {selectedPreset.diagnosisCodes.join(', ')}
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
             )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Diagnosis Code *
-            </label>
-            <input
-              type="text"
-              name="diagnosisCode"
-              value={formData.diagnosisCode}
-              onChange={handleChange}
-              required
-              placeholder="e.g., M79.3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
           </div>
 
           <div>
@@ -424,87 +399,6 @@ export default function EnhancedEnrollmentForm({
                 </div>
               </div>
             ))}
-          </div>
-        )}
-      </div>
-
-      {/* Reminder Settings Section */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="flex items-center mb-4">
-          <BellIcon className="h-5 w-5 text-gray-600 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900">Daily Assessment Reminders</h3>
-        </div>
-        
-        <div className="flex items-center mb-4">
-          <input
-            type="checkbox"
-            id="enableReminders"
-            checked={formData.reminderSettings.dailyAssessment}
-            onChange={(e) => setReminderSettings({
-              ...formData.reminderSettings,
-              dailyAssessment: e.target.checked
-            })}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="enableReminders" className="ml-2 text-sm font-medium text-gray-700">
-            Enable daily pain assessment reminders
-          </label>
-        </div>
-
-        {formData.reminderSettings.dailyAssessment && (
-          <div className="space-y-4 pl-6 border-l-2 border-blue-200">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reminder Time
-              </label>
-              <input
-                type="time"
-                value={formData.reminderSettings.reminderTime}
-                onChange={(e) => setReminderSettings({
-                  ...formData.reminderSettings,
-                  reminderTime: e.target.value
-                })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Time when daily reminders will be sent to the patient
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notification Methods
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.reminderSettings.methods.includes('email')}
-                    onChange={(e) => handleMethodChange('email', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Email notifications</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.reminderSettings.methods.includes('sms')}
-                    onChange={(e) => handleMethodChange('sms', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">SMS notifications</span>
-                </label>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Choose how the patient will receive reminder notifications
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!formData.reminderSettings.dailyAssessment && (
-          <div className="text-center py-4 text-gray-500">
-            <p className="text-sm">Enable reminders to help patients stay on track with their daily assessments.</p>
           </div>
         )}
       </div>

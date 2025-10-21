@@ -9,11 +9,11 @@ const createEnrollment = async (req, res) => {
     const {
       patientId,
       clinicianId,
-      presetId,
-      diagnosisCode,
+      careProgramId,
+      conditionPresetId,
       startDate,
       endDate,
-      status = 'active',
+      status = 'ACTIVE',
       consentAt,
       notes,
       // New reminder configuration
@@ -26,22 +26,41 @@ const createEnrollment = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!patientId || !clinicianId || !presetId || !diagnosisCode) {
+    if (!patientId || !clinicianId || !careProgramId) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: patientId, clinicianId, presetId, and diagnosisCode are required'
+        message: 'Missing required fields: patientId, clinicianId, and careProgramId are required'
       });
     }
 
-    // Check if patient exists
+    // Check if patient exists and get organization details
     const patient = await prisma.patient.findUnique({
-      where: { id: patientId }
+      where: { id: patientId },
+      select: {
+        id: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            type: true,
+            name: true
+          }
+        }
+      }
     });
 
     if (!patient) {
       return res.status(404).json({
         success: false,
         message: 'Patient not found'
+      });
+    }
+
+    // Block PLATFORM organizations from creating enrollments (patient-care feature)
+    if (patient.organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Enrollment creation is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
       });
     }
 
@@ -57,9 +76,29 @@ const createEnrollment = async (req, res) => {
       });
     }
 
-    // Check if preset exists
+    // Check if care program exists
+    const careProgram = await prisma.careProgram.findUnique({
+      where: { id: careProgramId }
+    });
+
+    if (!careProgram) {
+      return res.status(404).json({
+        success: false,
+        message: 'Care program not found'
+      });
+    }
+
+    // REQUIRED: Check if condition preset exists
+    // Every enrollment must have a clinical monitoring protocol defined
+    if (!conditionPresetId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Condition preset is required. Every enrollment must have a clinical monitoring protocol.'
+      });
+    }
+
     const preset = await prisma.conditionPreset.findUnique({
-      where: { id: presetId }
+      where: { id: conditionPresetId }
     });
 
     if (!preset) {
@@ -74,14 +113,14 @@ const createEnrollment = async (req, res) => {
       where: {
         patientId,
         clinicianId,
-        status: 'active'
+        status: 'ACTIVE'
       }
     });
 
     if (existingEnrollment) {
       return res.status(400).json({
         success: false,
-        message: 'active enrollment already exists between this patient and clinician'
+        message: 'Active enrollment already exists between this patient and clinician'
       });
     }
 
@@ -104,13 +143,12 @@ const createEnrollment = async (req, res) => {
         organizationId,  // SECURITY: Always include organizationId
         patientId,
         clinicianId,
-        presetId,
-        diagnosisCode,
+        careProgramId,
+        conditionPresetId,
         startDate: startDate ? new Date(startDate) : new Date(),
         endDate: endDate ? new Date(endDate) : null,
         status,
-        consentAt: consentAt ? new Date(consentAt) : null,
-        reminderSettings // Add this line
+        notes
       },
       include: {
         patient: {
@@ -129,7 +167,14 @@ const createEnrollment = async (req, res) => {
             specialization: true
           }
         },
-        preset: {
+        careProgram: {
+          select: {
+            id: true,
+            name: true,
+            type: true
+          }
+        },
+        conditionPreset: {
           select: {
             id: true,
             name: true
@@ -137,9 +182,6 @@ const createEnrollment = async (req, res) => {
         }
       }
     });
-
-    // Auto-setup daily reminder alert rule
-    await setupDailyReminderRule(enrollment.id, reminderSettings);
 
     res.status(201).json({
       success: true,
@@ -456,17 +498,17 @@ const deactivateEnrollment = async (req, res) => {
       });
     }
 
-    if (enrollment.status === 'ended') {
+    if (enrollment.status === 'COMPLETED') {
       return res.status(400).json({
         success: false,
-        message: 'Enrollment is already ended'
+        message: 'Enrollment is already completed'
       });
     }
 
     const updatedEnrollment = await prisma.enrollment.update({
       where: { id },
       data: {
-        status: 'ended',
+        status: 'COMPLETED',
         endDate: endDate ? new Date(endDate) : new Date()
       },
       include: {
@@ -546,7 +588,7 @@ const transferEnrollment = async (req, res) => {
       where: {
         patientId: enrollment.patientId,
         clinicianId: newClinicianId,
-        status: 'active' // Fixed: Changed from 'ACTIVE' to 'active'
+        status: 'ACTIVE'
       }
     });
 
@@ -562,10 +604,10 @@ const transferEnrollment = async (req, res) => {
       const deactivatedEnrollment = await tx.enrollment.update({
         where: { id },
         data: {
-          status: 'ended', // Fixed: Changed from 'TRANSFERRED' to 'ended'
+          status: 'COMPLETED',
           endDate: transferDate ? new Date(transferDate) : new Date(),
-          notes: enrollment.notes ? 
-            `${enrollment.notes}\n\nTransferred to ${newClinician.firstName} ${newClinician.lastName}: ${reason || 'No reason provided'}` : 
+          notes: enrollment.notes ?
+            `${enrollment.notes}\n\nTransferred to ${newClinician.firstName} ${newClinician.lastName}: ${reason || 'No reason provided'}` :
             `Transferred to ${newClinician.firstName} ${newClinician.lastName}: ${reason || 'No reason provided'}`
         }
       });
@@ -576,7 +618,7 @@ const transferEnrollment = async (req, res) => {
           patientId: enrollment.patientId,
           clinicianId: newClinicianId,
           enrollmentDate: transferDate ? new Date(transferDate) : new Date(),
-          status: 'active', // Fixed: Use 'active' instead of 'ACTIVE'
+          status: 'ACTIVE',
           notes: `Transferred from ${enrollment.clinician.firstName} ${enrollment.clinician.lastName}: ${reason || 'No reason provided'}`,
           treatmentPlan: enrollment.treatmentPlan,
           goals: enrollment.goals,
@@ -605,17 +647,17 @@ const transferEnrollment = async (req, res) => {
 // Get enrollment statistics
 const getEnrollmentStats = async (req, res) => {
   try {
-    const [totalEnrollments, activeEnrollments, pausedEnrollments, endedEnrollments] = await Promise.all([
+    const [totalEnrollments, activeEnrollments, inactiveEnrollments, completedEnrollments] = await Promise.all([
       prisma.enrollment.count(),
-      prisma.enrollment.count({ where: { status: 'active' } }),
-      prisma.enrollment.count({ where: { status: 'paused' } }),
-      prisma.enrollment.count({ where: { status: 'ended' } })
+      prisma.enrollment.count({ where: { status: 'ACTIVE' } }),
+      prisma.enrollment.count({ where: { status: 'INACTIVE' } }),
+      prisma.enrollment.count({ where: { status: 'COMPLETED' } })
     ]);
 
     // Get enrollment distribution by clinician
     const clinicianDistribution = await prisma.enrollment.groupBy({
       by: ['clinicianId'],
-      where: { status: 'active' },
+      where: { status: 'ACTIVE' },
       _count: { clinicianId: true },
       orderBy: {
         _count: {
@@ -650,8 +692,8 @@ const getEnrollmentStats = async (req, res) => {
         overview: {
           total: totalEnrollments,
           active: activeEnrollments,
-          paused: pausedEnrollments,
-          ended: endedEnrollments
+          inactive: inactiveEnrollments,
+          completed: completedEnrollments
         },
         clinicianDistribution: distributionWithNames
       }
@@ -768,13 +810,13 @@ const createBulkEnrollments = async (req, res) => {
         }
 
         // Handle care program finding
-        let presetRecord;
+        let careProgramRecord;
         if (careProgram.action === 'find_by_name') {
-          presetRecord = await prisma.conditionPreset.findFirst({
+          careProgramRecord = await prisma.careProgram.findFirst({
             where: { name: careProgram.identifier }
           });
 
-          if (presetRecord) {
+          if (careProgramRecord) {
             results.found.carePrograms++;
           } else {
             results.warnings.push(`Care program "${careProgram.identifier}" not found`);
@@ -787,7 +829,7 @@ const createBulkEnrollments = async (req, res) => {
           where: {
             patientId: patientRecord.id,
             clinicianId: clinicianRecord.id,
-            status: 'active'
+            status: 'ACTIVE'
           }
         });
 
@@ -801,11 +843,11 @@ const createBulkEnrollments = async (req, res) => {
           data: {
             patientId: patientRecord.id,
             clinicianId: clinicianRecord.id,
-            presetId: presetRecord.id,
-            diagnosisCode: enrollment.diagnosisCode,
+            careProgramId: careProgramRecord.id,
+            conditionPresetId: enrollment.conditionPresetId || null,
             startDate: enrollment.startDate ? new Date(enrollment.startDate) : new Date(),
             endDate: enrollment.endDate ? new Date(enrollment.endDate) : null,
-            status: 'active',
+            status: 'ACTIVE',
             notes: enrollment.notes
           },
           include: {
@@ -825,7 +867,14 @@ const createBulkEnrollments = async (req, res) => {
                 email: true
               }
             },
-            preset: {
+            careProgram: {
+              select: {
+                id: true,
+                name: true,
+                type: true
+              }
+            },
+            conditionPreset: {
               select: {
                 id: true,
                 name: true
@@ -839,7 +888,7 @@ const createBulkEnrollments = async (req, res) => {
           enrollmentId: newEnrollment.id,
           patientId: patientRecord.id,
           clinicianId: clinicianRecord.id,
-          presetId: presetRecord.id
+          careProgramId: careProgramRecord.id
         });
 
       } catch (error) {
@@ -919,9 +968,9 @@ const getEnrollmentWithFilteredMetrics = async (req, res) => {
 
     // Step 3: Filter metric definitions to only show those included in the relevant templates
     const relevantMetricIds = new Set();
-    
-    if (enrollment.preset?.templates) {
-      enrollment.preset.templates.forEach(presetTemplate => {
+
+    if (enrollment.conditionPreset?.templates) {
+      enrollment.conditionPreset.templates.forEach(presetTemplate => {
         presetTemplate.template.items.forEach(item => {
           relevantMetricIds.add(item.metricDefinitionId);
         });
@@ -946,21 +995,26 @@ const getEnrollmentWithFilteredMetrics = async (req, res) => {
         id: enrollment.id,
         patientId: enrollment.patientId,
         clinicianId: enrollment.clinicianId,
-        presetId: enrollment.presetId,
-        diagnosisCode: enrollment.diagnosisCode,
+        careProgramId: enrollment.careProgramId,
+        conditionPresetId: enrollment.conditionPresetId,
         startDate: enrollment.startDate,
         endDate: enrollment.endDate,
         status: enrollment.status,
         notes: enrollment.notes,
         patient: enrollment.patient,
         clinician: enrollment.clinician,
-        preset: {
-          id: enrollment.preset.id,
-          name: enrollment.preset.name,
-          templateCount: enrollment.preset.templates?.length || 0
-        }
+        careProgram: {
+          id: enrollment.careProgram.id,
+          name: enrollment.careProgram.name,
+          type: enrollment.careProgram.type
+        },
+        conditionPreset: enrollment.conditionPreset ? {
+          id: enrollment.conditionPreset.id,
+          name: enrollment.conditionPreset.name,
+          templateCount: enrollment.conditionPreset.templates?.length || 0
+        } : null
       },
-      assessmentTemplates: enrollment.preset?.templates?.map(pt => ({
+      assessmentTemplates: enrollment.conditionPreset?.templates?.map(pt => ({
         id: pt.template.id,
         name: pt.template.name,
         description: pt.template.description,
@@ -971,9 +1025,9 @@ const getEnrollmentWithFilteredMetrics = async (req, res) => {
       filteredMetricDefinitions,
       context: {
         totalAvailableMetrics: filteredMetricDefinitions.length,
-        conditionPreset: enrollment.preset?.name,
+        conditionPreset: enrollment.conditionPreset?.name,
         filteringApplied: true,
-        message: `Showing ${filteredMetricDefinitions.length} metrics relevant to ${enrollment.preset?.name} condition preset`
+        message: `Showing ${filteredMetricDefinitions.length} metrics relevant to ${enrollment.conditionPreset?.name || enrollment.program?.name} ${enrollment.conditionPreset ? 'condition preset' : 'care program'}`
       }
     };
 

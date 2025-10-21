@@ -45,6 +45,11 @@ export default function Enrollments() {
     queryFn: () => api.getClinicians(),
   })
 
+  const { data: careProgramsResponse } = useQuery({
+    queryKey: ['care-programs'],
+    queryFn: () => api.getCarePrograms(),
+  })
+
   const { data: conditionPresetsResponse } = useQuery({
     queryKey: ['condition-presets'],
     queryFn: () => api.getConditionPresets(),
@@ -54,6 +59,7 @@ export default function Enrollments() {
   const enrollments = enrollmentsResponse?.data || []
   const patients = patientsResponse?.data || []
   const clinicians = cliniciansResponse?.data || []
+  const carePrograms = careProgramsResponse?.data || []
   const conditionPresets = conditionPresetsResponse?.data || []
 
   // Filter enrollments based on search term
@@ -75,8 +81,8 @@ export default function Enrollments() {
       const enrollmentResponse = await api.createEnrollment({
         patientId: formData.patientId,
         clinicianId: formData.clinicianId,
-        presetId: formData.presetId,
-        diagnosisCode: formData.diagnosisCode,
+        careProgramId: formData.careProgramId,
+        conditionPresetId: formData.conditionPresetId || null,
         startDate: formData.startDate,
         endDate: formData.endDate,
         notes: formData.notes
@@ -361,6 +367,7 @@ export default function Enrollments() {
         <EnhancedEnrollmentForm
           patients={patients}
           clinicians={clinicians}
+          carePrograms={carePrograms}
           conditionPresets={conditionPresets}
           onSubmit={handleSubmit}
           isLoading={createMutation.isLoading}

@@ -140,14 +140,33 @@ const createPatientMedication = async (req, res) => {
       });
     }
 
-    // Verify patient exists
+    // Verify patient exists and get organization details
     const patient = await prisma.patient.findUnique({
-      where: { id: patientId }
+      where: { id: patientId },
+      select: {
+        id: true,
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            type: true,
+            name: true
+          }
+        }
+      }
     });
 
     if (!patient) {
       return res.status(404).json({
         error: 'Patient not found'
+      });
+    }
+
+    // Block PLATFORM organizations from prescribing medications (patient-care feature)
+    if (patient.organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Medication prescribing is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
       });
     }
 

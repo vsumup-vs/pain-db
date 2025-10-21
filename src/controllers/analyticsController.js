@@ -21,6 +21,32 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from accessing analytics
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing patient-care analytics
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Analytics and reporting on patient care is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // If no clinicianId provided, use current user
     const targetClinicianId = clinicianId || currentUserId;
 
@@ -324,6 +350,32 @@ const getOrganizationWorkflowAnalytics = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from accessing analytics
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing patient-care analytics
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Analytics and reporting on patient care is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Calculate date range
     const now = new Date();
     let start, end;
@@ -465,6 +517,32 @@ const getPatientEngagementMetrics = async (req, res) => {
         success: false,
         error: 'Organization context required',
         code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Check organization type - block PLATFORM organizations from accessing analytics
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing patient-care analytics
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Analytics and reporting on patient care is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
       });
     }
 

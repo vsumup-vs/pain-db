@@ -111,6 +111,13 @@ export const api = {
   getConditionPresetsStats: () => apiClient.get('/condition-presets/stats'),
   customizeConditionPreset: (id) => apiClient.post(`/condition-presets/${id}/customize`),
 
+  // Care Programs
+  getCarePrograms: (params) => apiClient.get('/care-programs', { params }),
+  getCareProgram: (id) => apiClient.get(`/care-programs/${id}`),
+  createCareProgram: (data) => apiClient.post('/care-programs', data),
+  updateCareProgram: (id, data) => apiClient.put(`/care-programs/${id}`, data),
+  deleteCareProgram: (id) => apiClient.delete(`/care-programs/${id}`),
+
   // Alert Rules
   getAlertRules: (params) => apiClient.get('/alert-rules', { params }),
   getAlertRule: (id) => apiClient.get(`/alert-rules/${id}`),
@@ -160,6 +167,14 @@ export const api = {
   selectOrganization: (organizationId) => apiClient.post('/auth/select-organization', { organizationId }),
   switchOrganization: (organizationId) => apiClient.post('/auth/switch-organization', { organizationId }),
 
+  // Platform Admin - Organization Management (PLATFORM_ADMIN only)
+  getPlatformOrganizations: (params) => apiClient.get('/platform/organizations', { params }),
+  createPlatformOrganization: (data) => apiClient.post('/platform/organizations', data),
+  getPlatformOrganization: (id) => apiClient.get(`/platform/organizations/${id}`),
+  updatePlatformOrganization: (id, data) => apiClient.put(`/platform/organizations/${id}`, data),
+  deletePlatformOrganization: (id) => apiClient.delete(`/platform/organizations/${id}`),
+  getPlatformOrganizationUsage: (id) => apiClient.get(`/platform/organizations/${id}/usage`),
+
   // Alerts
   getAlerts: (params) => apiClient.get('/alerts', { params }),
   getAlert: (id) => apiClient.get(`/alerts/${id}`),
@@ -176,6 +191,8 @@ export const api = {
   unclaimAlert: (id) => apiClient.post(`/alerts/${id}/unclaim`),
   acknowledgeAlert: (id) => apiClient.post(`/alerts/${id}/acknowledge`),
   resolveAlert: (id, data) => apiClient.post(`/alerts/${id}/resolve`, data),
+  snoozeAlert: (id, data) => apiClient.post(`/alerts/${id}/snooze`, data),
+  suppressAlert: (id, data) => apiClient.post(`/alerts/${id}/suppress`, data),
 
   // Tasks (Phase 1b - Task Management System)
   getTasks: (params) => apiClient.get('/tasks', { params }),
@@ -233,6 +250,7 @@ export const api = {
   getEnrollments: (params) => apiClient.get('/enrollments', { params }),
   getEnrollment: (id) => apiClient.get(`/enrollments/${id}`),
   createEnrollment: (data) => apiClient.post('/enrollments', data),
+  createBulkEnrollments: (data) => apiClient.post('/enrollments/bulk', data),
   updateEnrollment: (id, data) => apiClient.put(`/enrollments/${id}`, data),
   deleteEnrollment: (id) => apiClient.delete(`/enrollments/${id}`)
 }

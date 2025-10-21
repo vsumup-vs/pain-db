@@ -39,6 +39,31 @@ const createAlert = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from creating manual alerts
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from creating manual alerts (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Manual alert creation is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Extract patientId and clinicianId from enrollment
     const patientId = enrollment.patientId;
     const clinicianId = enrollment.clinicianId;
@@ -604,7 +629,9 @@ const resolveAlert = async (req, res) => {
       let timeLog = null;
       if (clinicianIdForTimeLog) {
         // Find billing enrollment for this patient
-        const enrollmentId = await findBillingEnrollment(alert.patientId, organizationId, tx);
+        // IMPORTANT: Use patient's organizationId, not clinician's organizationId
+        // This ensures we find the correct enrollment even when clinician and patient are in different orgs
+        const enrollmentId = await findBillingEnrollment(alert.patientId, alert.patient.organizationId, tx);
 
         timeLog = await tx.timeLog.create({
           data: {
@@ -1577,7 +1604,7 @@ const unclaimAlert = async (req, res) => {
 const snoozeAlert = async (req, res) => {
   try {
     const { id } = req.params;
-    const { snoozeMinutes } = req.body; // Duration in minutes
+    const { snoozeMinutes: snoozeMinutesRaw } = req.body; // Duration in minutes
     const currentUserId = req.user?.userId;
     const organizationId = req.organizationId || req.user?.currentOrganization;
 
@@ -1596,11 +1623,22 @@ const snoozeAlert = async (req, res) => {
       });
     }
 
-    // Validate snooze duration
-    if (!snoozeMinutes || snoozeMinutes < 1) {
+    // Parse and validate snooze duration
+    const snoozeMinutes = parseInt(snoozeMinutesRaw);
+
+    if (!snoozeMinutes || isNaN(snoozeMinutes) || snoozeMinutes < 1) {
       return res.status(400).json({
         success: false,
         error: 'Snooze duration (minutes) is required and must be at least 1 minute'
+      });
+    }
+
+    // Maximum snooze duration: 1 week (10080 minutes)
+    const MAX_SNOOZE_MINUTES = 10080;
+    if (snoozeMinutes > MAX_SNOOZE_MINUTES) {
+      return res.status(400).json({
+        success: false,
+        error: `Snooze duration cannot exceed ${MAX_SNOOZE_MINUTES} minutes (1 week)`
       });
     }
 

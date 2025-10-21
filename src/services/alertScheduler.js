@@ -20,6 +20,27 @@ const prisma = new PrismaClient();
 // Track active scheduled jobs
 const activeJobs = [];
 
+// SLA Escalation Configuration (Phase 1b)
+// Configurable delay after SLA breach before escalating to supervisor
+const SLA_ESCALATION_RULES = {
+  CRITICAL: {
+    escalationDelayMinutes: 30,  // Escalate 30 minutes after SLA breach
+    notificationChannels: ['email', 'sms', 'in-app']
+  },
+  HIGH: {
+    escalationDelayMinutes: 120, // Escalate 2 hours after SLA breach
+    notificationChannels: ['email', 'in-app']
+  },
+  MEDIUM: {
+    escalationDelayMinutes: 240, // Escalate 4 hours after SLA breach
+    notificationChannels: ['email']
+  },
+  LOW: {
+    escalationDelayMinutes: null, // No auto-escalation for LOW severity
+    notificationChannels: []
+  }
+};
+
 /**
  * Start all scheduled alert evaluation jobs
  */
@@ -152,13 +173,20 @@ async function evaluateMissedAssessments() {
     let alertsCreated = 0;
 
     // Get all active enrollments with their condition presets
+    // IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
     const enrollments = await prisma.enrollment.findMany({
       where: {
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        organization: {
+          type: {
+            not: 'PLATFORM' // Exclude platform organizations - patient care only
+          }
+        }
       },
       include: {
         patient: true,
         clinician: true,
+        organization: true, // Include organization to check type
         conditionPreset: {
           include: {
             templates: {
@@ -277,19 +305,26 @@ async function evaluateMedicationAdherenceAlerts() {
     let alertsCreated = 0;
 
     // Get all active patient medications
+    // IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
     const activeMedications = await prisma.patientMedication.findMany({
       where: {
         isActive: true,
-        endDate: {
-          OR: [
-            { equals: null },
-            { gte: new Date() }
-          ]
+        OR: [ // Fixed: OR must be at top level, not nested in endDate
+          { endDate: null },
+          { endDate: { gte: new Date() } }
+        ],
+        patient: {
+          organization: {
+            type: {
+              not: 'PLATFORM' // Exclude platform organizations - patient care only
+            }
+          }
         }
       },
       include: {
         patient: {
           include: {
+            organization: true, // Include organization to check type
             enrollments: {
               where: {
                 status: 'ACTIVE'
@@ -379,13 +414,20 @@ async function evaluateDailyTrends() {
     let alertsCreated = 0;
 
     // Get all active enrollments
+    // IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
     const enrollments = await prisma.enrollment.findMany({
       where: {
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        organization: {
+          type: {
+            not: 'PLATFORM' // Exclude platform organizations - patient care only
+          }
+        }
       },
       include: {
         patient: true,
-        clinician: true
+        clinician: true,
+        organization: true // Include organization to check type
       }
     });
 
@@ -488,17 +530,36 @@ async function evaluateDailyTrends() {
 
 /**
  * Clean up stale alerts (older than 72 hours with no action)
+ * IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
  */
 async function cleanupStaleAlerts() {
   try {
     const staleDate = new Date();
     staleDate.setHours(staleDate.getHours() - 72);
 
-    const result = await prisma.alert.updateMany({
+    // Find stale alerts from client organizations only
+    const staleAlerts = await prisma.alert.findMany({
       where: {
         status: 'PENDING',
         triggeredAt: {
           lt: staleDate
+        },
+        organization: {
+          type: {
+            not: 'PLATFORM' // Exclude platform organizations - patient care only
+          }
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    // Update alerts to DISMISSED
+    const result = await prisma.alert.updateMany({
+      where: {
+        id: {
+          in: staleAlerts.map(a => a.id)
         }
       },
       data: {
@@ -711,9 +772,15 @@ async function sendAssessmentReminders() {
     let remindersSent = 0;
 
     // Get all active enrollments with condition presets
+    // IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
     const enrollments = await prisma.enrollment.findMany({
       where: {
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        organization: {
+          type: {
+            not: 'PLATFORM' // Exclude platform organizations - patient care only
+          }
+        }
       },
       include: {
         patient: {
@@ -725,6 +792,7 @@ async function sendAssessmentReminders() {
             phone: true
           }
         },
+        organization: true, // Include organization to check type
         conditionPreset: {
           include: {
             templates: {
@@ -830,13 +898,14 @@ async function sendAssessmentReminders() {
 /**
  * Reactivate snoozed alerts whose snooze period has expired (Phase 1b)
  * Checks every 5 minutes for alerts where snoozedUntil < now
+ * IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
  */
 async function reactivateSnoozedAlerts() {
   try {
     const sseService = require('./sseService');
     const now = new Date();
 
-    // Find all alerts with expired snooze
+    // Find all alerts with expired snooze from client organizations only
     const expiredSnoozedAlerts = await prisma.alert.findMany({
       where: {
         snoozedUntil: {
@@ -844,6 +913,11 @@ async function reactivateSnoozedAlerts() {
         },
         status: {
           notIn: ['RESOLVED', 'DISMISSED'] // Don't reactivate resolved/dismissed alerts
+        },
+        organization: {
+          type: {
+            not: 'PLATFORM' // Exclude platform organizations - patient care only
+          }
         }
       },
       include: {
@@ -860,7 +934,8 @@ async function reactivateSnoozedAlerts() {
             name: true,
             severity: true
           }
-        }
+        },
+        organization: true // Include organization to check type
       }
     });
 
@@ -910,14 +985,17 @@ async function reactivateSnoozedAlerts() {
 
 /**
  * Check for SLA breaches and automatically escalate alerts (Phase 1b)
+ * Enhanced with severity-based escalation delays and email notifications
  * Runs every minute to check alerts where slaBreachTime < now
+ * IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
  */
 async function checkAndEscalateSLABreaches() {
   try {
     const sseService = require('./sseService');
     const now = new Date();
 
-    // Find all PENDING alerts where SLA is breached and not already escalated
+    // Find all PENDING/ACKNOWLEDGED alerts where SLA is breached and not already escalated
+    // IMPORTANT: Only run for client organizations (exclude PLATFORM orgs)
     const breachedAlerts = await prisma.alert.findMany({
       where: {
         status: {
@@ -927,7 +1005,12 @@ async function checkAndEscalateSLABreaches() {
           lt: now // SLA breach time has passed
         },
         isEscalated: false, // Not yet escalated
-        isSuppressed: false // Don't escalate suppressed alerts
+        isSuppressed: false, // Don't escalate suppressed alerts
+        organization: {
+          type: {
+            not: 'PLATFORM' // Exclude platform organizations - patient care only
+          }
+        }
       },
       include: {
         patient: {
@@ -941,7 +1024,8 @@ async function checkAndEscalateSLABreaches() {
           select: {
             id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            email: true
           }
         },
         rule: {
@@ -950,6 +1034,13 @@ async function checkAndEscalateSLABreaches() {
             name: true,
             severity: true
           }
+        },
+        organization: true, // Include organization to check type
+        organization: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       }
     });
@@ -957,16 +1048,33 @@ async function checkAndEscalateSLABreaches() {
     let escalatedCount = 0;
 
     for (const alert of breachedAlerts) {
-      // Determine escalation target based on organization hierarchy
-      // For now, we'll escalate to the organization admin
-      // TODO: Implement proper escalation hierarchy (supervisor lookup)
+      // Check severity-based escalation delay
+      const escalationRule = SLA_ESCALATION_RULES[alert.severity];
 
-      // Find an ORG_ADMIN for this organization
-      const orgAdmin = await prisma.userOrganization.findFirst({
+      // Skip if no escalation rule for this severity (e.g., LOW)
+      if (!escalationRule || !escalationRule.escalationDelayMinutes) {
+        continue;
+      }
+
+      // Calculate when escalation should occur (SLA breach time + delay)
+      const escalationThreshold = new Date(
+        alert.slaBreachTime.getTime() + (escalationRule.escalationDelayMinutes * 60 * 1000)
+      );
+
+      // Check if escalation threshold has been reached
+      if (now < escalationThreshold) {
+        continue; // Not yet time to escalate
+      }
+
+      // Calculate time since SLA breach
+      const minutesSinceBreach = Math.floor((now - alert.slaBreachTime) / (60 * 1000));
+
+      // Find supervisors (ORG_ADMIN or SUPER_ADMIN) for this organization
+      const supervisors = await prisma.userOrganization.findMany({
         where: {
           organizationId: alert.organizationId,
-          role: 'ORG_ADMIN',
-          isActive: true
+          isActive: true,
+          role: { in: ['ORG_ADMIN', 'SUPER_ADMIN'] }
         },
         include: {
           user: {
@@ -980,13 +1088,13 @@ async function checkAndEscalateSLABreaches() {
         }
       });
 
-      if (!orgAdmin) {
-        console.warn(`No ORG_ADMIN found for organization ${alert.organizationId}, cannot escalate alert ${alert.id}`);
+      if (supervisors.length === 0) {
+        console.warn(`No supervisors found for organization ${alert.organizationId}, cannot escalate alert ${alert.id}`);
         continue;
       }
 
-      // Calculate time since SLA breach
-      const minutesSinceBreach = Math.floor((now - alert.slaBreachTime) / (60 * 1000));
+      // Use first supervisor as escalation target
+      const supervisor = supervisors[0];
 
       // Update alert with escalation details and create audit log
       const [updatedAlert] = await prisma.$transaction([
@@ -995,7 +1103,7 @@ async function checkAndEscalateSLABreaches() {
           data: {
             isEscalated: true,
             escalatedAt: now,
-            escalatedToId: orgAdmin.userId,
+            escalatedToId: supervisor.userId,
             escalationLevel: 1, // First escalation
             escalationReason: `Automatic escalation: SLA breach (${minutesSinceBreach} minutes overdue)`
           },
@@ -1027,7 +1135,7 @@ async function checkAndEscalateSLABreaches() {
         // Create audit log for automatic escalation
         prisma.auditLog.create({
           data: {
-            userId: orgAdmin.userId, // System action on behalf of org admin
+            userId: supervisor.userId, // System action on behalf of supervisor
             organizationId: alert.organizationId,
             action: 'ALERT_ESCALATED',
             resource: 'Alert',
@@ -1039,7 +1147,7 @@ async function checkAndEscalateSLABreaches() {
             newValues: {
               isEscalated: true,
               escalatedAt: now,
-              escalatedToId: orgAdmin.userId,
+              escalatedToId: supervisor.userId,
               escalationLevel: 1,
               escalationReason: `Automatic escalation: SLA breach (${minutesSinceBreach} minutes overdue)`
             },
@@ -1048,7 +1156,7 @@ async function checkAndEscalateSLABreaches() {
               ruleId: alert.ruleId,
               severity: alert.severity,
               escalationLevel: 1,
-              escalatedToEmail: orgAdmin.user.email,
+              escalatedToEmail: supervisor.user.email,
               minutesSinceBreach,
               autoEscalated: true
             },
@@ -1064,11 +1172,17 @@ async function checkAndEscalateSLABreaches() {
         console.error('Failed to broadcast SSE alert escalation:', sseError);
       }
 
-      // TODO: Send escalation notification email to escalatedTo user
-      // await notificationService.sendEscalationNotification(updatedAlert, orgAdmin.user, minutesSinceBreach);
+      // Send escalation notification email to all supervisors
+      for (const sup of supervisors) {
+        try {
+          await sendEscalationNotification(sup.user, alert, minutesSinceBreach, escalationRule);
+        } catch (emailError) {
+          console.error(`Failed to send escalation email to ${sup.user.email}:`, emailError);
+        }
+      }
 
       escalatedCount++;
-      console.log(`🚨 Auto-escalated alert ${alert.id}: ${alert.rule.name} for patient ${alert.patient.firstName} ${alert.patient.lastName} to ${orgAdmin.user.firstName} ${orgAdmin.user.lastName} (${minutesSinceBreach} min overdue)`);
+      console.log(`🚨 Auto-escalated alert ${alert.id}: ${alert.rule.name} for patient ${alert.patient.firstName} ${alert.patient.lastName} to ${supervisor.user.firstName} ${supervisor.user.lastName} (${minutesSinceBreach} min overdue)`);
     }
 
     return escalatedCount;
@@ -1077,6 +1191,56 @@ async function checkAndEscalateSLABreaches() {
     console.error('Error checking and escalating SLA breaches:', error);
     throw error;
   }
+}
+
+/**
+ * Send escalation notification email to supervisor (Phase 1b)
+ */
+async function sendEscalationNotification(supervisor, alert, minutesSinceBreach, escalationRule) {
+  const patientName = `${alert.patient.firstName} ${alert.patient.lastName}`;
+  const assignedTo = alert.clinician
+    ? `${alert.clinician.firstName} ${alert.clinician.lastName}`
+    : 'Unassigned';
+
+  const subject = `🚨 SLA ESCALATION: ${alert.severity} Alert for ${patientName}`;
+  const message = `
+    <h2>Alert SLA Breach - Escalation Required</h2>
+
+    <p><strong>Patient:</strong> ${patientName}</p>
+    <p><strong>Alert Severity:</strong> ${alert.severity}</p>
+    <p><strong>Alert Message:</strong> ${alert.message}</p>
+    <p><strong>Assigned To:</strong> ${assignedTo}</p>
+    <p><strong>Status:</strong> ${alert.status}</p>
+
+    <p><strong>SLA Breach Time:</strong> ${alert.slaBreachTime.toISOString()}</p>
+    <p><strong>Time Since Breach:</strong> ${minutesSinceBreach} minutes</p>
+
+    <p style="color: red;"><strong>This alert has not been acknowledged/resolved within the required SLA timeframe.</strong></p>
+
+    <p>Please review this alert immediately and take appropriate action.</p>
+
+    <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/alerts/${alert.id}">View Alert</a></p>
+  `;
+
+  // Send email notification
+  if (escalationRule.notificationChannels.includes('email')) {
+    await notificationService.sendEmail({
+      to: supervisor.email,
+      subject,
+      html: message
+    });
+    console.log(`📧 Escalation email sent to ${supervisor.email}`);
+  }
+
+  // TODO: Add SMS notification support when implemented
+  // if (escalationRule.notificationChannels.includes('sms')) {
+  //   await notificationService.sendSMS({ ... });
+  // }
+
+  // TODO: Add in-app notification support when implemented
+  // if (escalationRule.notificationChannels.includes('in-app')) {
+  //   await notificationService.createInAppNotification({ ... });
+  // }
 }
 
 module.exports = {

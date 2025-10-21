@@ -113,6 +113,12 @@ async function stopTimer({ userId, patientId, clinicianId, organizationId, enrol
       finalEnrollmentId = await findBillingEnrollment(patientId, organizationId);
     }
 
+    // Convert CPT code string to enum format if provided
+    let cptCodeEnum = null;
+    if (cptCode) {
+      cptCodeEnum = `CODE_${cptCode}`;
+    }
+
     const timeLog = await prisma.timeLog.create({
       data: {
         patientId,
@@ -120,7 +126,7 @@ async function stopTimer({ userId, patientId, clinicianId, organizationId, enrol
         enrollmentId: finalEnrollmentId, // Link to billing enrollment for accurate billing
         activity: timer.activity,
         duration: finalDuration,
-        cptCode,
+        cptCode: cptCodeEnum, // Use enum format
         notes,
         billable,
         loggedAt: timer.startedAt,

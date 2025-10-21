@@ -102,24 +102,27 @@ export default function Layout({ children }) {
             org => org.organizationId === user.currentOrganization
           ) || user.organizations[0]
           setCurrentOrganization(currentOrg)
-        }
 
-        // Check if user is platform admin
-        const isPlatformAdmin = user.isPlatformAdmin || false
-        const isOrgAdmin = user.organizations?.some(org => org.role === 'ORG_ADMIN')
+          // Check if current organization is PLATFORM type
+          const isPlatformOrg = currentOrg?.type === 'PLATFORM'
+          const isOrgAdmin = currentOrg?.role === 'ORG_ADMIN'
 
-        if (isPlatformAdmin) {
-          setUserRole('PLATFORM_ADMIN')
-          setNavigation(platformNavigation)
-          setAdminNav([])  // Platform admin has everything in main nav
-        } else if (isOrgAdmin) {
-          setUserRole('ORG_ADMIN')
-          setNavigation(clinicalNavigation)
-          setAdminNav(orgAdminNavigation)  // ORG_ADMIN gets user management
-        } else {
-          setUserRole('USER')
-          setNavigation(clinicalNavigation)
-          setAdminNav([])  // Regular users get clinical nav only
+          if (isPlatformOrg) {
+            // PLATFORM organization - show platform management navigation
+            setUserRole('PLATFORM_ADMIN')
+            setNavigation(platformNavigation)
+            setAdminNav([])  // Platform admin has everything in main nav
+          } else if (isOrgAdmin) {
+            // Client organization admin - show clinical nav + user management
+            setUserRole('ORG_ADMIN')
+            setNavigation(clinicalNavigation)
+            setAdminNav(orgAdminNavigation)  // ORG_ADMIN gets user management
+          } else {
+            // Regular user in client organization - show clinical nav only
+            setUserRole('USER')
+            setNavigation(clinicalNavigation)
+            setAdminNav([])  // Regular users get clinical nav only
+          }
         }
       } catch (error) {
         console.error('Error fetching user role:', error)

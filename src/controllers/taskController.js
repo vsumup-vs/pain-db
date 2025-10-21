@@ -257,6 +257,31 @@ const createTask = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from creating patient care tasks
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from creating patient care tasks (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Patient care task management is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Validate enum values
     const validTaskTypes = ['FOLLOW_UP_CALL', 'MED_REVIEW', 'ADHERENCE_CHECK', 'LAB_ORDER', 'REFERRAL', 'CUSTOM'];
     if (!validTaskTypes.includes(taskType)) {

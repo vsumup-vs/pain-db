@@ -15,7 +15,7 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
-import TimeTrackerWidget from './TimeTrackerWidget'
+import TimerWidget from './TimerWidget'
 
 export default function PatientContextPanel({ isOpen, onClose, patientId, clinicianId, days = 30 }) {
   const queryClient = useQueryClient()
@@ -180,12 +180,12 @@ export default function PatientContextPanel({ isOpen, onClose, patientId, clinic
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {/* Time Tracker Widget */}
-                          {clinicianId && (
-                            <TimeTrackerWidget
+                          {/* Timer Widget */}
+                          {patient.id && (
+                            <TimerWidget
                               patientId={patientId}
-                              clinicianId={clinicianId}
-                              onTimerStop={() => queryClient.invalidateQueries(['patientContext', patientId, days])}
+                              patientName={`${patient.firstName} ${patient.lastName}`}
+                              onTimeStopped={() => queryClient.invalidateQueries(['patientContext', patientId, days])}
                             />
                           )}
 

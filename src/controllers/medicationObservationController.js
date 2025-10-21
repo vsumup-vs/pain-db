@@ -26,15 +26,38 @@ const createMedicationObservation = async (req, res) => {
       });
     }
 
-    // Get patient medication details
+    // Get patient medication details and organization
     const patientMedication = await prisma.patientMedication.findUnique({
       where: { id: patientMedicationId },
-      include: { drug: true }
+      include: {
+        drug: true,
+        patient: {
+          select: {
+            id: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                type: true,
+                name: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!patientMedication) {
       return res.status(404).json({
         error: 'Patient medication not found'
+      });
+    }
+
+    // Block PLATFORM organizations from tracking medication adherence (patient-care feature)
+    if (patientMedication.patient.organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Medication adherence tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
       });
     }
 

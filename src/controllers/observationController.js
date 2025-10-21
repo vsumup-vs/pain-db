@@ -34,7 +34,18 @@ const createObservation = async (req, res) => {
     const queries = [
       prisma.patient.findUnique({
         where: { id: patientId },
-        select: { id: true, medicalRecordNumber: true } // Only select needed fields
+        select: {
+          id: true,
+          medicalRecordNumber: true,
+          organizationId: true,
+          organization: {
+            select: {
+              id: true,
+              type: true,
+              name: true
+            }
+          }
+        }
       }),
       prisma.metricDefinition.findUnique({
         where: { id: metricDefinitionId },
@@ -72,6 +83,14 @@ const createObservation = async (req, res) => {
     if (!patient) validationErrors.push('Patient not found');
     if (!metricDefinition) validationErrors.push('Metric definition not found');
 
+    // Block PLATFORM organizations from creating observations (patient-care feature)
+    if (patient && patient.organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Observation creation is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Only validate enrollment if it was provided
     if (enrollmentId) {
       if (!enrollment) validationErrors.push('Enrollment not found');
@@ -102,7 +121,7 @@ const createObservation = async (req, res) => {
       });
     }
 
-    // Get organizationId from request context
+    // Get organizationId from request context (for creating the observation record)
     const organizationId = req.organizationId || req.user?.currentOrganization;
 
     if (!organizationId) {
@@ -113,9 +132,12 @@ const createObservation = async (req, res) => {
     }
 
     // Auto-detect billing enrollment if not provided
+    // IMPORTANT: Use patient's organizationId for finding billing enrollment,
+    // not the clinician's organizationId from the request context.
+    // This handles cross-organization scenarios where a clinician manages patients in different orgs.
     let finalEnrollmentId = enrollmentId;
-    if (!finalEnrollmentId && organizationId) {
-      finalEnrollmentId = await findBillingEnrollment(patientId, organizationId);
+    if (!finalEnrollmentId && patient.organizationId) {
+      finalEnrollmentId = await findBillingEnrollment(patientId, patient.organizationId);
     }
 
     // OPTIMIZATION 4: Create observation with minimal includes

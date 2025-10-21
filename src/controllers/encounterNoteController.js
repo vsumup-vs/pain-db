@@ -195,6 +195,31 @@ const createEncounterNote = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from creating encounter notes
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from creating encounter notes (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Clinical documentation is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Validate required fields
     if (!patientId || !clinicianId || !encounterType) {
       return res.status(400).json({

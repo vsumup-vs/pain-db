@@ -24,7 +24,7 @@ import api from '../services/api'
  * - createFollowUpTask: Whether to create a follow-up task
  * - followUpTaskType, followUpTaskTitle, followUpTaskDescription, followUpTaskDueDate
  */
-export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLoading }) {
+export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLoading, activeTimerMinutes }) {
   // Fetch all users for task assignment (not just clinicians - can be nurses, care coordinators, etc.)
   const { data: usersResponse } = useQuery({
     queryKey: ['users'],
@@ -67,9 +67,23 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      reset()
+      reset({
+        resolutionNotes: '',
+        interventionType: '',
+        patientOutcome: '',
+        timeSpentMinutes: activeTimerMinutes || 20, // Use timer minutes if available, otherwise default to 20
+        createFollowUpTask: false,
+        followUpTaskType: 'FOLLOW_UP_CALL',
+        followUpTaskTitle: '',
+        followUpTaskDescription: '',
+        followUpTaskDueDate: '',
+        followUpTaskPriority: 'MEDIUM',
+        followUpTaskAssignedToId: '',
+        createEncounterNote: false,
+        encounterNoteType: 'GENERAL',
+      })
     }
-  }, [isOpen, reset])
+  }, [isOpen, reset, activeTimerMinutes])
 
   const handleFormSubmit = (data) => {
     onSubmit(data)
@@ -266,6 +280,14 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
                   Time Spent (minutes) *
                   <span className="text-xs text-gray-500 ml-2">(for billing documentation)</span>
                 </label>
+                {activeTimerMinutes && (
+                  <div className="mb-2 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Timer running: {activeTimerMinutes} minutes elapsed</span>
+                  </div>
+                )}
                 <input
                   type="number"
                   id="timeSpentMinutes"
@@ -285,7 +307,9 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
                   <p className="mt-1 text-sm text-red-600">{errors.timeSpentMinutes.message}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  Note: 20+ minutes qualifies for CPT 99457 billing
+                  {activeTimerMinutes
+                    ? 'Time pre-filled from active timer. You can adjust if needed.'
+                    : 'Note: 20+ minutes qualifies for CPT 99457 billing'}
                 </p>
               </div>
 

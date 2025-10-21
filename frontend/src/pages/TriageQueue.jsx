@@ -14,13 +14,19 @@ import {
   FunnelIcon,
   PlusCircleIcon,
   SignalIcon,
-  SignalSlashIcon
+  SignalSlashIcon,
+  BellSlashIcon,
+  NoSymbolIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
 import ResolutionModal from '../components/ResolutionModal'
+import SnoozeModal from '../components/SnoozeModal'
+import SuppressModal from '../components/SuppressModal'
 import PatientContextPanel from '../components/PatientContextPanel'
+import TimerWidget from '../components/TimerWidget'
 import { useRealTimeAlerts } from '../hooks/useRealTimeAlerts'
+import { useAllTimers } from '../hooks/useTimer'
 
 export default function TriageQueue() {
   const [filters, setFilters] = useState({
@@ -45,6 +51,14 @@ export default function TriageQueue() {
   const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false)
   const [selectedAlertForResolution, setSelectedAlertForResolution] = useState(null)
 
+  // Snooze modal state
+  const [isSnoozeModalOpen, setIsSnoozeModalOpen] = useState(false)
+  const [selectedAlertForSnooze, setSelectedAlertForSnooze] = useState(null)
+
+  // Suppress modal state
+  const [isSuppressModalOpen, setIsSuppressModalOpen] = useState(false)
+  const [selectedAlertForSuppress, setSelectedAlertForSuppress] = useState(null)
+
   // Patient Context Panel state
   const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState(null)
@@ -54,6 +68,9 @@ export default function TriageQueue() {
 
   // Real-time SSE connection for instant alert updates
   const { alerts: sseAlerts, connectionStatus, error: sseError, reconnect } = useRealTimeAlerts()
+
+  // Active timers for all patients
+  const { timers } = useAllTimers()
 
   // Track previous alert count for notification
   const prevAlertCountRef = useRef(0)
@@ -160,7 +177,8 @@ export default function TriageQueue() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['triageQueue'])
-      queryClient.invalidateQueries(['active-timer']) // Refresh timer state
+      queryClient.invalidateQueries(['active-timer']) // Refresh individual timer state
+      queryClient.invalidateQueries(['active-timers-all']) // Refresh all timers list (CRITICAL FIX)
       toast.success('Alert claimed - timer started automatically')
     },
     onError: (error) => {
@@ -219,6 +237,34 @@ export default function TriageQueue() {
     }
   })
 
+  // Snooze alert mutation (Phase 1b)
+  const snoozeAlertMutation = useMutation({
+    mutationFn: ({ id, data }) => api.snoozeAlert(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['triageQueue'])
+      toast.success('Alert snoozed successfully')
+      setIsSnoozeModalOpen(false)
+      setSelectedAlertForSnooze(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Failed to snooze alert')
+    }
+  })
+
+  // Suppress alert mutation (Phase 1b)
+  const suppressAlertMutation = useMutation({
+    mutationFn: ({ id, data }) => api.suppressAlert(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['triageQueue'])
+      toast.success('Alert suppressed successfully')
+      setIsSuppressModalOpen(false)
+      setSelectedAlertForSuppress(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Failed to suppress alert')
+    }
+  })
+
   const handleClaim = (alert) => {
     claimAlertMutation.mutate({
       alertId: alert.id,
@@ -244,9 +290,34 @@ export default function TriageQueue() {
     }
   }
 
-  const handleResolutionSubmit = (resolutionData) => {
+  const handleResolutionSubmit = async (resolutionData) => {
     if (!selectedAlertForResolution) return
 
+    // Check if there's an active timer for this patient
+    const patientId = selectedAlertForResolution.patient?.id
+    const activeTimer = timers?.find(t => t.patientId === patientId)
+
+    // If there's an active timer, stop it before resolving the alert
+    if (activeTimer && patientId) {
+      try {
+        // Stop the timer with the resolution data
+        await api.stopTimer({
+          patientId,
+          cptCode: resolutionData.cptCode || null,
+          notes: resolutionData.resolutionNotes,
+          billable: true
+        })
+
+        // Invalidate timer queries to refresh the UI
+        queryClient.invalidateQueries(['active-timer', patientId])
+        queryClient.invalidateQueries(['active-timers-all'])
+      } catch (error) {
+        console.error('Error stopping timer:', error)
+        // Continue with resolution even if timer stop fails
+      }
+    }
+
+    // Proceed with alert resolution
     resolveAlertMutation.mutate({
       id: selectedAlertForResolution.id,
       data: resolutionData
@@ -256,6 +327,52 @@ export default function TriageQueue() {
   const handleResolutionModalClose = () => {
     setIsResolutionModalOpen(false)
     setSelectedAlertForResolution(null)
+  }
+
+  // Snooze alert handler (Phase 1b)
+  const handleSnooze = (alertId) => {
+    const alert = alerts.find(a => a.id === alertId)
+    if (alert) {
+      setSelectedAlertForSnooze(alert)
+      setIsSnoozeModalOpen(true)
+    }
+  }
+
+  const handleSnoozeSubmit = (snoozeData) => {
+    if (!selectedAlertForSnooze) return
+
+    snoozeAlertMutation.mutate({
+      id: selectedAlertForSnooze.id,
+      data: snoozeData
+    })
+  }
+
+  const handleSnoozeModalClose = () => {
+    setIsSnoozeModalOpen(false)
+    setSelectedAlertForSnooze(null)
+  }
+
+  // Suppress alert handler (Phase 1b)
+  const handleSuppress = (alertId) => {
+    const alert = alerts.find(a => a.id === alertId)
+    if (alert) {
+      setSelectedAlertForSuppress(alert)
+      setIsSuppressModalOpen(true)
+    }
+  }
+
+  const handleSuppressSubmit = (suppressData) => {
+    if (!selectedAlertForSuppress) return
+
+    suppressAlertMutation.mutate({
+      id: selectedAlertForSuppress.id,
+      data: suppressData
+    })
+  }
+
+  const handleSuppressModalClose = () => {
+    setIsSuppressModalOpen(false)
+    setSelectedAlertForSuppress(null)
   }
 
   const handleViewPatientContext = (patientId, clinicianId) => {
@@ -298,14 +415,36 @@ export default function TriageQueue() {
     }
   }
 
-  // Get SLA status color and icon
-  const getSLAStatusBadge = (slaStatus, timeRemainingMinutes) => {
+  // Get SLA status color and icon (Enhanced for Phase 1b escalation visibility)
+  const getSLAStatusBadge = (slaStatus, timeRemainingMinutes, alert) => {
+    // Check if alert has been escalated (based on slaBreachTime and escalation delay rules)
+    const minutesSinceBreach = alert.slaBreachTime && slaStatus === 'breached'
+      ? Math.abs(timeRemainingMinutes)
+      : 0;
+
+    let isEscalated = false;
+    if (alert.severity === 'CRITICAL' && minutesSinceBreach >= 30) {
+      isEscalated = true; // CRITICAL: escalated 30 min after breach
+    } else if (alert.severity === 'HIGH' && minutesSinceBreach >= 120) {
+      isEscalated = true; // HIGH: escalated 2 hours after breach
+    } else if (alert.severity === 'MEDIUM' && minutesSinceBreach >= 240) {
+      isEscalated = true; // MEDIUM: escalated 4 hours after breach
+    }
+
     if (slaStatus === 'breached') {
       return (
-        <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 border border-red-300">
-          <ClockIcon className="h-3 w-3 mr-1" />
-          SLA BREACHED
-        </span>
+        <div className="flex flex-col items-end space-y-1">
+          <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 border border-red-300">
+            <ClockIcon className="h-3 w-3 mr-1" />
+            SLA BREACHED {minutesSinceBreach > 0 && `${minutesSinceBreach}m ago`}
+          </span>
+          {isEscalated && (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800 border border-purple-300">
+              <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
+              Escalated to Supervisor
+            </span>
+          )}
+        </div>
       )
     } else if (slaStatus === 'approaching') {
       return (
@@ -412,6 +551,30 @@ export default function TriageQueue() {
             </div>
           </div>
         </div>
+
+        {/* Active Timers Section */}
+        {timers && timers.length > 0 && (
+          <div className="mb-8 space-y-4">
+            {timers.map(timerData => {
+              // Find alert/patient name from alerts array
+              const alert = alerts.find(a => a.patientId === timerData.patientId)
+              const patientName = alert?.patient ?
+                `${alert.patient.firstName} ${alert.patient.lastName}` :
+                'Unknown Patient'
+
+              return (
+                <TimerWidget
+                  key={timerData.patientId}
+                  patientId={timerData.patientId}
+                  patientName={patientName}
+                  onTimeStopped={() => {
+                    queryClient.invalidateQueries(['triageQueue'])
+                  }}
+                />
+              )
+            })}
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
@@ -585,7 +748,7 @@ export default function TriageQueue() {
                       <span className={`inline-flex items-center px-4 py-2 text-sm font-bold rounded-full ${getRiskLevelColor(alert.computed.riskLevel)}`}>
                         Risk: {alert.riskScore?.toFixed(1) || 'N/A'}
                       </span>
-                      {getSLAStatusBadge(alert.computed.slaStatus, alert.computed.timeRemainingMinutes)}
+                      {getSLAStatusBadge(alert.computed.slaStatus, alert.computed.timeRemainingMinutes, alert)}
                     </div>
                   </div>
 
@@ -680,6 +843,22 @@ export default function TriageQueue() {
                             <CheckIcon className="h-4 w-4 mr-2" />
                             Resolve
                           </button>
+                          <button
+                            onClick={() => handleSnooze(alert.id)}
+                            disabled={snoozeAlertMutation.isLoading}
+                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                          >
+                            <BellSlashIcon className="h-4 w-4 mr-2" />
+                            Snooze
+                          </button>
+                          <button
+                            onClick={() => handleSuppress(alert.id)}
+                            disabled={suppressAlertMutation.isLoading}
+                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-medium rounded-lg hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                          >
+                            <NoSymbolIcon className="h-4 w-4 mr-2" />
+                            Suppress
+                          </button>
                         </>
                       ) : (
                         <span className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg">
@@ -735,6 +914,29 @@ export default function TriageQueue() {
         onSubmit={handleResolutionSubmit}
         alert={selectedAlertForResolution}
         isSubmitting={resolveAlertMutation.isLoading}
+        activeTimerMinutes={
+          selectedAlertForResolution?.patient?.id
+            ? timers?.find(t => t.patientId === selectedAlertForResolution.patient.id)?.elapsedTime?.minutes
+            : undefined
+        }
+      />
+
+      {/* Snooze Modal (Phase 1b) */}
+      <SnoozeModal
+        isOpen={isSnoozeModalOpen}
+        onClose={handleSnoozeModalClose}
+        onSubmit={handleSnoozeSubmit}
+        alert={selectedAlertForSnooze}
+        isSubmitting={snoozeAlertMutation.isLoading}
+      />
+
+      {/* Suppress Modal (Phase 1b) */}
+      <SuppressModal
+        isOpen={isSuppressModalOpen}
+        onClose={handleSuppressModalClose}
+        onSubmit={handleSuppressSubmit}
+        alert={selectedAlertForSuppress}
+        isSubmitting={suppressAlertMutation.isLoading}
       />
 
       {/* Patient Context Panel */}

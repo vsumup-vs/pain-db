@@ -1,6 +1,6 @@
 # Product Roadmap
 
-> Last Updated: 2025-10-10
+> Last Updated: 2025-10-18
 > Version: 1.0.0
 > Status: Active Development
 
@@ -116,9 +116,12 @@ The following features have been implemented:
 
 - [ ] **Alert Snooze & Suppress with Reason Codes** - Allow care managers to temporarily snooze non-actionable alerts or suppress repeated alerts with documented reason `S` (2-3 days)
   - Update Alert model: add `snoozedUntil`, `suppressReason`, `suppressedBy`
-- [ ] **SLA Timers & Escalation Logic** - Track time-to-acknowledge and time-to-resolve with automatic escalation if SLAs breached `M` (3-4 days)
-  - Alert model already has `slaBreachTime` from triage queue work
-  - Add escalation job: notify supervisor if alert unacknowledged >2 hours (configurable per severity)
+- [x] **SLA Timers & Escalation Logic** - Track time-to-acknowledge and time-to-resolve with automatic escalation if SLAs breached `M` (3-4 days) ✅ **COMPLETE**
+  - Alert model has `slaBreachTime` from triage queue work
+  - Severity-based escalation delays: CRITICAL: 30min, HIGH: 2hrs, MEDIUM: 4hrs
+  - alertScheduler.js runs every minute checking for alerts requiring escalation
+  - Email notifications to supervisors when alerts escalate
+  - Frontend UI shows "Escalated to Supervisor" badge when threshold exceeded
 - [ ] **Bulk Alert Actions** - Multi-select alerts for bulk acknowledge, resolve, snooze, assign (restricted to coordinators) `S` (2 days)
 - [ ] **Clinician Workflow Analytics** - Dashboard showing time per patient, alerts resolved per day, average resolution time, task completion rate `M` (3-4 days)
 - [ ] **Patient Engagement Metrics** - Track assessment adherence %, medication adherence trends, observation submission patterns with intervention triggers `S` (2-3 days)

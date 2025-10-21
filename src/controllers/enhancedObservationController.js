@@ -30,6 +30,36 @@ class EnhancedObservationController {
         });
       }
 
+      // Fetch patient with organization details to check organization type
+      const patient = await prisma.patient.findUnique({
+        where: { id: observationData.patientId },
+        select: {
+          id: true,
+          organization: {
+            select: {
+              id: true,
+              type: true,
+              name: true
+            }
+          }
+        }
+      });
+
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: 'Patient not found'
+        });
+      }
+
+      // Block PLATFORM organizations from creating observations (patient-care feature)
+      if (patient.organization.type === 'PLATFORM') {
+        return res.status(403).json({
+          success: false,
+          message: 'Observation recording is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+        });
+      }
+
       const result = await this.continuityService.createObservationWithContext(observationData);
 
       res.status(201).json({
@@ -55,15 +85,45 @@ class EnhancedObservationController {
   async getObservationsWithContext(req, res) {
     try {
       const { patientId } = req.params;
-      const { 
-        context, 
-        enrollmentId, 
-        billingRelevant, 
+      const {
+        context,
+        enrollmentId,
+        billingRelevant,
         providerReviewed,
         metricDefinitionId,
-        limit = 50, 
-        offset = 0 
+        limit = 50,
+        offset = 0
       } = req.query;
+
+      // Fetch patient with organization details to check organization type
+      const patient = await prisma.patient.findUnique({
+        where: { id: patientId },
+        select: {
+          id: true,
+          organization: {
+            select: {
+              id: true,
+              type: true,
+              name: true
+            }
+          }
+        }
+      });
+
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: 'Patient not found'
+        });
+      }
+
+      // Block PLATFORM organizations from accessing patient observations (patient-care feature)
+      if (patient.organization.type === 'PLATFORM') {
+        return res.status(403).json({
+          success: false,
+          message: 'Patient observation access is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+        });
+      }
 
       // Build where clause
       const where = { patientId };

@@ -56,6 +56,31 @@ const createClinician = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from creating clinicians
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from creating clinicians (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Clinician management is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     const clinician = await prisma.clinician.create({
       data: {
         organizationId,  // SECURITY: Always include organizationId
@@ -122,9 +147,21 @@ const getAllClinicians = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
     const take = limitNum;
 
+    // SECURITY: Get organizationId from authenticated user context
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
     // Build where clause for filtering
-    const where = {};
-    
+    const where = {
+      organizationId // SECURITY: Always filter by organization
+    };
+
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -133,11 +170,11 @@ const getAllClinicians = async (req, res) => {
         { specialization: { contains: search, mode: 'insensitive' } }
       ];
     }
-    
+
     if (specialization) {
       where.specialization = { contains: specialization, mode: 'insensitive' };
     }
-    
+
     if (department) {
       where.department = { contains: department, mode: 'insensitive' };
     }
@@ -371,7 +408,7 @@ const deleteClinician = async (req, res) => {
 
     // Check if clinician has active enrollments
     const activeEnrollments = existingClinician.enrollments.filter(
-      enrollment => enrollment.status === 'active'
+      enrollment => enrollment.status === 'ACTIVE'
     );
 
     if (activeEnrollments.length > 0) {
@@ -383,10 +420,10 @@ const deleteClinician = async (req, res) => {
 
     // Use transaction to handle deletion
     await prisma.$transaction(async (tx) => {
-      // Update enrollments to ended status
+      // Update enrollments to completed status
       await tx.enrollment.updateMany({
         where: { clinicianId: id },
-        data: { status: 'ended' }
+        data: { status: 'COMPLETED' }
       });
 
       // Delete the clinician
@@ -506,7 +543,7 @@ const getCliniciansBySpecialization = async (req, res) => {
         _count: {
           select: {
             enrollments: {
-              where: { status: 'active' }
+              where: { status: 'ACTIVE' }
             }
           }
         }

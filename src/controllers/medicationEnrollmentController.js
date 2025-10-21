@@ -17,11 +17,21 @@ const addMedicationToEnrollment = async (req, res) => {
       isPRN = false
     } = req.body;
 
-    // Get enrollment details
+    // Get enrollment details with organization
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
-        patient: true,
+        patient: {
+          include: {
+            organization: {
+              select: {
+                id: true,
+                type: true,
+                name: true
+              }
+            }
+          }
+        },
         clinician: true
       }
     });
@@ -29,6 +39,14 @@ const addMedicationToEnrollment = async (req, res) => {
     if (!enrollment) {
       return res.status(404).json({
         error: 'Enrollment not found'
+      });
+    }
+
+    // Block PLATFORM organizations from adding medications to enrollments (patient-care feature)
+    if (enrollment.patient.organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Medication management is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
       });
     }
 
@@ -82,6 +100,13 @@ const getEnrollmentMedicationSummary = async (req, res) => {
       include: {
         patient: {
           include: {
+            organization: {
+              select: {
+                id: true,
+                type: true,
+                name: true
+              }
+            },
             patientMedications: {
               where: { isActive: true },
               include: {
@@ -104,6 +129,14 @@ const getEnrollmentMedicationSummary = async (req, res) => {
     if (!enrollment) {
       return res.status(404).json({
         error: 'Enrollment not found'
+      });
+    }
+
+    // Block PLATFORM organizations from accessing medication enrollment summaries (patient-care feature)
+    if (enrollment.patient.organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Medication enrollment tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
       });
     }
 

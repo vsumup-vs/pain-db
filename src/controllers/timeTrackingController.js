@@ -12,6 +12,10 @@
 
 const timeTrackingService = require('../services/timeTrackingService');
 const { body, param, validationResult } = require('express-validator');
+const { PrismaClient } = require('@prisma/client');
+
+// Use global prisma client in test environment, otherwise create new instance
+const prisma = global.prisma || new PrismaClient();
 
 /**
  * POST /api/time-tracking/start
@@ -33,6 +37,36 @@ const startTimer = [
     const userId = req.user.id;
 
     try {
+      // Fetch patient with organization details to check organization type
+      const patient = await prisma.patient.findUnique({
+        where: { id: patientId },
+        select: {
+          id: true,
+          organization: {
+            select: {
+              id: true,
+              type: true,
+              name: true
+            }
+          }
+        }
+      });
+
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: 'Patient not found'
+        });
+      }
+
+      // Block PLATFORM organizations from starting patient care time tracking (patient-care feature)
+      if (patient.organization.type === 'PLATFORM') {
+        return res.status(403).json({
+          success: false,
+          message: 'Patient care time tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+        });
+      }
+
       const result = await timeTrackingService.startTimer({
         userId,
         patientId,
@@ -63,7 +97,6 @@ const startTimer = [
  */
 const stopTimer = [
   body('patientId').notEmpty().withMessage('Patient ID is required'),
-  body('clinicianId').notEmpty().withMessage('Clinician ID is required'),
   body('cptCode').optional().isString(),
   body('notes').optional().isString(),
   body('billable').optional().isBoolean(),
@@ -74,19 +107,68 @@ const stopTimer = [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { patientId, clinicianId, cptCode, notes, billable } = req.body;
+    const { patientId, cptCode, notes, billable } = req.body;
     const userId = req.user.id;
-    const organizationId = req.user.currentOrganization; // Extract organization from authenticated user
+    const clinicianOrganizationId = req.user.currentOrganization;
 
     try {
+      // Fetch patient to get their organizationId for billing enrollment lookup
+      // IMPORTANT: Use patient's organizationId, not clinician's organizationId
+      // This handles cross-organization scenarios where a clinician manages patients in different orgs.
+      const patient = await prisma.patient.findUnique({
+        where: { id: patientId },
+        select: {
+          id: true,
+          organizationId: true,
+          organization: {
+            select: {
+              id: true,
+              type: true,
+              name: true
+            }
+          }
+        }
+      });
+
+      if (!patient) {
+        return res.status(404).json({
+          success: false,
+          message: 'Patient not found'
+        });
+      }
+
+      // Block PLATFORM organizations from stopping patient care time tracking (patient-care feature)
+      if (patient.organization.type === 'PLATFORM') {
+        return res.status(403).json({
+          success: false,
+          message: 'Patient care time tracking is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+        });
+      }
+
+      // Find clinician ID from authenticated user (same pattern as alert resolution)
+      const clinician = await prisma.clinician.findFirst({
+        where: {
+          email: req.user.email,
+          organizationId: clinicianOrganizationId
+        },
+        select: { id: true }
+      });
+
+      if (!clinician) {
+        // Gracefully handle missing clinician - still create time log without billing linkage
+        console.warn(`No active clinician found for user ${req.user.email} in organization ${clinicianOrganizationId}`);
+      }
+
+      const clinicianId = clinician?.id || null;
+
       const result = await timeTrackingService.stopTimer({
         userId,
         patientId,
         clinicianId,
-        organizationId, // Pass organization ID for billing enrollment lookup
+        organizationId: patient.organizationId, // Use patient's org for billing enrollment
         cptCode,
         notes,
-        billable: billable !== false // Default true
+        billable: billable !== false
       });
 
       if (!result.success) {

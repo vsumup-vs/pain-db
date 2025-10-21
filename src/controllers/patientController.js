@@ -38,6 +38,31 @@ const createPatient = async (req, res) => {
       });
     }
 
+    // Check organization type - block PLATFORM organizations from creating patients
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        type: true,
+        name: true
+      }
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        error: 'Organization not found',
+        code: 'ORG_NOT_FOUND'
+      });
+    }
+
+    // Block PLATFORM organizations from creating patients (patient-care feature)
+    if (organization.type === 'PLATFORM') {
+      return res.status(403).json({
+        success: false,
+        message: 'Patient creation is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
+      });
+    }
+
     // Check if patient with email already exists IN THIS ORGANIZATION
     const existingPatient = await prisma.patient.findFirst({
       where: {
@@ -353,7 +378,7 @@ const deletePatient = async (req, res) => {
 
     // Check if patient has active enrollments
     const activeEnrollments = existingPatient.enrollments.filter(
-      enrollment => enrollment.status === 'active'
+      enrollment => enrollment.status === 'ACTIVE'
     );
 
     if (activeEnrollments.length > 0) {
@@ -447,7 +472,7 @@ const getPatientStats = async (req, res) => {
       prisma.enrollment.count({
         where: {
           patientId: id,
-          status: 'active'
+          status: 'ACTIVE'
         }
       })
     ]);

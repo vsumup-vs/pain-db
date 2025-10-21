@@ -173,6 +173,7 @@ router.post('/login',
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          isPlatformAdmin: user.isPlatformAdmin || false,
           role: selectedOrganization?.role,
           organizations: user.userOrganizations.map(uo => ({
             id: uo.organizationId,

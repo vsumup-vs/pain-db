@@ -31,6 +31,7 @@ const alertRuleRoutes = require('./src/routes/alertRuleRoutes');
 const assessmentTemplateRoutes = require('./src/routes/assessmentTemplateRoutes');
 const assessmentTemplateEnhancedRoutes = require('./src/routes/assessmentTemplateRoutes.enhanced');
 const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
+const careProgramRoutes = require('./src/routes/careProgramRoutes');
 
 // Import new routes
 const drugRoutes = require('./src/routes/drugRoutes');
@@ -42,6 +43,7 @@ const billingRoutes = require('./src/routes/billingRoutes');
 const encounterNoteRoutes = require('./src/routes/encounterNoteRoutes');
 const timeTrackingRoutes = require('./src/routes/timeTrackingRoutes');
 const analyticsRoutes = require('./src/routes/analyticsRoutes');
+const platformRoutes = require('./src/routes/platformRoutes');
 
 // Import authentication
 const passport = require('passport');
@@ -118,7 +120,8 @@ app.get('/api', (req, res) => {
       'condition-presets': '/api/condition-presets',
       drugs: '/api/drugs',
       'patient-medications': '/api/patient-medications',
-      billing: '/api/billing'
+      billing: '/api/billing',
+      'care-programs': '/api/care-programs'
     }
   });
 });
@@ -143,6 +146,7 @@ app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganiza
 app.use('/api/billing', requireAuth, injectOrganizationContext, auditOrganizationAccess, billingRoutes);
 app.use('/api/time-tracking', requireAuth, injectOrganizationContext, auditOrganizationAccess, timeTrackingRoutes);
 app.use('/api/analytics', requireAuth, injectOrganizationContext, auditOrganizationAccess, analyticsRoutes);
+app.use('/api/care-programs', requireAuth, injectOrganizationContext, auditOrganizationAccess, careProgramRoutes);
 
 // Platform configuration routes (platform-wide resources, no organization context needed)
 // These are managed by SUPER_ADMIN and available to all organizations
@@ -155,6 +159,10 @@ app.use('/api/condition-presets', requireAuth, conditionPresetRoutes);
 // Admin routes (SUPER_ADMIN and ORG_ADMIN)
 // Note: Organizations don't need organization context middleware since they manage organizations themselves
 app.use('/api/organizations', requireAuth, organizationRoutes);
+
+// Platform admin routes (PLATFORM_ADMIN only - no organization context needed)
+// Platform admins manage all client organizations from a central dashboard
+app.use('/api/platform', platformRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
