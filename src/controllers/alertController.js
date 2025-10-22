@@ -1281,6 +1281,25 @@ const getTriageQueue = async (req, res) => {
       prisma.alert.count({ where })
     ]);
 
+    // Calculate total time logged per patient for badge display
+    const patientIds = [...new Set(alerts.map(a => a.patientId))];
+
+    const timeLogsByPatient = await prisma.timeLog.groupBy({
+      by: ['patientId'],
+      where: {
+        patientId: { in: patientIds }
+      },
+      _sum: {
+        duration: true
+      }
+    });
+
+    // Create a map of patientId -> total minutes logged
+    const timeLoggedMap = {};
+    timeLogsByPatient.forEach(record => {
+      timeLoggedMap[record.patientId] = record._sum.duration || 0;
+    });
+
     // Enrich alerts with computed fields
     const now = new Date();
     const enrichedAlerts = alerts.map(alert => {
@@ -1315,7 +1334,8 @@ const getTriageQueue = async (req, res) => {
           slaStatus: slaStatusValue,
           riskLevel,
           isClaimed: !!alert.claimedById,
-          isClaimedByMe: alert.claimedById === currentUserId
+          isClaimedByMe: alert.claimedById === currentUserId,
+          totalTimeLoggedMinutes: timeLoggedMap[alert.patientId] || 0
         }
       };
     });

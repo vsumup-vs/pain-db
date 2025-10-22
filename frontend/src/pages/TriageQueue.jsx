@@ -303,18 +303,30 @@ export default function TriageQueue() {
 
     // Check if there's an active timer for this patient
     const patientId = selectedAlertForResolution.patient?.id
+
+    console.log('Resolution submit - Patient ID:', patientId)
+    console.log('All timers:', timers)
+
     const activeTimer = timers?.find(t => t.patientId === patientId)
+    console.log('Found active timer:', activeTimer)
 
     // If there's an active timer, stop it before resolving the alert
     if (activeTimer && patientId) {
+      console.log('Attempting to stop timer for patient:', patientId)
       try {
         // Stop the timer with the resolution data
-        await api.stopTimer({
+        // Only include cptCode if it has a value (backend rejects null)
+        const stopTimerPayload = {
           patientId,
-          cptCode: resolutionData.cptCode || null,
           notes: resolutionData.resolutionNotes,
           billable: true
-        })
+        }
+        if (resolutionData.cptCode) {
+          stopTimerPayload.cptCode = resolutionData.cptCode
+        }
+        await api.stopTimer(stopTimerPayload)
+
+        console.log('Timer stopped successfully')
 
         // Invalidate timer queries to refresh the UI
         queryClient.invalidateQueries(['active-timer', patientId])
@@ -323,6 +335,8 @@ export default function TriageQueue() {
         console.error('Error stopping timer:', error)
         // Continue with resolution even if timer stop fails
       }
+    } else {
+      console.log('No active timer found, skipping timer stop')
     }
 
     // Proceed with alert resolution
@@ -768,6 +782,12 @@ export default function TriageQueue() {
                         Risk: {alert.riskScore?.toFixed(1) || 'N/A'}
                       </span>
                       {getSLAStatusBadge(alert.computed.slaStatus, alert.computed.timeRemainingMinutes, alert)}
+                      {alert.computed.totalTimeLoggedMinutes > 0 && (
+                        <span className="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300">
+                          <ClockIcon className="h-4 w-4 mr-1" />
+                          Time logged: {alert.computed.totalTimeLoggedMinutes} min
+                        </span>
+                      )}
                     </div>
                   </div>
 
