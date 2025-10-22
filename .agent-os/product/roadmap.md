@@ -1,6 +1,6 @@
 # Product Roadmap
 
-> Last Updated: 2025-10-18
+> Last Updated: 2025-10-22
 > Version: 1.0.0
 > Status: Active Development
 
@@ -87,7 +87,14 @@ The following features have been implemented:
 - [x] **Auto-Start/Stop Time Tracking** - Timers automatically start when engaging with patient (alert click, task start) and stop on disposition with optional manual adjustments `S` (2-3 days) ✅ **COMPLETE**
   - TimeLog model has `autoStarted`, `source` (AUTO, MANUAL, ADJUSTED)
   - timeTrackingService.js has startTimer and stopTimer functions
+  - Bug fix (2025-10-22): Fixed timer auto-stop validation error - backend was rejecting null CPT codes; modified frontend to conditionally include cptCode only when populated
   - **Success Metric**: >90% of clinical time captured automatically (vs current manual entry)
+
+- [x] **Time Logged Badge Display** - Visual indicator showing total time logged per patient on alert cards `S` (1 day) ✅ **COMPLETE** (Added 2025-10-22)
+  - Backend: Prisma groupBy aggregation for TimeLogs (alertController.js)
+  - Frontend: Badge with clock icon showing "Time logged: X minutes" (TriageQueue.jsx)
+  - Shows cumulative time across all activities for each patient
+  - Helps clinicians quickly identify patients with significant clinical time investment
 
 ---
 
