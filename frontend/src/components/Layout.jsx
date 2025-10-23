@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, Transition } from '@headlessui/react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
+import VitalEdgeLogo from './VitalEdgeLogo'
 import {
   HomeIcon,
   UserGroupIcon,
@@ -25,7 +26,8 @@ import {
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   CheckIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  PresentationChartLineIcon
 } from '@heroicons/react/24/outline'
 
 // Platform Configuration (Platform Admin only)
@@ -45,9 +47,12 @@ const clinicalNavigation = [
   { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
   { name: 'Encounter Notes', href: '/encounter-notes', icon: DocumentTextIcon },
   { name: 'Billing Readiness', href: '/billing-readiness', icon: CurrencyDollarIcon },
+  { name: 'Clinician Analytics', href: '/analytics/clinician-workflow', icon: PresentationChartLineIcon },
+  { name: 'Patient Engagement', href: '/analytics/patient-engagement', icon: PresentationChartLineIcon },
   { name: 'Patients', href: '/patients', icon: UserGroupIcon },
   { name: 'Clinicians', href: '/clinicians', icon: UserIcon },
   { name: 'Enrollments', href: '/enrollments', icon: ClipboardDocumentListIcon },
+  { name: 'Care Programs', href: '/care-programs', icon: ChartBarIcon },
   { name: 'Observations', href: '/observations', icon: EyeIcon },
   { name: 'Alerts', href: '/alerts', icon: BellIcon },
   { name: 'Assessment Templates', href: '/assessment-templates', icon: DocumentTextIcon },
@@ -176,8 +181,11 @@ export default function Layout({ children }) {
             </button>
           </div>
           <div className="h-0 flex-1 overflow-y-auto pt-5 pb-4">
-            <div className="flex flex-shrink-0 items-center px-4">
-              <h1 className="text-xl font-bold text-gray-900">Pain Management</h1>
+            <div className="flex flex-shrink-0 items-center px-4 space-x-2">
+              <VitalEdgeLogo className="w-8 h-8" animated={false} />
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                VitalEdge
+              </h1>
             </div>
             <nav className="mt-5 space-y-1 px-2">
               {navigation.map((item) => (
@@ -253,8 +261,11 @@ export default function Layout({ children }) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
-            <div className="flex flex-shrink-0 items-center px-4">
-              <h1 className="text-xl font-bold text-gray-900">ClinMetrics Pro</h1>
+            <div className="flex flex-shrink-0 items-center px-4 space-x-2">
+              <VitalEdgeLogo className="w-8 h-8" animated={false} />
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                VitalEdge
+              </h1>
             </div>
             <nav className="mt-5 flex-1 space-y-1 px-2">
               {navigation.map((item) => (
