@@ -48,7 +48,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
     }
 
     // If no clinicianId provided, use current user
-    const targetClinicianId = clinicianId || currentUserId;
+    const targetUserId = clinicianId || currentUserId;
 
     // Calculate date range
     const now = new Date();
@@ -75,9 +75,9 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       }
     }
 
-    // Fetch clinician info
-    const clinician = await prisma.user.findUnique({
-      where: { id: targetClinicianId },
+    // Fetch user info
+    const user = await prisma.user.findUnique({
+      where: { id: targetUserId },
       select: {
         id: true,
         firstName: true,
@@ -86,18 +86,33 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       }
     });
 
-    if (!clinician) {
+    if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'Clinician not found'
+        error: 'User not found'
       });
     }
+
+    // Fetch the actual Clinician record linked to this User (match by email)
+    const clinicianRecord = await prisma.clinician.findFirst({
+      where: {
+        email: user.email,
+        organizationId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    // Use Clinician ID for TimeLog queries (important!)
+    // If no clinician record found, TimeLog queries will return empty (expected for non-clinician users)
+    const actualClinicianId = clinicianRecord?.id;
 
     // 1. Alert Resolution Metrics
     const resolvedAlerts = await prisma.alert.findMany({
       where: {
         organizationId,
-        resolvedById: targetClinicianId,
+        resolvedById: targetUserId, // Alert.resolvedById is User ID
         resolvedAt: {
           gte: start,
           lte: end
@@ -137,7 +152,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       prisma.task.count({
         where: {
           organizationId,
-          assignedToId: targetClinicianId,
+          assignedToId: targetUserId, // Task.assignedToId is User ID
           status: 'COMPLETED',
           completedAt: {
             gte: start,
@@ -148,7 +163,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       prisma.task.count({
         where: {
           organizationId,
-          assignedToId: targetClinicianId,
+          assignedToId: targetUserId, // Task.assignedToId is User ID
           createdAt: {
             gte: start,
             lte: end
@@ -163,7 +178,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
     const overdueTasks = await prisma.task.count({
       where: {
         organizationId,
-        assignedToId: targetClinicianId,
+        assignedToId: targetUserId, // Task.assignedToId is User ID
         status: { in: ['PENDING', 'IN_PROGRESS'] },
         dueDate: { lt: now }
       }
@@ -172,7 +187,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
     // 3. Time Logging Analysis
     const timeLogs = await prisma.timeLog.findMany({
       where: {
-        clinicianId: targetClinicianId,
+        clinicianId: actualClinicianId, // TimeLog.clinicianId is Clinician ID (CRITICAL FIX!)
         loggedAt: {
           gte: start,
           lte: end
@@ -203,7 +218,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       by: ['patientId'],
       where: {
         organizationId,
-        resolvedById: targetClinicianId,
+        resolvedById: targetUserId, // Alert.resolvedById is User ID
         resolvedAt: {
           gte: start,
           lte: end
@@ -227,7 +242,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       const dayAlerts = await prisma.alert.count({
         where: {
           organizationId,
-          resolvedById: targetClinicianId,
+          resolvedById: targetUserId, // Alert.resolvedById is User ID
           resolvedAt: {
             gte: dayStart,
             lte: dayEnd
@@ -238,7 +253,7 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       const dayTasks = await prisma.task.count({
         where: {
           organizationId,
-          assignedToId: targetClinicianId,
+          assignedToId: targetUserId, // Task.assignedToId is User ID
           status: 'COMPLETED',
           completedAt: {
             gte: dayStart,
@@ -282,9 +297,9 @@ const getClinicianWorkflowAnalytics = async (req, res) => {
       success: true,
       data: {
         clinician: {
-          id: clinician.id,
-          name: `${clinician.firstName} ${clinician.lastName}`,
-          email: clinician.email
+          id: user.id,
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email
         },
         timeframe: {
           start: start.toISOString(),
@@ -602,7 +617,7 @@ const getPatientEngagementMetrics = async (req, res) => {
           careProgram: {
             select: {
               name: true,
-              assessmentFrequency: true
+              settings: true
             }
           }
         }
@@ -632,18 +647,28 @@ const getPatientEngagementMetrics = async (req, res) => {
       // Calculate expected assessments based on program frequency
       const daysDiff = Math.ceil((end - start) / (24 * 60 * 60 * 1000));
       let expectedAssessments = 0;
-      enrollments.forEach(enrollment => {
-        const frequency = enrollment.careProgram.assessmentFrequency;
-        if (frequency === 'DAILY') {
-          expectedAssessments += daysDiff;
-        } else if (frequency === 'WEEKLY') {
-          expectedAssessments += Math.floor(daysDiff / 7);
-        } else if (frequency === 'BIWEEKLY') {
-          expectedAssessments += Math.floor(daysDiff / 14);
-        } else if (frequency === 'MONTHLY') {
-          expectedAssessments += Math.floor(daysDiff / 30);
-        }
-      });
+
+      if (enrollments.length > 0) {
+        enrollments.forEach(enrollment => {
+          // Get assessment frequency from settings if available, default to WEEKLY
+          const frequency = enrollment.careProgram.settings?.assessmentFrequency || 'WEEKLY';
+          if (frequency === 'DAILY' || frequency === 'daily') {
+            expectedAssessments += daysDiff;
+          } else if (frequency === 'WEEKLY' || frequency === 'weekly') {
+            expectedAssessments += Math.floor(daysDiff / 7);
+          } else if (frequency === 'BIWEEKLY' || frequency === 'biweekly') {
+            expectedAssessments += Math.floor(daysDiff / 14);
+          } else if (frequency === 'MONTHLY' || frequency === 'monthly') {
+            expectedAssessments += Math.floor(daysDiff / 30);
+          } else {
+            // If frequency is not recognized, default to weekly
+            expectedAssessments += Math.floor(daysDiff / 7);
+          }
+        });
+      } else {
+        // If no active enrollments, assume weekly frequency
+        expectedAssessments = Math.floor(daysDiff / 7);
+      }
 
       const assessmentAdherenceRate = expectedAssessments > 0
         ? (completedAssessments / expectedAssessments) * 100
@@ -653,7 +678,7 @@ const getPatientEngagementMetrics = async (req, res) => {
       const activeMedications = await prisma.patientMedication.findMany({
         where: {
           patientId,
-          status: 'ACTIVE',
+          isActive: true,
           startDate: { lte: end },
           OR: [
             { endDate: null },
@@ -762,14 +787,19 @@ const getPatientEngagementMetrics = async (req, res) => {
       // 5. Calculate engagement score (0-100)
       let engagementScore = 0;
 
+      // Cap individual rates at 100% to prevent over-scoring
+      const cappedAssessmentRate = Math.min(assessmentAdherenceRate, 100);
+      const cappedMedicationRate = Math.min(avgMedicationAdherence, 100);
+      const cappedObservationRate = Math.min(observationConsistency, 100);
+
       // Assessment adherence (40 points)
-      engagementScore += (assessmentAdherenceRate / 100) * 40;
+      engagementScore += (cappedAssessmentRate / 100) * 40;
 
       // Medication adherence (30 points)
-      engagementScore += (avgMedicationAdherence / 100) * 30;
+      engagementScore += (cappedMedicationRate / 100) * 30;
 
       // Observation consistency (20 points)
-      engagementScore += (observationConsistency / 100) * 20;
+      engagementScore += (cappedObservationRate / 100) * 20;
 
       // Bonus: No critical alerts (10 points)
       if (criticalAlerts === 0) {
@@ -777,6 +807,9 @@ const getPatientEngagementMetrics = async (req, res) => {
       } else if (criticalAlerts <= 2) {
         engagementScore += 5;
       }
+
+      // Cap final engagement score at 100
+      engagementScore = Math.min(engagementScore, 100);
 
       // 6. Daily engagement trend (last 7 days)
       const trendDays = 7;
@@ -808,10 +841,37 @@ const getPatientEngagementMetrics = async (req, res) => {
           }
         });
 
+        // Calculate daily engagement score
+        // Expected 1 assessment per day (or based on program frequency, simplified to 1 for daily trend)
+        const dayAssessmentScore = dayAssessments > 0 ? 40 : 0;
+
+        // Medication adherence for the day (simplified - assume adherent if any observations)
+        const dayMedicationScore = dayObservations > 0 ? 30 : 0;
+
+        // Observation consistency (20 points if any observations)
+        const dayObservationScore = dayObservations > 0 ? 20 : 0;
+
+        // Bonus: No critical alerts (10 points)
+        const dayCriticalAlerts = await prisma.alert.count({
+          where: {
+            patientId,
+            severity: 'CRITICAL',
+            triggeredAt: {
+              gte: dayStart,
+              lte: dayEnd
+            }
+          }
+        });
+
+        const dayAlertBonus = dayCriticalAlerts === 0 ? 10 : 0;
+
+        const dayEngagementScore = dayAssessmentScore + dayMedicationScore + dayObservationScore + dayAlertBonus;
+
         trendData.push({
           date: dayStart.toISOString().split('T')[0],
           assessments: dayAssessments,
-          observations: dayObservations
+          observations: dayObservations,
+          engagementScore: dayEngagementScore
         });
       }
 
@@ -830,25 +890,25 @@ const getPatientEngagementMetrics = async (req, res) => {
           },
           summary: {
             engagementScore: Math.round(engagementScore),
-            assessmentAdherenceRate: Math.round(assessmentAdherenceRate),
-            medicationAdherenceRate: Math.round(avgMedicationAdherence),
-            observationConsistency: Math.round(observationConsistency),
+            assessmentAdherenceRate: Math.min(Math.round(assessmentAdherenceRate), 100),
+            medicationAdherenceRate: Math.min(Math.round(avgMedicationAdherence), 100),
+            observationConsistency: Math.min(Math.round(observationConsistency), 100),
             totalAlerts: patientAlerts,
             criticalAlerts
           },
           assessmentMetrics: {
             expected: expectedAssessments,
             completed: completedAssessments,
-            adherenceRate: Math.round(assessmentAdherenceRate),
+            adherenceRate: Math.min(Math.round(assessmentAdherenceRate), 100),
             activePrograms: enrollments.length
           },
           medicationMetrics: {
             activeMedications: activeMedications.length,
-            avgAdherenceRate: Math.round(avgMedicationAdherence),
+            avgAdherenceRate: Math.min(Math.round(avgMedicationAdherence), 100),
             byMedication: medicationAdherence
           },
           observationMetrics: {
-            total: observations.length,
+            totalObservations: observations.length,
             daysWithSubmissions: daysWithObservations,
             totalDays: daysDiff,
             consistencyRate: Math.round(observationConsistency)
@@ -874,7 +934,19 @@ const getPatientEngagementMetrics = async (req, res) => {
 
     const patientEngagement = await Promise.all(
       allPatients.slice(0, 20).map(async (patient) => {
-        const assessments = await prisma.assessment.count({
+        // Get enrollments for assessment expectations
+        const enrollments = await prisma.enrollment.findMany({
+          where: {
+            patientId: patient.id,
+            OR: [
+              { endDate: null },
+              { endDate: { gte: start } }
+            ]
+          }
+        });
+
+        // Calculate assessment adherence
+        const completedAssessments = await prisma.assessment.count({
           where: {
             patientId: patient.id,
             completedAt: {
@@ -884,25 +956,126 @@ const getPatientEngagementMetrics = async (req, res) => {
           }
         });
 
-        const observations = await prisma.observation.count({
+        const expectedAssessments = Math.max(enrollments.length * 4, 1); // Assume 4 assessments per enrollment in timeframe
+        const assessmentAdherenceRate = Math.min((completedAssessments / expectedAssessments) * 100, 100);
+
+        // Calculate medication adherence
+        const activeMedications = await prisma.patientMedication.findMany({
+          where: {
+            patientId: patient.id,
+            OR: [
+              { endDate: null },
+              { endDate: { gte: start } }
+            ]
+          },
+          include: {
+            drug: {
+              select: {
+                brandName: true,
+                genericName: true
+              }
+            }
+          }
+        });
+
+        const medicationAdherenceData = await Promise.all(
+          activeMedications.map(async (med) => {
+            const adherenceLogs = await prisma.medicationAdherence.findMany({
+              where: {
+                patientMedicationId: med.id,
+                takenAt: {
+                  gte: start,
+                  lte: end
+                }
+              },
+              select: {
+                adherenceScore: true
+              }
+            });
+
+            // Calculate average adherence score for this medication
+            if (adherenceLogs.length === 0) return 0;
+
+            const avgScore = adherenceLogs.reduce((sum, log) => sum + (log.adherenceScore || 0), 0) / adherenceLogs.length;
+            return avgScore;
+          })
+        );
+
+        const avgMedicationAdherence = medicationAdherenceData.length > 0
+          ? medicationAdherenceData.reduce((sum, rate) => sum + rate, 0) / medicationAdherenceData.length
+          : 0;
+
+        // Calculate observation metrics
+        const observations = await prisma.observation.findMany({
           where: {
             patientId: patient.id,
             recordedAt: {
               gte: start,
               lte: end
             }
+          },
+          select: {
+            recordedAt: true
           }
         });
 
-        // Simple engagement score based on activity
-        const activityScore = Math.min(100, (assessments * 10) + (observations * 2));
+        const observationsByDay = {};
+        observations.forEach(obs => {
+          const day = obs.recordedAt.toISOString().split('T')[0];
+          observationsByDay[day] = (observationsByDay[day] || 0) + 1;
+        });
+
+        const daysWithObservations = Object.keys(observationsByDay).length;
+        const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        const observationConsistency = daysDiff > 0 ? Math.min((daysWithObservations / daysDiff) * 100, 100) : 0;
+
+        // Calculate engagement score (0-100)
+        const cappedAssessmentRate = Math.min(assessmentAdherenceRate, 100);
+        const cappedMedicationRate = Math.min(avgMedicationAdherence, 100);
+        const cappedObservationRate = Math.min(observationConsistency, 100);
+
+        let engagementScore = 0;
+        engagementScore += (cappedAssessmentRate / 100) * 40; // 40 points
+        engagementScore += (cappedMedicationRate / 100) * 30;  // 30 points
+        engagementScore += (cappedObservationRate / 100) * 20; // 20 points
+
+        // Bonus for low critical alerts
+        const criticalAlerts = await prisma.alert.count({
+          where: {
+            patientId: patient.id,
+            severity: 'CRITICAL',
+            triggeredAt: {
+              gte: start,
+              lte: end
+            }
+          }
+        });
+
+        if (criticalAlerts === 0) {
+          engagementScore += 10;
+        } else if (criticalAlerts <= 2) {
+          engagementScore += 5;
+        }
+
+        engagementScore = Math.min(engagementScore, 100);
 
         return {
           patientId: patient.id,
-          name: `${patient.firstName} ${patient.lastName}`,
-          assessments,
-          observations,
-          engagementScore: Math.round(activityScore)
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          engagementScore: Math.round(engagementScore),
+          assessmentAdherence: {
+            completed: completedAssessments,
+            expected: expectedAssessments,
+            adherenceRate: Math.round(assessmentAdherenceRate)
+          },
+          medicationAdherence: {
+            overallRate: Math.round(avgMedicationAdherence)
+          },
+          observationMetrics: {
+            totalObservations: observations.length,
+            daysWithSubmissions: daysWithObservations,
+            consistencyRate: Math.round(observationConsistency)
+          }
         };
       })
     );
@@ -926,14 +1099,19 @@ const getPatientEngagementMetrics = async (req, res) => {
           highlyEngaged: patientEngagement.filter(p => p.engagementScore >= 70).length,
           atRisk: patientEngagement.filter(p => p.engagementScore < 40).length
         },
-        patientEngagement: patientEngagement.slice(0, 10) // Top 10
+        topPatients: patientEngagement.slice(0, 20) // Top 20 patients
       }
     });
   } catch (error) {
     console.error('Error fetching patient engagement metrics:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Request params:', req.query);
+    console.error('User:', req.user);
+    console.error('Organization ID:', req.organizationId);
     res.status(500).json({
       success: false,
-      error: 'Internal server error while fetching patient engagement metrics'
+      error: 'Internal server error while fetching patient engagement metrics',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
