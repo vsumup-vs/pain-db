@@ -1,7 +1,7 @@
 {
-  "name": "clinmetrics-pro-platform",
+  "name": "vitaledge-platform",
   "version": "1.0.0",
-  "description": "ClinMetrics Pro - Clinical Metrics Management Platform",
+  "description": "VitalEdge - Standards-Driven Clinical Intelligence",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

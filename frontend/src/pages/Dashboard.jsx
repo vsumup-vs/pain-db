@@ -129,7 +129,7 @@ export default function Dashboard() {
             Dashboard
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Welcome to ClinMetrics Pro - Precision Healthcare Analytics. Empower your clinical team with data-driven insights and streamlined patient care
+            Welcome to VitalEdge - Standards-Driven Clinical Intelligence. Empower your clinical team with evidence-based insights and optimized care workflows
           </p>
         </div>
 

@@ -158,10 +158,10 @@ const Login = () => {
             </svg>
           </div>
           <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            ClinMetrics Pro
+            VitalEdge
           </h2>
           <p className="mt-2 text-gray-600 font-medium">
-            Clinical Metrics Management Platform
+            Standards-Driven Clinical Intelligence
           </p>
         </div>
 

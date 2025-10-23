@@ -1,10 +1,10 @@
-# ClinMetrics Pro - Clinical Metrics Management Platform
+# VitalEdge - Standards-Driven Clinical Intelligence
 
-A comprehensive REST API for clinical metrics and healthcare management applications, built with Node.js, Express, and Prisma ORM.
+A comprehensive platform for Remote Patient Monitoring (RPM), Remote Therapeutic Monitoring (RTM), and Chronic Care Management (CCM), built with Node.js, Express, React, and Prisma ORM.
 
 ## 🏥 Overview
 
-ClinMetrics Pro provides a complete backend solution for healthcare clinics, enabling:
+VitalEdge provides a standards-based clinical intelligence solution for healthcare organizations, enabling:
 - Patient enrollment and management
 - Clinician profiles and specializations
 - Clinical observation tracking and analytics
@@ -225,4 +225,4 @@ This API is designed with healthcare data privacy in mind:
 
 ---
 
-**Built with ❤️ for better pain management healthcare**
+**VitalEdge - Where Clinical Excellence Meets Efficiency**

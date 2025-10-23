@@ -1,7 +1,7 @@
 # CLAUDE.md - Project Instructions
 
-> ClinMetrics Pro - Clinical Metrics Management Platform
-> Last Updated: 2025-10-17 (Billing documentation added)
+> VitalEdge - Standards-Driven Clinical Intelligence
+> Last Updated: 2025-10-23 (Rebranded to VitalEdge)
 
 ## Agent OS Documentation
 

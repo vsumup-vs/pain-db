@@ -5,7 +5,7 @@
 
 ## Pitch
 
-ClinMetrics Pro is a standards-based clinical metrics management platform that enables Remote Therapeutic Monitoring (RTM), Remote Patient Monitoring (RPM), and Chronic Care Management (CCM) programs by providing authoritative, extensible condition presets, metrics, assessment templates, and alert rules—serving as a comprehensive initial library for clinics and researchers while supporting full client-level customization.
+VitalEdge is a standards-driven clinical intelligence platform that enables Remote Therapeutic Monitoring (RTM), Remote Patient Monitoring (RPM), and Chronic Care Management (CCM) programs by providing authoritative, extensible condition presets, metrics, assessment templates, and alert rules—serving as a comprehensive initial library for clinics and researchers while supporting full client-level customization.
 
 ## Users
 
