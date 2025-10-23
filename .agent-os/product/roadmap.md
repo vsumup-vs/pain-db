@@ -121,15 +121,32 @@ The following features have been implemented:
 
 #### Should-Have Features
 
-- [ ] **Alert Snooze & Suppress with Reason Codes** - Allow care managers to temporarily snooze non-actionable alerts or suppress repeated alerts with documented reason `S` (2-3 days)
-  - Update Alert model: add `snoozedUntil`, `suppressReason`, `suppressedBy`
+- [x] **Alert Snooze & Suppress with Reason Codes** - Allow care managers to temporarily snooze non-actionable alerts or suppress repeated alerts with documented reason `S` (2-3 days) ✅ **COMPLETE** (Added 2025-10-23)
+  - Schema: Alert model has complete snooze/suppress fields (snoozedUntil, snoozedById, snoozedAt, isSuppressed, suppressReason, suppressedById, suppressedAt, suppressNotes)
+  - Backend: alertController.js has 4 controller functions (snoozeAlert, unsnoozeAlert, suppressAlert, unsuppressAlert)
+  - Routes: All 4 endpoints exposed (POST /api/alerts/:id/snooze, /unsnooze, /suppress, /unsuppress)
+  - Frontend: SnoozeModal.jsx and SuppressModal.jsx components fully integrated in TriageQueue.jsx
+  - Supports single-alert snooze/suppress and bulk snooze/suppress via bulk actions
+  - Enum validation: SuppressReason includes NOT_ACTIONABLE, DUPLICATE, CLINICAL_JUDGMENT, PATIENT_REQUEST, TECHNICAL_ISSUE, OTHER
+  - Audit logging: All snooze/suppress actions create audit log entries with full context
+  - **Success Metric**: Care managers can temporarily defer non-actionable alerts with documented reasons
 - [x] **SLA Timers & Escalation Logic** - Track time-to-acknowledge and time-to-resolve with automatic escalation if SLAs breached `M` (3-4 days) ✅ **COMPLETE**
   - Alert model has `slaBreachTime` from triage queue work
   - Severity-based escalation delays: CRITICAL: 30min, HIGH: 2hrs, MEDIUM: 4hrs
   - alertScheduler.js runs every minute checking for alerts requiring escalation
   - Email notifications to supervisors when alerts escalate
   - Frontend UI shows "Escalated to Supervisor" badge when threshold exceeded
-- [ ] **Bulk Alert Actions** - Multi-select alerts for bulk acknowledge, resolve, snooze, assign (restricted to coordinators) `S` (2 days)
+- [x] **Bulk Alert Actions** - Multi-select alerts for bulk acknowledge, resolve, snooze, assign (restricted to coordinators) `S` (2 days) ✅ **COMPLETE** (Added 2025-10-23)
+  - Frontend: Multi-select state management with Set data structure for selected alerts
+  - UI: "Select Mode" toggle button to enable bulk action mode (lines 810-822 TriageQueue.jsx)
+  - UI: "Select All" checkbox to select all filtered alerts (lines 827-834)
+  - UI: Individual checkboxes on each alert card (lines 1026-1034)
+  - Bulk Action Toolbar: 4 action buttons (Acknowledge, Resolve, Snooze, Assign) with color-coded styling (lines 853-921)
+  - Handlers: handleBulkAcknowledge, handleBulkResolve, handleBulkSnooze, handleBulkAssign (lines 467-557)
+  - Backend: alertController.js bulkAlertActions() function supports all actions with validation
+  - Modals: Bulk resolve and bulk snooze use same modal components as single actions
+  - Toast notifications: Success/error feedback for bulk operations
+  - **Success Metric**: Care managers can process multiple alerts simultaneously, reducing triage time by 50%+
 - [x] **Clinician Workflow Analytics** - Dashboard showing time per patient, alerts resolved per day, average resolution time, task completion rate `M` (3-4 days) ✅ **COMPLETE** (Added 2025-10-23)
   - Backend: analyticsController.js getClinicianWorkflowAnalytics() endpoint
   - Fixed critical User ID vs Clinician ID confusion (TimeLog queries need Clinician table ID, not User ID)
