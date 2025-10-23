@@ -130,8 +130,23 @@ The following features have been implemented:
   - Email notifications to supervisors when alerts escalate
   - Frontend UI shows "Escalated to Supervisor" badge when threshold exceeded
 - [ ] **Bulk Alert Actions** - Multi-select alerts for bulk acknowledge, resolve, snooze, assign (restricted to coordinators) `S` (2 days)
-- [ ] **Clinician Workflow Analytics** - Dashboard showing time per patient, alerts resolved per day, average resolution time, task completion rate `M` (3-4 days)
-- [ ] **Patient Engagement Metrics** - Track assessment adherence %, medication adherence trends, observation submission patterns with intervention triggers `S` (2-3 days)
+- [x] **Clinician Workflow Analytics** - Dashboard showing time per patient, alerts resolved per day, average resolution time, task completion rate `M` (3-4 days) ✅ **COMPLETE** (Added 2025-10-23)
+  - Backend: analyticsController.js getClinicianWorkflowAnalytics() endpoint
+  - Fixed critical User ID vs Clinician ID confusion (TimeLog queries need Clinician table ID, not User ID)
+  - Implemented email-based matching to resolve User → Clinician relationship
+  - Frontend: ClinicianWorkflowAnalytics.jsx with productivity score, alerts resolved, clinical time metrics
+  - 7-Day Performance Trend chart with color-coded bar visualization
+  - Displays: productivity score (0-100), alerts resolved, clinical time breakdown, task completion rate, billable time %
+  - **Success Metric**: Care managers can track individual performance metrics and identify productivity trends
+- [x] **Patient Engagement Metrics** - Track assessment adherence %, medication adherence trends, observation submission patterns with intervention triggers `S` (2-3 days) ✅ **COMPLETE** (Added 2025-10-23)
+  - Backend: analyticsController.js getPatientEngagementMetrics() endpoint (org-wide and patient-specific views)
+  - Fixed engagement score capping at 100 (was showing 562/100) and adherence rates at 100% (was showing 1350%)
+  - Enhanced org-wide view to calculate proper engagement scores for top 20 patients
+  - Fixed medication adherence calculation to use adherenceScore field (not non-existent taken field)
+  - Frontend: PatientEngagementMetrics.jsx with organization overview and patient-specific drill-down
+  - 7-Day Engagement Trend chart with color-coded bars (green: highly engaged, blue: engaged, yellow: moderate, red: at-risk)
+  - Displays: engagement score (0-100), assessment adherence %, medication adherence %, observation consistency, critical alerts
+  - **Success Metric**: Care managers can identify at-risk patients and track engagement trends over time
 
 #### Nice-to-Have (Defer to Phase 2 if time-constrained)
 
