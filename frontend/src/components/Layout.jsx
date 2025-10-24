@@ -45,6 +45,7 @@ const clinicalNavigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Triage Queue', href: '/triage-queue', icon: FireIcon },
   { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
+  { name: 'Assessments', href: '/assessments', icon: ClipboardDocumentListIcon },
   { name: 'Encounter Notes', href: '/encounter-notes', icon: DocumentTextIcon },
   { name: 'Billing Readiness', href: '/billing-readiness', icon: CurrencyDollarIcon },
   { name: 'Clinician Analytics', href: '/analytics/clinician-workflow', icon: PresentationChartLineIcon },

@@ -126,6 +126,14 @@ const getAssessmentTemplateById = async (req, res) => {
     const template = await prisma.assessmentTemplate.findUnique({
       where: { id },
       include: {
+        items: {
+          include: {
+            metricDefinition: true
+          },
+          orderBy: {
+            displayOrder: 'asc'
+          }
+        },
         assessments: {
           select: {
             id: true,

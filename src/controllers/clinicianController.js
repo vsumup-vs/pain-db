@@ -186,13 +186,43 @@ const getAllClinicians = async (req, res) => {
         take,
         orderBy: {
           [sortBy]: sortOrder
+        },
+        select: {
+          id: true,
+          organizationId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          address: true,
+          licenseNumber: true,
+          specialization: true,
+          department: true,
+          credentials: true,
+          emergencyContact: true,
+          createdAt: true,
+          updatedAt: true
         }
       }),
       prisma.clinician.count({ where })
     ]);
 
+    // Look up user accounts for each clinician and attach userId
+    const cliniciansWithUserId = await Promise.all(
+      clinicians.map(async (clinician) => {
+        const user = await prisma.user.findUnique({
+          where: { email: clinician.email },
+          select: { id: true }
+        });
+        return {
+          ...clinician,
+          userId: user?.id || null
+        };
+      })
+    );
+
     res.json({
-      data: clinicians,
+      data: cliniciansWithUserId,
       pagination: {
         page: pageNum,
         limit: limitNum,

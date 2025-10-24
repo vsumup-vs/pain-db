@@ -211,7 +211,7 @@ export default function Dashboard() {
                           {patient.firstName} {patient.lastName}
                         </p>
                         <p className="text-sm text-gray-600 flex items-center space-x-1">
-                          <span>MRN: {patient.mrn}</span>
+                          <span>MRN: {patient.medicalRecordNumber || 'N/A'}</span>
                         </p>
                       </div>
                     </div>

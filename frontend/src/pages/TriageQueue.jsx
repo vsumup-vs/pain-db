@@ -16,7 +16,9 @@ import {
   SignalIcon,
   SignalSlashIcon,
   BellSlashIcon,
-  NoSymbolIcon
+  NoSymbolIcon,
+  DocumentTextIcon,
+  BellAlertIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
@@ -25,6 +27,7 @@ import SnoozeModal from '../components/SnoozeModal'
 import SuppressModal from '../components/SuppressModal'
 import PatientContextPanel from '../components/PatientContextPanel'
 import TimerWidget from '../components/TimerWidget'
+import AssessmentModal from '../components/AssessmentModal'
 import { useRealTimeAlerts } from '../hooks/useRealTimeAlerts'
 import { useAllTimers } from '../hooks/useTimer'
 
@@ -64,6 +67,26 @@ export default function TriageQueue() {
   const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState(null)
   const [selectedClinicianId, setSelectedClinicianId] = useState(null)
+  const [selectedAlert, setSelectedAlert] = useState(null)
+
+  // Multi-select state for bulk actions (Phase 1b)
+  const [selectedAlerts, setSelectedAlerts] = useState(new Set())
+  const [isBulkActionMode, setIsBulkActionMode] = useState(false)
+
+  // Bulk action modal states
+  const [isBulkResolveModalOpen, setIsBulkResolveModalOpen] = useState(false)
+  const [isBulkSnoozeModalOpen, setIsBulkSnoozeModalOpen] = useState(false)
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false)
+  const [selectedClinicianForBulkAssign, setSelectedClinicianForBulkAssign] = useState('')
+
+  // Force claim modal state (Phase 1b - Option 3 Hybrid)
+  const [isForceClaimModalOpen, setForceClaimModalOpen] = useState(false)
+  const [selectedAlertForForceClaim, setSelectedAlertForForceClaim] = useState(null)
+  const [forceClaimReason, setForceClaimReason] = useState('')
+
+  // Assessment modal state
+  const [selectedAssessmentForModal, setSelectedAssessmentForModal] = useState(null)
+  const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -71,6 +94,13 @@ export default function TriageQueue() {
   const { data: currentUser } = useQuery({
     queryKey: ['currentUser'],
     queryFn: api.getCurrentUserProfile
+  })
+
+  // Fetch clinicians for bulk assign dropdown
+  const { data: cliniciansData, isLoading: cliniciansLoading } = useQuery({
+    queryKey: ['clinicians'],
+    queryFn: () => api.getClinicians({ limit: 100 }),
+    enabled: isBulkAssignModalOpen // Only fetch when needed
   })
 
   // Real-time SSE connection for instant alert updates
@@ -97,6 +127,23 @@ export default function TriageQueue() {
       limit
     }),
     refetchInterval: 120000 // Reduced to 2 minutes since SSE provides real-time updates
+  })
+
+  // Fetch all pending assessments for patients in queue
+  const { data: allPendingAssessmentsData } = useQuery({
+    queryKey: ['allPendingAssessments'],
+    queryFn: () => api.getScheduledAssessments({ status: 'PENDING,OVERDUE' }),
+    refetchInterval: 120000 // Refresh every 2 minutes
+  })
+
+  // Create map of pending assessments by patientId for quick lookup
+  const pendingAssessmentsMap = new Map()
+  allPendingAssessmentsData?.data?.forEach(assessment => {
+    const patientId = assessment.patientId
+    if (!pendingAssessmentsMap.has(patientId)) {
+      pendingAssessmentsMap.set(patientId, [])
+    }
+    pendingAssessmentsMap.get(patientId).push(assessment)
   })
 
   // Merge SSE alerts with query alerts (SSE takes precedence for real-time updates)
@@ -206,6 +253,21 @@ export default function TriageQueue() {
     }
   })
 
+  // Force claim alert mutation (Phase 1b - Option 3 Hybrid)
+  const forceClaimAlertMutation = useMutation({
+    mutationFn: ({ alertId, reason }) => api.forceClaimAlert(alertId, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['triageQueue'])
+      toast.success('Alert force claimed successfully')
+      setForceClaimModalOpen(false)
+      setForceClaimReason('')
+      setSelectedAlertForForceClaim(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Failed to force claim alert')
+    }
+  })
+
   // Update alert status mutation
   const updateAlertMutation = useMutation({
     mutationFn: ({ id, data }) => api.updateAlert(id, data),
@@ -283,6 +345,24 @@ export default function TriageQueue() {
 
   const handleUnclaim = (alertId) => {
     unclaimAlertMutation.mutate(alertId)
+  }
+
+  const handleForceClaim = (alert) => {
+    // Open modal to ask for reason
+    setSelectedAlertForForceClaim(alert)
+    setForceClaimModalOpen(true)
+  }
+
+  const handleForceClaimSubmit = () => {
+    if (!forceClaimReason || forceClaimReason.trim().length < 10) {
+      toast.error('Please provide a reason (minimum 10 characters)')
+      return
+    }
+
+    forceClaimAlertMutation.mutate({
+      alertId: selectedAlertForForceClaim.id,
+      reason: forceClaimReason.trim()
+    })
   }
 
   const handleAcknowledge = (alertId) => {
@@ -397,9 +477,10 @@ export default function TriageQueue() {
     setSelectedAlertForSuppress(null)
   }
 
-  const handleViewPatientContext = (patientId, clinicianId) => {
+  const handleViewPatientContext = (patientId, clinicianId, alert = null) => {
     setSelectedPatientId(patientId)
     setSelectedClinicianId(clinicianId)
+    setSelectedAlert(alert)
     setIsPatientContextOpen(true)
   }
 
@@ -419,6 +500,123 @@ export default function TriageQueue() {
 
     setIsTaskModalOpen(false)
     setTaskPrefillData(null)
+  }
+
+  // Multi-select handlers (Phase 1b - Bulk Actions)
+  const toggleAlertSelection = (alertId) => {
+    const newSelected = new Set(selectedAlerts)
+    if (newSelected.has(alertId)) {
+      newSelected.delete(alertId)
+    } else {
+      newSelected.add(alertId)
+    }
+    setSelectedAlerts(newSelected)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedAlerts.size === filteredAlerts.length) {
+      setSelectedAlerts(new Set())
+    } else {
+      setSelectedAlerts(new Set(filteredAlerts.map(a => a.id)))
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedAlerts(new Set())
+    setIsBulkActionMode(false)
+  }
+
+  // Bulk action handlers (Phase 1b - Bulk Actions)
+  const handleBulkAcknowledge = async () => {
+    if (selectedAlerts.size === 0) return
+
+    const confirmed = window.confirm(
+      `Are you sure you want to acknowledge ${selectedAlerts.size} alert(s)?`
+    )
+
+    if (!confirmed) return
+
+    try {
+      await api.bulkAlertActions('acknowledge', Array.from(selectedAlerts))
+      queryClient.invalidateQueries(['triage-queue'])
+      clearSelection()
+      alert(`Successfully acknowledged ${selectedAlerts.size} alert(s)`)
+    } catch (error) {
+      console.error('Bulk acknowledge failed:', error)
+      alert('Failed to acknowledge alerts. Please try again.')
+    }
+  }
+
+  const handleBulkResolve = () => {
+    if (selectedAlerts.size === 0) return
+    setIsBulkResolveModalOpen(true)
+  }
+
+  const handleBulkResolveSubmit = async (resolutionData) => {
+    try {
+      await api.bulkAlertActions('resolve', Array.from(selectedAlerts), resolutionData)
+      queryClient.invalidateQueries(['triageQueue'])
+      setIsBulkResolveModalOpen(false)
+      clearSelection()
+      toast.success(`Successfully resolved ${selectedAlerts.size} alert(s)`)
+    } catch (error) {
+      console.error('Bulk resolve failed:', error)
+      toast.error('Failed to resolve alerts. Please try again.')
+    }
+  }
+
+  const handleBulkSnooze = () => {
+    if (selectedAlerts.size === 0) return
+    setIsBulkSnoozeModalOpen(true)
+  }
+
+  const handleBulkSnoozeSubmit = async (snoozeData) => {
+    try {
+      await api.bulkAlertActions('snooze', Array.from(selectedAlerts), snoozeData)
+      queryClient.invalidateQueries(['triageQueue'])
+      setIsBulkSnoozeModalOpen(false)
+      clearSelection()
+      toast.success(`Successfully snoozed ${selectedAlerts.size} alert(s)`)
+    } catch (error) {
+      console.error('Bulk snooze failed:', error)
+      toast.error('Failed to snooze alerts. Please try again.')
+    }
+  }
+
+  const handleBulkAssign = () => {
+    if (selectedAlerts.size === 0) return
+    setIsBulkAssignModalOpen(true)
+  }
+
+  const handleBulkAssignSubmit = async () => {
+    if (!selectedClinicianForBulkAssign) {
+      toast.error('Please select a clinician')
+      return
+    }
+
+    try {
+      // Find the clinician to get their associated user ID
+      const selectedClinician = cliniciansData?.data?.find(
+        c => c.id === selectedClinicianForBulkAssign
+      )
+
+      if (!selectedClinician || !selectedClinician.userId) {
+        toast.error('Selected clinician does not have a user account')
+        return
+      }
+
+      await api.bulkAlertActions('assign', Array.from(selectedAlerts), {
+        assignToId: selectedClinician.userId
+      })
+      queryClient.invalidateQueries(['triageQueue'])
+      setIsBulkAssignModalOpen(false)
+      setSelectedClinicianForBulkAssign('')
+      clearSelection()
+      toast.success(`Successfully assigned ${selectedAlerts.size} alert(s) to ${selectedClinician.firstName} ${selectedClinician.lastName}`)
+    } catch (error) {
+      console.error('Bulk assign failed:', error)
+      toast.error('Failed to assign alerts. Please try again.')
+    }
   }
 
   // Get risk level color classes
@@ -584,11 +782,15 @@ export default function TriageQueue() {
                 `${alert.patient.firstName} ${alert.patient.lastName}` :
                 'Unknown Patient'
 
+              // Extract enrollmentId from alert data for contextual CPT code selection
+              const enrollmentId = alert?.data?.enrollmentId
+
               return (
                 <TimerWidget
                   key={timerData.patientId}
                   patientId={timerData.patientId}
                   patientName={patientName}
+                  enrollmentId={enrollmentId}
                   onTimeStopped={() => {
                     queryClient.invalidateQueries(['triageQueue'])
                   }}
@@ -660,6 +862,125 @@ export default function TriageQueue() {
             </div>
           </div>
         </div>
+
+        {/* Multi-Select Toolbar (Phase 1b - Bulk Actions) */}
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-lg border-2 border-indigo-200 p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  setIsBulkActionMode(!isBulkActionMode)
+                  if (isBulkActionMode) {
+                    clearSelection()
+                  }
+                }}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                  isBulkActionMode
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'bg-white text-indigo-600 border-2 border-indigo-600 hover:bg-indigo-50'
+                }`}
+              >
+                {isBulkActionMode ? 'Exit Select Mode' : 'Select Mode'}
+              </button>
+
+              {isBulkActionMode && (
+                <>
+                  <label className="flex items-center space-x-3 bg-white px-4 py-3 rounded-lg border-2 border-indigo-300 cursor-pointer hover:bg-indigo-50 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={selectedAlerts.size === filteredAlerts.length && filteredAlerts.length > 0}
+                      onChange={toggleSelectAll}
+                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="font-medium text-gray-700">Select All</span>
+                  </label>
+
+                  <span className="bg-white px-4 py-3 rounded-lg border-2 border-indigo-300 font-semibold text-indigo-700">
+                    {selectedAlerts.size} selected
+                  </span>
+                </>
+              )}
+            </div>
+
+            {isBulkActionMode && selectedAlerts.size > 0 && (
+              <div className="text-sm text-indigo-700 font-medium">
+                <span className="bg-white px-3 py-1.5 rounded-full border border-indigo-300">
+                  📋 Bulk actions available for {selectedAlerts.size} alert{selectedAlerts.size !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bulk Action Toolbar (Phase 1b - Action Buttons) */}
+        {isBulkActionMode && selectedAlerts.size > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl shadow-lg border-2 border-green-200 p-6 mb-8">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg font-bold text-gray-800">
+                    Bulk Actions
+                  </span>
+                  <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                    {selectedAlerts.size} selected
+                  </span>
+                </div>
+                <button
+                  onClick={clearSelection}
+                  className="text-gray-600 hover:text-gray-800 font-medium text-sm underline"
+                >
+                  Clear Selection
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Bulk Acknowledge */}
+                <button
+                  onClick={() => handleBulkAcknowledge()}
+                  className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Acknowledge</span>
+                </button>
+
+                {/* Bulk Resolve */}
+                <button
+                  onClick={() => handleBulkResolve()}
+                  className="flex items-center justify-center space-x-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Resolve</span>
+                </button>
+
+                {/* Bulk Snooze */}
+                <button
+                  onClick={() => handleBulkSnooze()}
+                  className="flex items-center justify-center space-x-2 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Snooze</span>
+                </button>
+
+                {/* Bulk Assign */}
+                <button
+                  onClick={() => handleBulkAssign()}
+                  className="flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Assign</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
@@ -763,6 +1084,16 @@ export default function TriageQueue() {
                   {/* Priority Badge */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center space-x-3">
+                      {/* Multi-select checkbox (Phase 1b - Bulk Actions) */}
+                      {isBulkActionMode && (
+                        <input
+                          type="checkbox"
+                          checked={selectedAlerts.has(alert.id)}
+                          onChange={() => toggleAlertSelection(alert.id)}
+                          className="h-6 w-6 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
                       <span className="inline-flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-lg">
                         #{alert.priorityRank}
                       </span>
@@ -788,6 +1119,21 @@ export default function TriageQueue() {
                           Time logged: {alert.computed.totalTimeLoggedMinutes} min
                         </span>
                       )}
+                      {pendingAssessmentsMap.get(alert.patientId)?.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const assessments = pendingAssessmentsMap.get(alert.patientId)
+                            setSelectedAssessmentForModal(assessments[0])
+                            setIsAssessmentModalOpen(true)
+                          }}
+                          className="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-full bg-orange-100 text-orange-800 border border-orange-300 hover:bg-orange-200 transition-colors cursor-pointer"
+                          title="Click to start pending assessment"
+                        >
+                          <BellAlertIcon className="h-4 w-4 mr-1" />
+                          {pendingAssessmentsMap.get(alert.patientId).length} pending assessment{pendingAssessmentsMap.get(alert.patientId).length !== 1 ? 's' : ''}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -796,13 +1142,15 @@ export default function TriageQueue() {
                     <div>
                       <p className="text-xs font-medium text-gray-500 mb-1">Patient</p>
                       <button
-                        onClick={() => handleViewPatientContext(alert.patient?.id, alert.clinician?.id)}
-                        className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200 text-left"
+                        onClick={() => handleViewPatientContext(alert.patient?.id, alert.clinician?.id, alert)}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:bg-blue-50 hover:text-blue-800 rounded px-2 py-1 -ml-2 transition-colors duration-200 group"
+                        title="View patient context & clinical data"
                       >
                         {alert.patient?.firstName} {alert.patient?.lastName}
+                        <ChartBarIcon className="h-4 w-4 opacity-60 group-hover:opacity-100 transition-opacity" />
                       </button>
                       {alert.patient?.phone && (
-                        <a href={`tel:${alert.patient.phone}`} className="block text-xs text-blue-600 hover:underline">
+                        <a href={`tel:${alert.patient.phone}`} className="block text-xs text-blue-600 hover:underline ml-2">
                           {alert.patient.phone}
                         </a>
                       )}
@@ -903,10 +1251,24 @@ export default function TriageQueue() {
                               </button>
                             </>
                           ) : (
-                            <span className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg">
-                              <UserIcon className="h-4 w-4 mr-2" />
-                              Claimed by {alert.claimedBy?.firstName}
-                            </span>
+                            <>
+                              <span className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg">
+                                <UserIcon className="h-4 w-4 mr-2" />
+                                Claimed by {alert.claimedBy?.firstName}
+                              </span>
+                              {/* Force claim button for supervisors/admins (Phase 1b - Option 3 Hybrid) */}
+                              {(currentUser?.role === 'ORG_ADMIN' || currentUser?.role === 'SUPERVISOR') && (
+                                <button
+                                  onClick={() => handleForceClaim(alert)}
+                                  disabled={forceClaimAlertMutation.isLoading}
+                                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-medium rounded-lg hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50"
+                                  title="Supervisor override: Force claim this alert"
+                                >
+                                  <UserIcon className="h-4 w-4 mr-2" />
+                                  Force Claim
+                                </button>
+                              )}
+                            </>
                           )}
                         </>
                       ) : (
@@ -972,6 +1334,7 @@ export default function TriageQueue() {
             ? timers?.find(t => t.patientId === selectedAlertForResolution.patient.id)?.elapsedTime?.minutes
             : undefined
         }
+        enrollmentId={selectedAlertForResolution?.data?.enrollmentId}
       />
 
       {/* Snooze Modal (Phase 1b) */}
@@ -992,13 +1355,186 @@ export default function TriageQueue() {
         isSubmitting={suppressAlertMutation.isLoading}
       />
 
+      {/* Force Claim Modal (Phase 1b - Option 3 Hybrid) */}
+      {isForceClaimModalOpen && selectedAlertForForceClaim && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium leading-6 text-gray-900">Force Claim Alert</h3>
+                <button
+                  onClick={() => {
+                    setForceClaimModalOpen(false)
+                    setForceClaimReason('')
+                    setSelectedAlertForForceClaim(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        <strong>Warning:</strong> This alert is currently claimed by{' '}
+                        <strong>{selectedAlertForForceClaim.claimedBy?.firstName} {selectedAlertForForceClaim.claimedBy?.lastName}</strong>.
+                        Force claiming will reassign it to you and notify the previous claimer.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Patient: {selectedAlertForForceClaim.patient?.firstName} {selectedAlertForForceClaim.patient?.lastName}
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Alert: {selectedAlertForForceClaim.rule?.name}
+                  </label>
+                </div>
+
+                <div>
+                  <label htmlFor="force-claim-reason" className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for Force Claim <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="force-claim-reason"
+                    rows={4}
+                    className="shadow-sm focus:ring-orange-500 focus:border-orange-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="Explain why you need to force claim this alert (minimum 10 characters)..."
+                    value={forceClaimReason}
+                    onChange={(e) => setForceClaimReason(e.target.value)}
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {forceClaimReason.length}/10 characters minimum
+                  </p>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleForceClaimSubmit}
+                    disabled={forceClaimAlertMutation.isLoading || forceClaimReason.trim().length < 10}
+                    className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {forceClaimAlertMutation.isLoading ? 'Processing...' : 'Force Claim Alert'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setForceClaimModalOpen(false)
+                      setForceClaimReason('')
+                      setSelectedAlertForForceClaim(null)
+                    }}
+                    disabled={forceClaimAlertMutation.isLoading}
+                    className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Resolve Modal */}
+      <ResolutionModal
+        isOpen={isBulkResolveModalOpen}
+        onClose={() => setIsBulkResolveModalOpen(false)}
+        onSubmit={handleBulkResolveSubmit}
+        alert={null}
+        isBulkMode={true}
+        bulkCount={selectedAlerts.size}
+      />
+
+      {/* Bulk Snooze Modal */}
+      <SnoozeModal
+        isOpen={isBulkSnoozeModalOpen}
+        onClose={() => setIsBulkSnoozeModalOpen(false)}
+        onSubmit={handleBulkSnoozeSubmit}
+        isBulkMode={true}
+        bulkCount={selectedAlerts.size}
+      />
+
+      {/* Bulk Assign Modal */}
+      {isBulkAssignModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <h3 className="text-lg font-medium mb-4">
+              Assign {selectedAlerts.size} Alert(s) to Clinician
+            </h3>
+            <select
+              value={selectedClinicianForBulkAssign}
+              onChange={(e) => setSelectedClinicianForBulkAssign(e.target.value)}
+              className="w-full border rounded p-2 mb-4"
+              disabled={cliniciansLoading}
+            >
+              <option value="">
+                {cliniciansLoading ? 'Loading clinicians...' : 'Select Clinician...'}
+              </option>
+              {!cliniciansLoading && cliniciansData?.data?.map(clinician => (
+                <option key={clinician.id} value={clinician.id}>
+                  {clinician.firstName} {clinician.lastName} - {clinician.specialization}
+                </option>
+              ))}
+            </select>
+            {/* Debug info */}
+            {!cliniciansLoading && (
+              <p className="text-xs text-gray-500 mb-2">
+                {cliniciansData?.data?.length || 0} clinicians loaded
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleBulkAssignSubmit}
+                disabled={!selectedClinicianForBulkAssign}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Assign
+              </button>
+              <button
+                onClick={() => {
+                  setIsBulkAssignModalOpen(false)
+                  setSelectedClinicianForBulkAssign('')
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Patient Context Panel */}
       <PatientContextPanel
         isOpen={isPatientContextOpen}
         onClose={() => setIsPatientContextOpen(false)}
         patientId={selectedPatientId}
         clinicianId={selectedClinicianId}
+        alert={selectedAlert}
         days={30}
+      />
+
+      {/* Assessment Modal */}
+      <AssessmentModal
+        scheduledAssessment={selectedAssessmentForModal}
+        isOpen={isAssessmentModalOpen}
+        onClose={() => {
+          setIsAssessmentModalOpen(false)
+          setSelectedAssessmentForModal(null)
+        }}
+        onSuccess={() => {
+          queryClient.invalidateQueries(['triageQueue'])
+          queryClient.invalidateQueries(['allPendingAssessments'])
+          toast.success('Assessment completed successfully')
+        }}
       />
     </div>
   )

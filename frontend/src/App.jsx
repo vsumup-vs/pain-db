@@ -18,16 +18,20 @@ import Observations from './pages/Observations'
 import Alerts from './pages/Alerts'
 import TriageQueue from './pages/TriageQueue'
 import Tasks from './pages/Tasks'
+import Assessments from './pages/Assessments'
 import BillingReadiness from './pages/BillingReadiness'
 import EncounterNotes from './pages/EncounterNotes'
 import AlertRules from './pages/AlertRules'
 import Enrollments from './pages/Enrollments'
 import EnrollmentDetails from './pages/EnrollmentDetails'
+import CarePrograms from './pages/CarePrograms'
 import AdminOrganizations from './pages/AdminOrganizations'
 import AdminUsers from './pages/AdminUsers'
 import PlatformOrganizations from './pages/PlatformOrganizations'
 import TestPatientContext from './pages/TestPatientContext'
 import TestAlertEvaluation from './pages/TestAlertEvaluation'
+import ClinicianWorkflowAnalytics from './pages/ClinicianWorkflowAnalytics'
+import PatientEngagementMetrics from './pages/PatientEngagementMetrics'
 import { api } from './services/api'
 
 // Protected Route component
@@ -132,11 +136,15 @@ function App() {
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/triage-queue" element={<TriageQueue />} />
                 <Route path="/tasks" element={<Tasks />} />
+                <Route path="/assessments" element={<Assessments />} />
                 <Route path="/billing-readiness" element={<BillingReadiness />} />
                 <Route path="/encounter-notes" element={<EncounterNotes />} />
+                <Route path="/analytics/clinician-workflow" element={<ClinicianWorkflowAnalytics />} />
+                <Route path="/analytics/patient-engagement" element={<PatientEngagementMetrics />} />
                 <Route path="/alert-rules" element={<AlertRules />} />
                 <Route path="/enrollments" element={<Enrollments />} />
                 <Route path="/enrollments/:id" element={<EnrollmentDetails />} />
+                <Route path="/care-programs" element={<CarePrograms />} />
                 <Route path="/admin/organizations" element={<AdminOrganizations />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/platform/organizations" element={<PlatformOrganizations />} />

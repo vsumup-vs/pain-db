@@ -5,6 +5,7 @@ const {
   commonValidations,
   handleValidationErrors
 } = require('../middleware/validation');
+const { requireRole } = require('../middleware/auth');
 const {
   createAlert,
   getAlerts,
@@ -17,6 +18,7 @@ const {
   getTriageQueue,
   claimAlert,
   unclaimAlert,
+  forceClaimAlert,
   acknowledgeAlert,
   resolveAlert,
   snoozeAlert,
@@ -47,7 +49,8 @@ router.get('/triage-queue', commonValidations.pagination, handleValidationErrors
 router.post('/evaluate', evaluateAlerts);
 
 // Bulk alert actions (Phase 1b - Multi-select operations)
-router.post('/bulk-actions', handleValidationErrors, bulkAlertActions);
+// Restricted to ORG_ADMIN role (coordinator-level access)
+router.post('/bulk-actions', requireRole('ORG_ADMIN'), handleValidationErrors, bulkAlertActions);
 
 // Get alert by ID with validation
 router.get('/:id', commonValidations.id, handleValidationErrors, getAlertById);
@@ -63,6 +66,10 @@ router.post('/:id/claim', commonValidations.id, handleValidationErrors, claimAle
 
 // Unclaim alert (Phase 1a - Workflow Optimizer)
 router.post('/:id/unclaim', commonValidations.id, handleValidationErrors, unclaimAlert);
+
+// Force claim alert (Phase 1b - Option 3 Hybrid)
+// Restricted to ORG_ADMIN and SUPERVISOR roles
+router.post('/:id/force-claim', commonValidations.id, requireRole(['ORG_ADMIN', 'SUPERVISOR']), handleValidationErrors, forceClaimAlert);
 
 // Acknowledge alert (Critical Fix #3 - Audit Logging)
 router.post('/:id/acknowledge', commonValidations.id, handleValidationErrors, acknowledgeAlert);

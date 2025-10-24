@@ -1638,6 +1638,229 @@ const unclaimAlert = async (req, res) => {
   }
 };
 
+// Force claim an alert (Phase 1b - Option 3 Hybrid)
+// Allows supervisors/admins to claim an already-claimed alert
+const forceClaimAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body; // Required reason for force claim
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        success: false,
+        error: 'User authentication required'
+      });
+    }
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'ORG_CONTEXT_MISSING'
+      });
+    }
+
+    // Validate reason is provided
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Reason for force claim is required (minimum 10 characters)'
+      });
+    }
+
+    // Check user has permission (ORG_ADMIN or SUPERVISOR role)
+    const userOrg = await prisma.userOrganization.findFirst({
+      where: {
+        userId: currentUserId,
+        organizationId,
+        role: { in: ['ORG_ADMIN', 'SUPERVISOR'] }
+      }
+    });
+
+    if (!userOrg) {
+      return res.status(403).json({
+        success: false,
+        error: 'Only supervisors and organization admins can force claim alerts'
+      });
+    }
+
+    // Check if alert exists and belongs to organization
+    const alert = await prisma.alert.findFirst({
+      where: {
+        id,
+        organizationId
+      },
+      include: {
+        claimedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        rule: {
+          select: {
+            id: true,
+            name: true,
+            severity: true
+          }
+        }
+      }
+    });
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    // Check if alert is already resolved
+    if (alert.status === 'RESOLVED') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot force claim a resolved alert'
+      });
+    }
+
+    // Check if trying to force claim own alert
+    if (alert.claimedById === currentUserId) {
+      return res.status(400).json({
+        success: false,
+        error: 'You already own this alert. No need to force claim.'
+      });
+    }
+
+    const previousClaimerId = alert.claimedById;
+    const previousClaimerName = alert.claimedBy
+      ? `${alert.claimedBy.firstName} ${alert.claimedBy.lastName}`
+      : 'None';
+
+    // Force claim with audit logging
+    const [updatedAlert] = await prisma.$transaction([
+      prisma.alert.update({
+        where: { id },
+        data: {
+          claimedById: currentUserId,
+          claimedAt: new Date()
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          claimedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          rule: {
+            select: {
+              id: true,
+              name: true,
+              severity: true
+            }
+          }
+        }
+      }),
+      // Create audit log for force claim
+      prisma.auditLog.create({
+        data: {
+          userId: currentUserId,
+          organizationId,
+          action: 'ALERT_FORCE_CLAIMED',
+          resource: 'Alert',
+          resourceId: id,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          oldValues: {
+            claimedById: previousClaimerId,
+            claimedAt: alert.claimedAt
+          },
+          newValues: {
+            claimedById: currentUserId,
+            claimedAt: new Date()
+          },
+          metadata: {
+            previousClaimerId,
+            previousClaimerName,
+            reason: reason.trim(),
+            forceClaim: true,
+            patientId: alert.patientId,
+            ruleId: alert.ruleId,
+            severity: alert.severity
+          },
+          hipaaRelevant: true
+        }
+      })
+    ]);
+
+    // Broadcast SSE update
+    try {
+      const sseService = require('../services/sseService');
+      sseService.broadcastAlertUpdate(updatedAlert);
+    } catch (sseError) {
+      console.error('Failed to broadcast SSE force claim update:', sseError);
+    }
+
+    // Send notification to previous claimer if there was one
+    if (previousClaimerId) {
+      try {
+        const notificationService = require('../services/notificationService');
+        const patientName = `${alert.patient.firstName} ${alert.patient.lastName}`;
+        const currentUserName = `${updatedAlert.claimedBy.firstName} ${updatedAlert.claimedBy.lastName}`;
+
+        await notificationService.sendEmail({
+          to: alert.claimedBy.email,
+          subject: `⚠️ Alert Force Claimed: ${patientName}`,
+          html: `
+            <h2>Alert Reassigned by Supervisor</h2>
+            <p>Dear ${previousClaimerName},</p>
+            <p>Your claim on the following alert was reassigned by a supervisor:</p>
+            <p><strong>Patient:</strong> ${patientName}</p>
+            <p><strong>Alert:</strong> ${alert.rule.name}</p>
+            <p><strong>Severity:</strong> ${alert.severity}</p>
+            <p><strong>Reassigned To:</strong> ${currentUserName}</p>
+            <p><strong>Reason:</strong> ${reason.trim()}</p>
+            <p>The alert has been claimed by another team member and is no longer in your queue.</p>
+            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/alerts">View Triage Queue</a></p>
+          `
+        });
+        console.log(`📧 Force claim notification sent to ${alert.claimedBy.email}`);
+      } catch (emailError) {
+        console.error('Failed to send force claim notification:', emailError);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: updatedAlert,
+      message: 'Alert force claimed successfully'
+    });
+  } catch (error) {
+    console.error('Error force claiming alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while force claiming alert'
+    });
+  }
+};
+
 // Snooze an alert (Phase 1b)
 const snoozeAlert = async (req, res) => {
   try {
@@ -2749,6 +2972,69 @@ const bulkAlertActions = async (req, res) => {
         }
         break;
 
+      case 'resolve':
+        // Validate required fields for resolution
+        const resolutionNotes = actionData?.resolutionNotes;
+        const interventionType = actionData?.interventionType || 'NO_PATIENT_CONTACT';
+        const patientOutcome = actionData?.patientOutcome || 'NO_CHANGE';
+
+        if (!resolutionNotes || resolutionNotes.trim().length < 10) {
+          return res.status(400).json({
+            success: false,
+            error: 'Resolution notes are required (minimum 10 characters) for bulk resolution'
+          });
+        }
+
+        for (const alert of alerts) {
+          try {
+            if (alert.status !== 'RESOLVED' && alert.status !== 'DISMISSED') {
+              const [updatedAlert] = await prisma.$transaction([
+                prisma.alert.update({
+                  where: { id: alert.id },
+                  data: {
+                    status: 'RESOLVED',
+                    resolvedAt: new Date(),
+                    resolvedById: currentUserId,
+                    resolutionNotes: resolutionNotes.trim(),
+                    interventionType,
+                    patientOutcome
+                  }
+                }),
+                prisma.auditLog.create({
+                  data: {
+                    userId: currentUserId,
+                    organizationId,
+                    action: 'ALERT_RESOLVED_BULK',
+                    resource: 'Alert',
+                    resourceId: alert.id,
+                    ipAddress: req.ip,
+                    userAgent: req.get('user-agent'),
+                    oldValues: { status: alert.status },
+                    newValues: {
+                      status: 'RESOLVED',
+                      interventionType,
+                      patientOutcome
+                    },
+                    metadata: { patientId: alert.patientId, bulkAction: true },
+                    hipaaRelevant: true
+                  }
+                })
+              ]);
+              results.success.push({ id: alert.id, message: 'Resolved' });
+              try {
+                sseService.broadcastAlertUpdate(updatedAlert);
+              } catch (sseError) {
+                console.error('SSE broadcast failed:', sseError);
+              }
+            } else {
+              results.failed.push({ id: alert.id, reason: `Already ${alert.status.toLowerCase()}` });
+            }
+          } catch (error) {
+            results.failed.push({ id: alert.id, reason: error.message });
+          }
+        }
+        break;
+
       case 'dismiss':
         for (const alert of alerts) {
           try {
@@ -2832,6 +3118,7 @@ module.exports = {
   getTriageQueue,
   claimAlert,
   unclaimAlert,
+  forceClaimAlert,
   acknowledgeAlert,
   resolveAlert,
   snoozeAlert,

@@ -615,6 +615,61 @@ const exportBillingSummaryCSV = async (req, res) => {
   }
 };
 
+/**
+ * Get available CPT codes for an enrollment with contextual filtering
+ *
+ * GET /api/billing/available-cpt-codes/:enrollmentId/:billingMonth?duration=25
+ *
+ * Returns CPT codes filtered by:
+ * - Billing program (RPM/RTM/CCM)
+ * - Eligibility (based on current month data)
+ * - Prerequisites (e.g., 99458 requires 99457 first)
+ * - Auto-recommendation based on time duration
+ *
+ * @param {Request} req - Express request
+ * @param {Response} res - Express response
+ */
+const getAvailableCPTCodes = async (req, res) => {
+  try {
+    const { enrollmentId, billingMonth } = req.params;
+    const duration = req.query.duration ? parseInt(req.query.duration) : null;
+
+    // Validate billing month format (YYYY-MM)
+    const monthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if (!monthRegex.test(billingMonth)) {
+      return res.status(400).json({
+        error: 'Invalid billing month format. Use YYYY-MM (e.g., 2025-10)'
+      });
+    }
+
+    // Verify enrollment exists and user has access (organization-level isolation)
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      select: { organizationId: true }
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ error: 'Enrollment not found' });
+    }
+
+    // Check organization access
+    if (enrollment.organizationId !== req.user?.currentOrganization) {
+      return res.status(403).json({ error: 'Access denied to this enrollment' });
+    }
+
+    // Get available CPT codes with eligibility and auto-recommendation
+    const result = await billingService.getAvailableCPTCodes(enrollmentId, billingMonth, duration);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error getting available CPT codes:', error);
+    res.status(500).json({
+      error: 'Failed to get available CPT codes',
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getEnrollmentBillingReadiness,
   getOrganizationBillingReadiness,
@@ -622,5 +677,6 @@ module.exports = {
   getBillingPrograms,
   getBillingProgramByCode,
   getOrganizationBillingPrograms,
-  exportBillingSummaryCSV
+  exportBillingSummaryCSV,
+  getAvailableCPTCodes
 };

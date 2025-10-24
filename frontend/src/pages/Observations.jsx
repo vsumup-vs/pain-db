@@ -16,15 +16,19 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
+import PatientContextPanel from '../components/PatientContextPanel'
 
 export default function Observations() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedProgram, setSelectedProgram] = useState('') // New: Program filter
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: '',
   })
   const [selectedObservation, setSelectedObservation] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState(null) // New: For patient context panel
+  const [showPatientContext, setShowPatientContext] = useState(false) // New: Show patient context
 
   const { data: observationsResponse, isLoading, error } = useQuery({
     queryKey: ['observations', searchTerm, dateRange],
@@ -47,6 +51,45 @@ export default function Observations() {
     if (observation.value !== null && observation.value !== undefined) {
       // value is a Json field, could be a number, string, or object
       if (typeof observation.value === 'object' && observation.value !== null) {
+        // Extract value based on metric valueType
+        const valueType = observation.metric?.valueType
+
+        // Try to extract the actual value from the structured JSON
+        if (valueType === 'numeric' && observation.value.numeric !== undefined) {
+          return observation.value.numeric
+        }
+        if (valueType === 'text' && observation.value.text !== undefined) {
+          return observation.value.text
+        }
+        if (valueType === 'boolean' && observation.value.boolean !== undefined) {
+          return observation.value.boolean ? 'Yes' : 'No'
+        }
+        if (valueType === 'categorical' && observation.value.categorical !== undefined) {
+          return observation.value.categorical
+        }
+        if (valueType === 'ordinal' && observation.value.ordinal !== undefined) {
+          return observation.value.ordinal
+        }
+        if (valueType === 'date' && observation.value.date !== undefined) {
+          return new Date(observation.value.date).toLocaleDateString()
+        }
+        if (valueType === 'time' && observation.value.time !== undefined) {
+          return observation.value.time
+        }
+        if (valueType === 'datetime' && observation.value.datetime !== undefined) {
+          return new Date(observation.value.datetime).toLocaleString()
+        }
+        if (valueType === 'json' && observation.value.json !== undefined) {
+          return JSON.stringify(observation.value.json, null, 2)
+        }
+
+        // Fallback: if structure doesn't match expected format, show first available value
+        const firstKey = Object.keys(observation.value)[0]
+        if (firstKey) {
+          return observation.value[firstKey]
+        }
+
+        // Last resort: stringify
         return JSON.stringify(observation.value)
       }
       return observation.value
@@ -57,6 +100,38 @@ export default function Observations() {
   const formatSource = (source) => {
     if (!source) return 'Unknown'
     return source.charAt(0).toUpperCase() + source.slice(1)
+  }
+
+  // Calculate observation frequency for data completeness badge
+  const getObservationFrequency = (observation) => {
+    if (!observations) return { count: 0, daysInMonth: 0 }
+
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+    // Count observations for this patient and metric in current month
+    const monthlyObservations = observations.filter(obs =>
+      obs.patientId === observation.patientId &&
+      obs.metricId === observation.metricId &&
+      new Date(obs.recordedAt) >= startOfMonth &&
+      new Date(obs.recordedAt) <= endOfMonth
+    )
+
+    // Count unique days with observations
+    const uniqueDays = new Set(
+      monthlyObservations.map(obs =>
+        new Date(obs.recordedAt).toDateString()
+      )
+    ).size
+
+    const daysInMonth = endOfMonth.getDate()
+
+    return {
+      count: monthlyObservations.length,
+      uniqueDays,
+      daysInMonth
+    }
   }
 
   const getSourceIcon = (source) => {
@@ -145,19 +220,33 @@ export default function Observations() {
     setShowDetailModal(true)
   }
 
-  const filteredObservations = observations.filter(observation =>
-    !searchTerm ||
-    observation.patient?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    observation.patient?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    observation.metric?.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const handleViewPatient = (patient) => {
+    setSelectedPatient(patient)
+    setShowPatientContext(true)
+  }
+
+  const filteredObservations = observations.filter(observation => {
+    // Search term filter
+    const matchesSearch = !searchTerm ||
+      observation.patient?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      observation.patient?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      observation.metric?.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    // Program filter (check enrollment context if available)
+    const matchesProgram = !selectedProgram ||
+      observation.enrollment?.program?.type === selectedProgram ||
+      observation.context === selectedProgram
+
+    return matchesSearch && matchesProgram
+  })
 
   const clearFilters = () => {
     setSearchTerm('')
+    setSelectedProgram('')
     setDateRange({ startDate: '', endDate: '' })
   }
 
-  const hasActiveFilters = searchTerm || dateRange.startDate || dateRange.endDate
+  const hasActiveFilters = searchTerm || selectedProgram || dateRange.startDate || dateRange.endDate
 
   if (isLoading) {
     return (
@@ -216,7 +305,7 @@ export default function Observations() {
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -235,7 +324,22 @@ export default function Observations() {
                 </button>
               )}
             </div>
-            
+
+            <div className="relative">
+              <FunnelIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <select
+                value={selectedProgram}
+                onChange={(e) => setSelectedProgram(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
+              >
+                <option value="">All Programs</option>
+                <option value="RPM">Remote Patient Monitoring (RPM)</option>
+                <option value="RTM">Remote Therapeutic Monitoring (RTM)</option>
+                <option value="CCM">Chronic Care Management (CCM)</option>
+                <option value="WELLNESS">General Wellness</option>
+              </select>
+            </div>
+
             <div className="relative">
               <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -275,7 +379,8 @@ export default function Observations() {
               const SourceIcon = getSourceIcon(observation.source)
               const contextDetails = formatObservationContext(observation)
               const valueSeverityColor = getValueSeverityColor(observation)
-              
+              const frequency = getObservationFrequency(observation)
+
               return (
                 <div key={observation.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group">
                   {/* Header */}
@@ -352,8 +457,24 @@ export default function Observations() {
                           <SourceIcon className="h-3 w-3 mr-1" />
                           {formatSource(observation.source)}
                         </span>
+                        {frequency.uniqueDays > 0 && (
+                          <span
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border border-green-200 bg-green-50 text-green-700"
+                            title={`${frequency.count} observations on ${frequency.uniqueDays} different days this month`}
+                          >
+                            <ChartBarIcon className="h-3 w-3 mr-1" />
+                            Day {frequency.uniqueDays}/{frequency.daysInMonth}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => handleViewPatient(observation.patient)}
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+                        >
+                          <UserIcon className="h-4 w-4" />
+                          <span>View Patient</span>
+                        </button>
                         <button
                           onClick={() => handleViewDetails(observation)}
                           className="text-sm text-purple-600 hover:text-purple-800 font-medium flex items-center space-x-1"
@@ -497,6 +618,15 @@ export default function Observations() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Patient Context Panel */}
+      {showPatientContext && selectedPatient && (
+        <PatientContextPanel
+          isOpen={showPatientContext}
+          patientId={selectedPatient.id}
+          onClose={() => setShowPatientContext(false)}
+        />
       )}
     </div>
   )

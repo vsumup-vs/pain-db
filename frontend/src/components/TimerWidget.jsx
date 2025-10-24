@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
-import { ClockIcon, StopIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from 'react';
+import { ClockIcon, StopIcon, XMarkIcon, CheckIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import { useTimer } from '../hooks/useTimer';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
+import api from '../services/api';
 
 /**
  * Timer Widget Component
  *
  * Displays active timer for a patient with:
  * - Real-time elapsed time counter
- * - Stop & Document button
+ * - Stop & Document button with CONTEXTUAL CPT code selection
  * - Cancel button
  * - "Stop & Document" modal with notes and CPT code
  *
  * Auto-starts when alert/task is claimed
  * Displays prominently to ensure clinicians remember to log time
  *
+ * Contextual CPT Code Features:
+ * - Fetches available CPT codes based on patient's enrollment and billing program
+ * - Shows only eligible codes (e.g., no "additional 20 min" until "first 20 min" is billed)
+ * - Auto-recommends appropriate code based on elapsed time
+ * - Visual feedback for unavailable codes with reasons
+ *
  * Note: clinicianId is determined on backend from authenticated user
  */
-export default function TimerWidget({ patientId, patientName, onTimeStopped }) {
+export default function TimerWidget({ patientId, patientName, enrollmentId, onTimeStopped }) {
   const { isActive, elapsedTime, timer, stopTimer, cancelTimer, isStopping, isCancelling } = useTimer(patientId);
   const [showStopModal, setShowStopModal] = useState(false);
   const [stopFormData, setStopFormData] = useState({
@@ -25,6 +33,29 @@ export default function TimerWidget({ patientId, patientName, onTimeStopped }) {
     cptCode: '',
     billable: true
   });
+
+  // Get current billing month (YYYY-MM format)
+  const getBillingMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
+  // Fetch available CPT codes when modal opens (only if enrollmentId provided)
+  const { data: availableCPTData, isLoading: isLoadingCPTCodes } = useQuery({
+    queryKey: ['availableCPTCodes', enrollmentId, getBillingMonth(), elapsedTime.minutes],
+    queryFn: () => api.getAvailableCPTCodes(enrollmentId, getBillingMonth(), elapsedTime.minutes),
+    enabled: showStopModal && !!enrollmentId,
+    staleTime: 30000 // Cache for 30 seconds
+  });
+
+  // Auto-select recommended CPT code when available
+  useEffect(() => {
+    if (availableCPTData?.recommendedCode && !stopFormData.cptCode) {
+      setStopFormData(prev => ({ ...prev, cptCode: availableCPTData.recommendedCode }));
+    }
+  }, [availableCPTData]);
 
   // Don't render if no active timer
   if (!isActive) {
@@ -154,79 +185,96 @@ export default function TimerWidget({ patientId, patientName, onTimeStopped }) {
                 />
               </div>
 
-              {/* CPT Code */}
+              {/* CPT Code - Contextual Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   CPT Code (optional)
                 </label>
-                <select
-                  value={stopFormData.cptCode}
-                  onChange={(e) => setStopFormData({ ...stopFormData, cptCode: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select CPT Code</option>
 
-                  {/* Alert-related timers: Show only clinical time codes */}
-                  {timer?.source === 'alert' && (
-                    <>
-                      <option value="99457">99457 - First 20 min clinical time (RPM)</option>
-                      <option value="99458">99458 - Additional 20 min (RPM)</option>
-                      <option value="98977">98977 - First 20 min treatment (RTM)</option>
-                      <option value="98980">98980 - Additional 20 min (RTM - respiratory)</option>
-                      <option value="98981">98981 - Additional 20 min (RTM - musculoskeletal)</option>
-                      <option value="99490">99490 - CCM first 20 min</option>
-                      <option value="99439">99439 - CCM additional 20 min</option>
-                    </>
-                  )}
-
-                  {/* Task-related timers: Show clinical time codes */}
-                  {timer?.source === 'task' && (
-                    <>
-                      <option value="99457">99457 - First 20 min clinical time (RPM)</option>
-                      <option value="99458">99458 - Additional 20 min (RPM)</option>
-                      <option value="98977">98977 - First 20 min treatment (RTM)</option>
-                      <option value="98980">98980 - Additional 20 min (RTM - respiratory)</option>
-                      <option value="98981">98981 - Additional 20 min (RTM - musculoskeletal)</option>
-                      <option value="99490">99490 - CCM first 20 min</option>
-                      <option value="99439">99439 - CCM additional 20 min</option>
-                    </>
-                  )}
-
-                  {/* Manual timers or enrollment-related: Show all codes */}
-                  {(timer?.source === 'manual' || !timer?.source) && (
-                    <>
-                      {/* Setup codes - for enrollment/device activation */}
-                      <optgroup label="Setup & Device Supply">
-                        <option value="99453">99453 - Initial setup (RPM)</option>
-                        <option value="99454">99454 - Device supply (RPM)</option>
-                        <option value="98975">98975 - Initial setup (RTM)</option>
-                        <option value="98976">98976 - Device supply (RTM)</option>
-                      </optgroup>
-
-                      {/* Clinical time codes */}
-                      <optgroup label="Clinical Time">
-                        <option value="99457">99457 - First 20 min clinical time (RPM)</option>
-                        <option value="99458">99458 - Additional 20 min (RPM)</option>
-                        <option value="98977">98977 - First 20 min treatment (RTM)</option>
-                        <option value="98980">98980 - Additional 20 min (RTM - respiratory)</option>
-                        <option value="98981">98981 - Additional 20 min (RTM - musculoskeletal)</option>
-                        <option value="99490">99490 - CCM first 20 min</option>
-                        <option value="99439">99439 - CCM additional 20 min</option>
-                      </optgroup>
-                    </>
-                  )}
-                </select>
-
-                {/* Help text based on timer source */}
-                {timer?.source === 'alert' && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    💡 Showing clinical time codes relevant for alert resolution
-                  </p>
+                {/* Show loading state while fetching codes */}
+                {isLoadingCPTCodes && enrollmentId && (
+                  <div className="text-sm text-gray-500 py-2">
+                    Loading available CPT codes...
+                  </div>
                 )}
-                {timer?.source === 'manual' && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    💡 Setup codes (99453, 98975) should be used during enrollment/device activation
-                  </p>
+
+                {/* Show CPT codes if enrollment has billing program */}
+                {!isLoadingCPTCodes && availableCPTData?.availableCodes && (
+                  <>
+                    <select
+                      value={stopFormData.cptCode}
+                      onChange={(e) => setStopFormData({ ...stopFormData, cptCode: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select CPT Code</option>
+
+                      {/* Available codes */}
+                      {availableCPTData.availableCodes
+                        .filter(code => code.available)
+                        .map(code => (
+                          <option
+                            key={code.code}
+                            value={code.code}
+                            className={code.code === availableCPTData.recommendedCode ? 'font-bold bg-green-50' : ''}
+                          >
+                            {code.code === availableCPTData.recommendedCode && '⭐ '}
+                            {code.code} - {code.description}
+                            {code.reimbursementRate && ` ($${code.reimbursementRate})`}
+                          </option>
+                        ))}
+                    </select>
+
+                    {/* Show recommended code hint */}
+                    {availableCPTData.recommendedCode && (
+                      <p className="mt-1 text-xs text-green-600 flex items-center">
+                        <CheckIcon className="h-3 w-3 mr-1" />
+                        Recommended: {availableCPTData.recommendedCode} based on {elapsedTime.minutes} minutes
+                      </p>
+                    )}
+
+                    {/* Show unavailable codes with reasons */}
+                    {availableCPTData.availableCodes.filter(code => !code.available).length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                          Show unavailable codes ({availableCPTData.availableCodes.filter(c => !c.available).length})
+                        </summary>
+                        <div className="mt-2 space-y-1">
+                          {availableCPTData.availableCodes
+                            .filter(code => !code.available)
+                            .map(code => (
+                              <div key={code.code} className="text-xs text-gray-500 bg-gray-50 p-2 rounded flex items-start">
+                                <ExclamationCircleIcon className="h-4 w-4 text-gray-400 mr-1 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-medium">{code.code}</span> - {code.description}
+                                  <br />
+                                  <span className="text-red-600">{code.unavailableReason}</span>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Show billing program info */}
+                    <p className="mt-1 text-xs text-gray-500">
+                      Program: {availableCPTData.billingProgram} ({availableCPTData.billingProgramCode})
+                    </p>
+                  </>
+                )}
+
+                {/* Fallback: No enrollment or no billing program */}
+                {!enrollmentId && (
+                  <div className="text-sm text-gray-500 py-2 bg-yellow-50 p-3 rounded">
+                    <ExclamationCircleIcon className="h-5 w-5 text-yellow-600 inline mr-2" />
+                    No enrollment found - CPT code selection unavailable
+                  </div>
+                )}
+
+                {!isLoadingCPTCodes && enrollmentId && availableCPTData?.error && (
+                  <div className="text-sm text-gray-500 py-2 bg-yellow-50 p-3 rounded">
+                    <ExclamationCircleIcon className="h-5 w-5 text-yellow-600 inline mr-2" />
+                    {availableCPTData.error}
+                  </div>
                 )}
               </div>
 

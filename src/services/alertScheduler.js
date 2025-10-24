@@ -142,7 +142,22 @@ function startScheduledJobs() {
     timezone: 'America/New_York'
   });
 
-  activeJobs.push(missedAssessmentJob, medicationAdherenceJob, trendEvaluationJob, staleAlertCleanupJob, assessmentReminderJob, reactivateSnoozedAlertsJob, slaEscalationJob);
+  // Job 8: Check stale claimed alerts and auto-release (every 10 minutes) - Phase 1b Option 3
+  const staleClaimCheckJob = cron.schedule('*/10 * * * *', async () => {
+    try {
+      console.log('⏰ Checking for stale claimed alerts...');
+      const released = await checkStaleClaimedAlerts();
+      if (released > 0) {
+        console.log(`✅ Auto-released ${released} stale claimed alerts`);
+      }
+    } catch (error) {
+      console.error('❌ Error checking stale claimed alerts:', error);
+    }
+  }, {
+    timezone: 'America/New_York'
+  });
+
+  activeJobs.push(missedAssessmentJob, medicationAdherenceJob, trendEvaluationJob, staleAlertCleanupJob, assessmentReminderJob, reactivateSnoozedAlertsJob, slaEscalationJob, staleClaimCheckJob);
 
   console.log('✅ All alert evaluation jobs scheduled:');
   console.log('  - Missed assessments: Every hour');
@@ -152,6 +167,7 @@ function startScheduledJobs() {
   console.log('  - Assessment reminders: Twice daily at 9 AM and 6 PM');
   console.log('  - Reactivate snoozed alerts: Every 5 minutes');
   console.log('  - SLA breach escalation: Every minute');
+  console.log('  - Stale claim auto-release: Every 10 minutes');
 }
 
 /**
@@ -1194,6 +1210,203 @@ async function checkAndEscalateSLABreaches() {
 }
 
 /**
+ * Check for stale claimed alerts and auto-release them (Phase 1b - Option 3 Hybrid)
+ * Runs every 10 minutes
+ * Auto-releases alerts claimed for > 60 minutes without resolution
+ */
+async function checkStaleClaimedAlerts() {
+  try {
+    let releasedCount = 0;
+
+    // Configuration - timeout in minutes before auto-release
+    const CLAIM_TIMEOUT_MINUTES = 60;
+    const CLAIM_WARNING_MINUTES = 45;
+
+    const now = new Date();
+    const timeoutThreshold = new Date(now.getTime() - CLAIM_TIMEOUT_MINUTES * 60 * 1000);
+    const warningThreshold = new Date(now.getTime() - CLAIM_WARNING_MINUTES * 60 * 1000);
+
+    // Find alerts claimed but not resolved for > 60 minutes
+    const staleAlerts = await prisma.alert.findMany({
+      where: {
+        claimedById: { not: null },
+        claimedAt: { lt: timeoutThreshold },
+        status: { in: ['PENDING', 'ACKNOWLEDGED'] } // Not resolved
+      },
+      include: {
+        claimedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        rule: {
+          select: {
+            name: true,
+            severity: true
+          }
+        }
+      }
+    });
+
+    for (const alert of staleAlerts) {
+      const claimDurationMinutes = Math.floor((now - alert.claimedAt) / (1000 * 60));
+
+      // Auto-release the alert with transaction (audit logging)
+      const [updatedAlert] = await prisma.$transaction([
+        prisma.alert.update({
+          where: { id: alert.id },
+          data: {
+            claimedById: null,
+            claimedAt: null
+          }
+        }),
+        // Create audit log for auto-release
+        prisma.auditLog.create({
+          data: {
+            userId: null, // System action - no specific user
+            organizationId: alert.organizationId,
+            action: 'ALERT_AUTO_RELEASED',
+            resource: 'Alert',
+            resourceId: alert.id,
+            oldValues: {
+              claimedById: alert.claimedById,
+              claimedAt: alert.claimedAt
+            },
+            newValues: {
+              claimedById: null,
+              claimedAt: null
+            },
+            metadata: {
+              reason: 'Stale claim - exceeded timeout',
+              originalClaimerId: alert.claimedById,
+              claimDurationMinutes,
+              timeoutMinutes: CLAIM_TIMEOUT_MINUTES,
+              patientId: alert.patientId,
+              severity: alert.severity,
+              autoReleased: true
+            },
+            hipaaRelevant: true
+          }
+        })
+      ]);
+
+      // Broadcast SSE update
+      try {
+        const sseService = require('./sseService');
+        sseService.broadcastAlertUpdate(updatedAlert);
+      } catch (sseError) {
+        console.error('Failed to broadcast SSE auto-release update:', sseError);
+      }
+
+      // Send notification to original claimer
+      try {
+        const patientName = `${alert.patient.firstName} ${alert.patient.lastName}`;
+        await notificationService.sendEmail({
+          to: alert.claimedBy.email,
+          subject: `⏰ Alert Auto-Released: ${patientName}`,
+          html: `
+            <h2>Alert Automatically Released</h2>
+            <p>Dear ${alert.claimedBy.firstName} ${alert.claimedBy.lastName},</p>
+            <p>Your claim on the following alert was automatically released due to inactivity:</p>
+            <p><strong>Patient:</strong> ${patientName}</p>
+            <p><strong>Alert:</strong> ${alert.rule.name}</p>
+            <p><strong>Severity:</strong> ${alert.severity}</p>
+            <p><strong>Claim Duration:</strong> ${claimDurationMinutes} minutes</p>
+            <p>The alert has been returned to the triage queue and is now available for others to claim.</p>
+            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/alerts">View Triage Queue</a></p>
+          `
+        });
+        console.log(`📧 Auto-release notification sent to ${alert.claimedBy.email}`);
+      } catch (emailError) {
+        console.error('Failed to send auto-release notification:', emailError);
+      }
+
+      console.log(`🔓 Auto-released stale alert ${alert.id} (claimed by ${alert.claimedBy.firstName} ${alert.claimedBy.lastName} for ${claimDurationMinutes} min)`);
+      releasedCount++;
+    }
+
+    // Find alerts approaching timeout (45 minutes) - send warning
+    const warningAlerts = await prisma.alert.findMany({
+      where: {
+        claimedById: { not: null },
+        claimedAt: {
+          lt: warningThreshold,
+          gte: timeoutThreshold // Between 45-60 minutes
+        },
+        status: { in: ['PENDING', 'ACKNOWLEDGED'] }
+      },
+      include: {
+        claimedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        patient: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        rule: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    for (const alert of warningAlerts) {
+      const claimDurationMinutes = Math.floor((now - alert.claimedAt) / (1000 * 60));
+      const remainingMinutes = CLAIM_TIMEOUT_MINUTES - claimDurationMinutes;
+
+      try {
+        const patientName = `${alert.patient.firstName} ${alert.patient.lastName}`;
+        await notificationService.sendEmail({
+          to: alert.claimedBy.email,
+          subject: `⚠️ Alert Claim Expiring Soon: ${patientName}`,
+          html: `
+            <h2>Alert Claim Expiring Soon</h2>
+            <p>Dear ${alert.claimedBy.firstName} ${alert.claimedBy.lastName},</p>
+            <p>Your claim on the following alert will be automatically released in <strong>${remainingMinutes} minutes</strong>:</p>
+            <p><strong>Patient:</strong> ${patientName}</p>
+            <p><strong>Alert:</strong> ${alert.rule.name}</p>
+            <p><strong>Claimed:</strong> ${claimDurationMinutes} minutes ago</p>
+            <p>Please resolve or unclaim this alert to prevent automatic release.</p>
+            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/alerts/${alert.id}">View Alert</a></p>
+          `
+        });
+        console.log(`⚠️ Warning email sent to ${alert.claimedBy.email} (${remainingMinutes} min remaining)`);
+      } catch (emailError) {
+        console.error('Failed to send claim warning notification:', emailError);
+      }
+    }
+
+    if (releasedCount > 0) {
+      console.log(`✅ Auto-released ${releasedCount} stale claimed alerts`);
+    }
+
+    return releasedCount;
+
+  } catch (error) {
+    console.error('Error checking stale claimed alerts:', error);
+    throw error;
+  }
+}
+
+/**
  * Send escalation notification email to supervisor (Phase 1b)
  */
 async function sendEscalationNotification(supervisor, alert, minutesSinceBreach, escalationRule) {
@@ -1252,5 +1465,6 @@ module.exports = {
   cleanupStaleAlerts,
   sendAssessmentReminders,
   reactivateSnoozedAlerts,
-  checkAndEscalateSLABreaches
+  checkAndEscalateSLABreaches,
+  checkStaleClaimedAlerts
 };

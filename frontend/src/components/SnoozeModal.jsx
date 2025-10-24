@@ -8,7 +8,7 @@ import { XMarkIcon, ClockIcon } from '@heroicons/react/24/outline'
  * Modal for temporarily snoozing alerts for a specified duration.
  * The alert will be hidden from the triage queue until the snooze period expires.
  */
-export default function SnoozeModal({ alert, isOpen, onClose, onSubmit, isSubmitting }) {
+export default function SnoozeModal({ alert, isOpen, onClose, onSubmit, isSubmitting, isBulkMode = false, bulkCount = 0 }) {
   const {
     register,
     handleSubmit,
@@ -31,7 +31,8 @@ export default function SnoozeModal({ alert, isOpen, onClose, onSubmit, isSubmit
     onSubmit(data)
   }
 
-  if (!isOpen || !alert) return null
+  if (!isOpen) return null
+  if (!isBulkMode && !alert) return null
 
   // Quick duration options
   const quickOptions = [
@@ -72,26 +73,28 @@ export default function SnoozeModal({ alert, isOpen, onClose, onSubmit, isSubmit
             </div>
             <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Snooze Alert
+                {isBulkMode ? `Snooze ${bulkCount} Alerts` : 'Snooze Alert'}
               </h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500">
-                  Temporarily hide this alert from the triage queue. The alert will reappear after the specified duration.
+                  Temporarily hide {isBulkMode ? 'these alerts' : 'this alert'} from the triage queue. {isBulkMode ? 'The alerts' : 'The alert'} will reappear after the specified duration.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Alert Info */}
-          <div className="mt-4 bg-gray-50 rounded-lg p-3">
-            <div className="text-sm">
-              <div className="font-medium text-gray-900">{alert.rule?.name}</div>
-              <div className="text-gray-600 mt-1">{alert.message}</div>
-              <div className="text-gray-500 mt-1">
-                Patient: {alert.patient?.firstName} {alert.patient?.lastName}
+          {/* Alert Info - only show for single alert mode */}
+          {!isBulkMode && alert && (
+            <div className="mt-4 bg-gray-50 rounded-lg p-3">
+              <div className="text-sm">
+                <div className="font-medium text-gray-900">{alert.rule?.name}</div>
+                <div className="text-gray-600 mt-1">{alert.message}</div>
+                <div className="text-gray-500 mt-1">
+                  Patient: {alert.patient?.firstName} {alert.patient?.lastName}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit(handleFormSubmit)} className="mt-5">

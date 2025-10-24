@@ -29,23 +29,21 @@ class SmartAssessmentContinuityService {
     const reusableObservations = await prisma.observation.findMany({
       where: {
         patientId,
-        metricDefinitionId: { in: metricDefinitionIds },
+        metricId: { in: metricDefinitionIds },
         recordedAt: { gte: cutoffTime },
-        // Prioritize provider-reviewed observations
+        // Prioritize device observations and clinical monitoring
         OR: [
-          { providerReviewed: true },
           { source: 'DEVICE' },
           { context: 'CLINICAL_MONITORING' }
         ]
       },
       include: {
-        metricDefinition: true,
+        metric: true, // Fixed: Observation relation is "metric" not "metricDefinition"
         clinician: {
           select: { id: true, firstName: true, lastName: true }
         }
       },
       orderBy: [
-        { providerReviewed: 'desc' },
         { recordedAt: 'desc' }
       ]
     });
@@ -53,7 +51,7 @@ class SmartAssessmentContinuityService {
     // Group by metric definition and return most recent/relevant
     const groupedObservations = {};
     reusableObservations.forEach(obs => {
-      const metricId = obs.metricDefinitionId;
+      const metricId = obs.metricId; // Fixed: Observation field is "metricId" not "metricDefinitionId"
       if (!groupedObservations[metricId] || 
           this.isObservationMoreRelevant(obs, groupedObservations[metricId])) {
         groupedObservations[metricId] = obs;
@@ -74,12 +72,7 @@ class SmartAssessmentContinuityService {
       where: {
         patientId,
         templateId,
-        completedAt: { gte: cutoffTime },
-        // Prioritize provider-reviewed assessments
-        OR: [
-          { providerReviewed: true },
-          { context: 'CLINICAL_MONITORING' }
-        ]
+        completedAt: { gte: cutoffTime }
       },
       include: {
         template: true,
@@ -88,7 +81,6 @@ class SmartAssessmentContinuityService {
         }
       },
       orderBy: [
-        { providerReviewed: 'desc' },
         { completedAt: 'desc' }
       ],
       take: 5 // Return top 5 candidates
@@ -103,9 +95,6 @@ class SmartAssessmentContinuityService {
       patientId,
       clinicianId,
       templateId,
-      context = 'WELLNESS',
-      enrollmentId = null,
-      billingRelevant = false,
       forceNew = false
     } = assessmentData;
 
@@ -134,23 +123,9 @@ class SmartAssessmentContinuityService {
               templateId,
               responses: sourceAssessment.responses,
               score: sourceAssessment.score,
-              context,
-              enrollmentId,
-              billingRelevant,
-              providerReviewed: requireProviderReview ? false : sourceAssessment.providerReviewed,
-              reusedFromAssessmentId: sourceAssessment.id,
-              completedAt: new Date()
+              completedAt: new Date(),
+              notes: `Reused from assessment ${sourceAssessment.id}`
             }
-          });
-
-          // Log continuity action
-          await this.logContinuityAction({
-            patientId,
-            sourceAssessmentId: sourceAssessment.id,
-            targetAssessmentId: newAssessment.id,
-            targetContext: context,
-            reuseReason: 'Assessment reused within validity period',
-            clinicianId
           });
 
           return {
@@ -158,7 +133,7 @@ class SmartAssessmentContinuityService {
             continuityUsed: true,
             sourceType: 'assessment',
             sourceId: sourceAssessment.id,
-            message: `Assessment reused from ${sourceAssessment.context} context (${this.formatTimeAgo(sourceAssessment.completedAt)})`
+            message: `Assessment reused from previous assessment (${this.formatTimeAgo(sourceAssessment.completedAt)})`
           };
         }
       }
@@ -188,7 +163,7 @@ class SmartAssessmentContinuityService {
 
             template.items.forEach(item => {
               const observation = reusableObservations.find(
-                obs => obs.metricDefinitionId === item.metricDefinitionId
+                obs => obs.metricId === item.metricDefinitionId // Fixed: Observation field is "metricId"
               );
               if (observation) {
                 responses[item.metricDefinition.key] = observation.value;
@@ -207,22 +182,9 @@ class SmartAssessmentContinuityService {
                 templateId,
                 responses,
                 score,
-                context,
-                enrollmentId,
-                billingRelevant,
-                providerReviewed: requireProviderReview ? false : true,
-                completedAt: new Date()
+                completedAt: new Date(),
+                notes: `Created from ${reusableObservations.length} reusable observations`
               }
-            });
-
-            // Log continuity action
-            await this.logContinuityAction({
-              patientId,
-              sourceObservationIds,
-              targetAssessmentId: newAssessment.id,
-              targetContext: context,
-              reuseReason: `Assessment created from ${reusableObservations.length} reusable observations`,
-              clinicianId
             });
 
             return {
@@ -243,11 +205,8 @@ class SmartAssessmentContinuityService {
           clinicianId,
           templateId,
           responses: {},
-          context,
-          enrollmentId,
-          billingRelevant,
-          providerReviewed: false,
-          completedAt: new Date()
+          completedAt: new Date(),
+          notes: 'New assessment - no recent data available for reuse'
         }
       });
 
@@ -270,20 +229,20 @@ class SmartAssessmentContinuityService {
     const {
       patientId,
       clinicianId,
-      metricDefinitionId,
+      metricDefinitionId, // Keep parameter name for API compatibility
       value,
       source = 'MANUAL',
-      context = 'WELLNESS',
+      context = 'CLINICAL_MONITORING',
       enrollmentId = null,
-      billingRelevant = false,
-      notes = null
+      notes = null,
+      organizationId
     } = observationData;
 
     // Check for recent duplicate observations
     const recentObservation = await prisma.observation.findFirst({
       where: {
         patientId,
-        metricDefinitionId,
+        metricId: metricDefinitionId, // Fixed: Observation schema uses "metricId"
         recordedAt: {
           gte: new Date(Date.now() - (24 * 60 * 60 * 1000)) // Last 24 hours
         }
@@ -303,14 +262,14 @@ class SmartAssessmentContinuityService {
     // Create new observation
     const newObservation = await prisma.observation.create({
       data: {
+        organizationId,
         patientId,
         clinicianId,
-        metricDefinitionId,
+        metricId: metricDefinitionId, // Fixed: Observation schema uses "metricId"
         value,
         source,
         context,
         enrollmentId,
-        billingRelevant,
         notes,
         recordedAt: new Date()
       }
@@ -342,6 +301,25 @@ class SmartAssessmentContinuityService {
       // Find reusable observations
       if (metricDefinitionIds && metricDefinitionIds.length > 0) {
         suggestions.reusableObservations = await this.findReusableObservations(patientId, metricDefinitionIds);
+      } else {
+        // When no specific metrics requested, fetch ALL recent observations for test/overview purposes
+        const hours = this.defaultValidityHours;
+        const cutoffTime = new Date(Date.now() - (hours * 60 * 60 * 1000));
+
+        suggestions.reusableObservations = await prisma.observation.findMany({
+          where: {
+            patientId,
+            recordedAt: { gte: cutoffTime }
+          },
+          include: {
+            metric: true, // Fixed: relation is called "metric" not "metricDefinition"
+            clinician: {
+              select: { id: true, firstName: true, lastName: true }
+            }
+          },
+          orderBy: { recordedAt: 'desc' },
+          take: 50 // Limit to 50 most recent observations
+        });
       }
 
       // Generate recommendations
@@ -357,38 +335,66 @@ class SmartAssessmentContinuityService {
 
   /**
    * Get continuity history for a patient
+   * Uses existing Assessment table to show recent assessments with continuity context
    */
   async getContinuityHistory(patientId, options = {}) {
     const { limit = 20, offset = 0 } = options;
 
     try {
-      const history = await prisma.$queryRaw`
-        SELECT acl.*, 
-               p.first_name as patient_first_name, p.last_name as patient_last_name,
-               c.first_name as clinician_first_name, c.last_name as clinician_last_name,
-               sa.template_id as source_template_id,
-               ta.template_id as target_template_id
-        FROM assessment_continuity_log acl
-        LEFT JOIN patients p ON acl.patient_id = p.id
-        LEFT JOIN clinicians c ON acl.clinician_id = c.id
-        LEFT JOIN assessments sa ON acl.source_assessment_id = sa.id
-        LEFT JOIN assessments ta ON acl.target_assessment_id = ta.id
-        WHERE acl.patient_id = ${patientId}
-        ORDER BY acl.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
+      // Get recent assessments for this patient (last 30 days)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-      const total = await prisma.$queryRaw`
-        SELECT COUNT(*) as count
-        FROM assessment_continuity_log
-        WHERE patient_id = ${patientId}
-      `;
+      const history = await prisma.assessment.findMany({
+        where: {
+          patientId,
+          completedAt: { gte: thirtyDaysAgo }
+        },
+        include: {
+          template: {
+            select: { name: true, category: true }
+          },
+          clinician: {
+            select: { id: true, firstName: true, lastName: true }
+          },
+          patient: {
+            select: { firstName: true, lastName: true }
+          }
+        },
+        orderBy: { completedAt: 'desc' },
+        take: limit,
+        skip: offset
+      });
+
+      // Transform to continuity history format
+      const transformedHistory = history.map(assessment => ({
+        id: assessment.id,
+        patientId: assessment.patientId,
+        patient_first_name: assessment.patient.firstName,
+        patient_last_name: assessment.patient.lastName,
+        clinician_first_name: assessment.clinician?.firstName || 'Unknown',
+        clinician_last_name: assessment.clinician?.lastName || '',
+        template_name: assessment.template.name,
+        template_category: assessment.template.category,
+        completed_at: assessment.completedAt,
+        created_at: assessment.createdAt,
+        notes: assessment.notes || '',
+        // Add continuity metadata from responses if available
+        continuity_score: assessment.responses?.continuityScore || 0,
+        reused_metrics: assessment.responses?.reusedMetrics || []
+      }));
+
+      const total = await prisma.assessment.count({
+        where: {
+          patientId,
+          completedAt: { gte: thirtyDaysAgo }
+        }
+      });
 
       return {
-        history,
+        history: transformedHistory,
         pagination: {
-          total: parseInt(total[0].count),
-          pages: Math.ceil(parseInt(total[0].count) / parseInt(limit))
+          total: total,
+          pages: Math.ceil(total / limit)
         }
       };
 
@@ -400,12 +406,11 @@ class SmartAssessmentContinuityService {
 
   // Helper methods
   isObservationMoreRelevant(obs1, obs2) {
-    // Prioritize by context, then provider review, then recency
+    // Prioritize by context, then recency
     const priority1 = this.contextPriority[obs1.context] || 5;
     const priority2 = this.contextPriority[obs2.context] || 5;
-    
+
     if (priority1 !== priority2) return priority1 < priority2;
-    if (obs1.providerReviewed !== obs2.providerReviewed) return obs1.providerReviewed;
     return obs1.recordedAt > obs2.recordedAt;
   }
 
@@ -457,16 +462,15 @@ class SmartAssessmentContinuityService {
   }
 
   async logContinuityAction(logData) {
-    try {
-      await prisma.$executeRaw`
-        INSERT INTO assessment_continuity_log 
-        (patient_id, source_assessment_id, source_observation_ids, target_assessment_id, target_context, reuse_reason, clinician_id)
-        VALUES (${logData.patientId}, ${logData.sourceAssessmentId || null}, ${logData.sourceObservationIds || []}, 
-                ${logData.targetAssessmentId}, ${logData.targetContext}::"ObservationContext", ${logData.reuseReason}, ${logData.clinicianId})
-      `;
-    } catch (error) {
-      console.error('Error logging continuity action:', error);
-    }
+    // TODO: Implement continuity logging when assessment_continuity_log table is created
+    // For now, just log to console for debugging
+    console.log('Continuity action:', {
+      patientId: logData.patientId,
+      sourceAssessmentId: logData.sourceAssessmentId,
+      sourceObservationIds: logData.sourceObservationIds,
+      targetAssessmentId: logData.targetAssessmentId,
+      reuseReason: logData.reuseReason
+    });
   }
 }
 

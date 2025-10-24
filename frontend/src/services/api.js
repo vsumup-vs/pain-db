@@ -189,10 +189,16 @@ export const api = {
   getTriageQueue: (params) => apiClient.get('/alerts/triage-queue', { params }),
   claimAlert: (id) => apiClient.post(`/alerts/${id}/claim`),
   unclaimAlert: (id) => apiClient.post(`/alerts/${id}/unclaim`),
+  forceClaimAlert: (id, data) => apiClient.post(`/alerts/${id}/force-claim`, data),
   acknowledgeAlert: (id) => apiClient.post(`/alerts/${id}/acknowledge`),
   resolveAlert: (id, data) => apiClient.post(`/alerts/${id}/resolve`, data),
   snoozeAlert: (id, data) => apiClient.post(`/alerts/${id}/snooze`, data),
   suppressAlert: (id, data) => apiClient.post(`/alerts/${id}/suppress`, data),
+
+  // Bulk Alert Actions (Phase 1b - Multi-select operations)
+  // Restricted to ORG_ADMIN role (coordinator-level access)
+  bulkAlertActions: (action, alertIds, actionData = {}) =>
+    apiClient.post('/alerts/bulk-actions', { action, alertIds, actionData }),
 
   // Tasks (Phase 1b - Task Management System)
   getTasks: (params) => apiClient.get('/tasks', { params }),
@@ -230,6 +236,12 @@ export const api = {
   getOrganizationBillingPrograms: (organizationId) =>
     apiClient.get(`/billing/programs/organization/${organizationId}`),
 
+  // Get available CPT codes with contextual filtering
+  getAvailableCPTCodes: (enrollmentId, billingMonth, duration) =>
+    apiClient.get(`/billing/available-cpt-codes/${enrollmentId}/${billingMonth}`, {
+      params: duration ? { duration } : {}
+    }),
+
   // Encounter Notes (Phase 1a - Smart Documentation Templates)
   getEncounterNotes: (params) => apiClient.get('/encounter-notes', { params }),
   getEncounterNote: (id) => apiClient.get(`/encounter-notes/${id}`),
@@ -246,13 +258,40 @@ export const api = {
   cancelTimer: (data) => apiClient.post('/time-tracking/cancel', data),
   adjustTimeLog: (id, data) => apiClient.patch(`/time-tracking/adjust/${id}`, data),
 
+  // Analytics (Phase 1b - Clinician Workflow & Patient Engagement)
+  getClinicianWorkflowAnalytics: (params) =>
+    apiClient.get('/analytics/clinician-workflow', { params }),
+  getOrganizationWorkflowAnalytics: (params) =>
+    apiClient.get('/analytics/organization-workflow', { params }),
+  getPatientEngagementMetrics: (params) =>
+    apiClient.get('/analytics/patient-engagement', { params }),
+
   // Enrollments
   getEnrollments: (params) => apiClient.get('/enrollments', { params }),
   getEnrollment: (id) => apiClient.get(`/enrollments/${id}`),
   createEnrollment: (data) => apiClient.post('/enrollments', data),
   createBulkEnrollments: (data) => apiClient.post('/enrollments/bulk', data),
   updateEnrollment: (id, data) => apiClient.put(`/enrollments/${id}`, data),
-  deleteEnrollment: (id) => apiClient.delete(`/enrollments/${id}`)
+  deleteEnrollment: (id) => apiClient.delete(`/enrollments/${id}`),
+
+  // Scheduled Assessments (Smart Assessment Continuity System)
+  getScheduledAssessments: (params) => apiClient.get('/scheduled-assessments', { params }),
+  getScheduledAssessmentById: (id) => apiClient.get(`/scheduled-assessments/${id}`),
+  getPendingAssessmentsForPatient: (patientId) =>
+    apiClient.get(`/scheduled-assessments/patient/${patientId}/pending`),
+  createScheduledAssessment: (data) => apiClient.post('/scheduled-assessments', data),
+  updateScheduledAssessment: (id, data) => apiClient.put(`/scheduled-assessments/${id}`, data),
+  startScheduledAssessment: (id) => apiClient.post(`/scheduled-assessments/${id}/start`),
+  completeScheduledAssessment: (id, data) =>
+    apiClient.post(`/scheduled-assessments/${id}/complete`, data),
+  cancelScheduledAssessment: (id, data) =>
+    apiClient.post(`/scheduled-assessments/${id}/cancel`, data),
+  deleteScheduledAssessment: (id) => apiClient.delete(`/scheduled-assessments/${id}`),
+
+  // Assessments (for completing scheduled assessments)
+  createAssessment: (data) => apiClient.post('/assessments', data),
+  getAssessment: (id) => apiClient.get(`/assessments/${id}`),
+  getPatientAssessments: (patientId) => apiClient.get(`/assessments/patient/${patientId}`)
 }
 
 export default api

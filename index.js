@@ -28,8 +28,11 @@ const metricDefinitionRoutes = require('./src/routes/metricDefinitionRoutes');
 const observationRoutes = require('./src/routes/observationRoutes');
 const alertRoutes = require('./src/routes/alertRoutes');
 const alertRuleRoutes = require('./src/routes/alertRuleRoutes');
+const assessmentRoutes = require('./src/routes/assessmentRoutes');
 const assessmentTemplateRoutes = require('./src/routes/assessmentTemplateRoutes');
 const assessmentTemplateEnhancedRoutes = require('./src/routes/assessmentTemplateRoutes.enhanced');
+const scheduledAssessmentRoutes = require('./src/routes/scheduledAssessmentRoutes');
+console.log('🔧 DEBUG: scheduledAssessmentRoutes loaded:', typeof scheduledAssessmentRoutes, scheduledAssessmentRoutes.stack?.length, 'routes');
 const conditionPresetRoutes = require('./src/routes/conditionPresetRoutes');
 const careProgramRoutes = require('./src/routes/careProgramRoutes');
 
@@ -52,6 +55,9 @@ const sseRoutes = require('./src/routes/sseRoutes');
 
 // Import alert scheduler for background jobs
 const alertScheduler = require('./src/services/alertScheduler');
+
+// Import assessment scheduler for background jobs
+const assessmentScheduler = require('./src/services/assessmentScheduler');
 
 // Initialize passport
 app.use(passport.initialize());
@@ -147,6 +153,10 @@ app.use('/api/billing', requireAuth, injectOrganizationContext, auditOrganizatio
 app.use('/api/time-tracking', requireAuth, injectOrganizationContext, auditOrganizationAccess, timeTrackingRoutes);
 app.use('/api/analytics', requireAuth, injectOrganizationContext, auditOrganizationAccess, analyticsRoutes);
 app.use('/api/care-programs', requireAuth, injectOrganizationContext, auditOrganizationAccess, careProgramRoutes);
+app.use('/api/assessments', requireAuth, injectOrganizationContext, auditOrganizationAccess, assessmentRoutes);
+console.log('🔧 DEBUG: Registering /api/scheduled-assessments route');
+app.use('/api/scheduled-assessments', requireAuth, injectOrganizationContext, auditOrganizationAccess, scheduledAssessmentRoutes);
+console.log('🔧 DEBUG: Route registered successfully');
 
 // Platform configuration routes (platform-wide resources, no organization context needed)
 // These are managed by SUPER_ADMIN and available to all organizations
@@ -201,6 +211,7 @@ app.use((req, res) => {
 process.on('SIGINT', async () => {
   console.log('Received SIGINT, shutting down gracefully...');
   alertScheduler.stopScheduledJobs();
+  assessmentScheduler.stopScheduledJobs();
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -208,6 +219,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, shutting down gracefully...');
   alertScheduler.stopScheduledJobs();
+  assessmentScheduler.stopScheduledJobs();
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -223,6 +235,11 @@ if (require.main === module) {
     console.log('🔄 Starting alert evaluation engine...');
     alertScheduler.startScheduledJobs();
     console.log('✅ Alert evaluation engine started successfully');
+
+    // Start assessment scheduler
+    console.log('🔄 Starting assessment scheduler...');
+    assessmentScheduler.initializeScheduler();
+    console.log('✅ Assessment scheduler started successfully');
   });
 }
 

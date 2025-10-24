@@ -25,9 +25,6 @@ class EnhancedAssessmentController {
         patientId,
         clinicianId,
         templateId,
-        context = 'WELLNESS',
-        enrollmentId = null,
-        billingRelevant = false,
         forceNew = false,
         reuseOptions = {}
       } = req.body;
@@ -71,7 +68,7 @@ class EnhancedAssessmentController {
       }
 
       const result = await this.continuityService.createAssessmentWithContinuity(
-        { patientId, clinicianId, templateId, context, enrollmentId, billingRelevant, forceNew },
+        { patientId, clinicianId, templateId, forceNew },
         reuseOptions
       );
 

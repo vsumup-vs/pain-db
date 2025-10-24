@@ -403,6 +403,7 @@ export default function Alerts() {
         onSubmit={handleResolutionSubmit}
         alert={selectedAlertForResolution}
         isSubmitting={resolveAlertMutation.isLoading}
+        enrollmentId={selectedAlertForResolution?.data?.enrollmentId}
       />
     </div>
   )

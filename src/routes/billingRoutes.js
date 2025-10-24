@@ -15,7 +15,8 @@ const {
   getBillingPrograms,
   getBillingProgramByCode,
   getOrganizationBillingPrograms,
-  exportBillingSummaryCSV
+  exportBillingSummaryCSV,
+  getAvailableCPTCodes
 } = require('../controllers/billingController');
 
 // ============================================================================
@@ -41,6 +42,13 @@ router.get('/summary/:organizationId/:billingMonth', getOrganizationBillingSumma
 // GET /api/billing/export/:organizationId/:billingMonth
 // Example: /api/billing/export/org-123/2025-10
 router.get('/export/:organizationId/:billingMonth', exportBillingSummaryCSV);
+
+// Get available CPT codes for an enrollment (contextual filtering)
+// GET /api/billing/available-cpt-codes/:enrollmentId/:billingMonth?duration=25
+// Example: /api/billing/available-cpt-codes/enrollment-abc123/2025-10?duration=25
+// Returns CPT codes filtered by billing program, eligibility, and prerequisites
+// Optional duration parameter provides auto-recommendation
+router.get('/available-cpt-codes/:enrollmentId/:billingMonth', getAvailableCPTCodes);
 
 // ============================================================================
 // Billing Program Management Endpoints

@@ -613,6 +613,149 @@ async function generateBillingSummary(organizationId, billingMonth) {
   };
 }
 
+/**
+ * Get available CPT codes for an enrollment with eligibility and auto-selection
+ *
+ * This function provides CONTEXTUAL CPT code selection by:
+ * - Filtering codes based on billing program (RPM, RTM, CCM)
+ * - Checking prerequisites (e.g., 99458 requires 99457 first)
+ * - Evaluating eligibility based on current billing period data
+ * - Auto-recommending a code based on time duration
+ *
+ * @param {string} enrollmentId - Enrollment ID
+ * @param {string} billingMonth - Month to check (YYYY-MM)
+ * @param {number} duration - Time duration in minutes (optional, for auto-recommendation)
+ * @returns {Promise<Object>} Available CPT codes with eligibility and recommendation
+ */
+async function getAvailableCPTCodes(enrollmentId, billingMonth, duration = null) {
+  // Parse billing month
+  const [year, month] = billingMonth.split('-').map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+  // Fetch enrollment with billing program and CPT codes
+  const enrollment = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    include: {
+      patient: true,
+      billingProgram: {
+        include: {
+          cptCodes: {
+            where: { isActive: true },
+            orderBy: { displayOrder: 'asc' }
+          }
+        }
+      }
+    }
+  });
+
+  if (!enrollment || !enrollment.billingProgram) {
+    return {
+      enrollmentId,
+      billingMonth,
+      availableCodes: [],
+      recommendedCode: null,
+      error: 'No billing program assigned to this enrollment'
+    };
+  }
+
+  // Evaluate each CPT code for eligibility
+  const evaluatedCodes = [];
+  const eligibilityResults = {}; // Store results for prerequisite checking
+
+  for (const cptCode of enrollment.billingProgram.cptCodes) {
+    const result = await evaluateCPTCode(enrollment, cptCode, startDate, endDate, billingMonth);
+
+    eligibilityResults[cptCode.code] = result;
+
+    // Determine availability based on eligibility and prerequisites
+    let available = result.eligible;
+    let unavailableReason = null;
+
+    if (!available) {
+      // Check if it's an incremental code that requires a base code
+      if (cptCode.criteria.requires && cptCode.criteria.requires.length > 0) {
+        const requiredCode = cptCode.criteria.requires[0];
+        unavailableReason = `Requires ${requiredCode} to be billed first`;
+      } else {
+        unavailableReason = result.details;
+      }
+    }
+
+    evaluatedCodes.push({
+      code: cptCode.code,
+      description: cptCode.description,
+      category: cptCode.category,
+      available,
+      eligible: result.eligible,
+      unavailableReason,
+      actualValue: result.actualValue,
+      details: result.details,
+      reimbursementRate: result.reimbursementRate,
+      currency: result.currency,
+      criteria: cptCode.criteria // Include criteria for frontend understanding
+    });
+  }
+
+  // Auto-recommend a code based on duration (if provided)
+  let recommendedCode = null;
+  if (duration !== null && duration > 0) {
+    // Find the best matching code for the given duration
+    const timeBasedCodes = evaluatedCodes.filter(c =>
+      c.category === 'CLINICAL_TIME' ||
+      c.category === 'TREATMENT_TIME' ||
+      c.category === 'CARE_COORDINATION'
+    );
+
+    // Sort by threshold (ascending) to find the appropriate code
+    const sortedCodes = timeBasedCodes
+      .filter(c => c.available)
+      .sort((a, b) => {
+        const aThreshold = a.criteria.thresholdMinutes || 0;
+        const bThreshold = b.criteria.thresholdMinutes || 0;
+        return aThreshold - bThreshold;
+      });
+
+    // Select the code that matches the duration
+    for (const code of sortedCodes) {
+      const threshold = code.criteria.thresholdMinutes || 0;
+      const maxMinutes = code.criteria.maxMinutes || Infinity;
+
+      if (duration >= threshold && duration < maxMinutes) {
+        recommendedCode = code.code;
+        break;
+      }
+    }
+
+    // If duration exceeds all thresholds, recommend the highest available incremental code
+    if (!recommendedCode && sortedCodes.length > 0) {
+      const incrementalCodes = evaluatedCodes.filter(c =>
+        (c.category === 'CLINICAL_TIME_INCREMENTAL' ||
+         c.category === 'TREATMENT_TIME_ADDITIONAL' ||
+         c.category === 'CARE_COORDINATION_ADDITIONAL') &&
+        c.available
+      );
+
+      if (incrementalCodes.length > 0) {
+        recommendedCode = incrementalCodes[0].code;
+      } else {
+        // Fall back to the highest time-based code
+        recommendedCode = sortedCodes[sortedCodes.length - 1].code;
+      }
+    }
+  }
+
+  return {
+    enrollmentId,
+    billingMonth,
+    billingProgram: enrollment.billingProgram.name,
+    billingProgramCode: enrollment.billingProgram.code,
+    availableCodes: evaluatedCodes,
+    recommendedCode,
+    duration
+  };
+}
+
 module.exports = {
   calculateBillingReadiness,
   calculateOrganizationBillingReadiness,
@@ -620,5 +763,6 @@ module.exports = {
   evaluateEligibilityRules,
   evaluateCPTCode,
   calculateUniqueDaysWithData,
-  calculateBillableTime
+  calculateBillableTime,
+  getAvailableCPTCodes
 };

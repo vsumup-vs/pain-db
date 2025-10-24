@@ -659,7 +659,18 @@ const getPatientContext = async (req, res) => {
           organizationId,
           recordedAt: { gte: startDate },
           metric: {
-            category: { in: ['Vitals', 'Clinical Measurements'] }
+            category: {
+              in: [
+                'Vital Signs',
+                'Cardiac',
+                'Diabetes',
+                'Respiratory',
+                'Pain Assessment',
+                'Mental Health',
+                'Functional',
+                'Functional Status'
+              ]
+            }
           }
         },
         include: {
@@ -765,24 +776,31 @@ const getPatientContext = async (req, res) => {
         take: 5
       }),
 
-      // Active/recent alerts
+      // Recent alerts (including resolved for context)
       prisma.alert.findMany({
         where: {
           patientId: id,
-          organizationId,
-          status: { in: ['PENDING', 'ACKNOWLEDGED'] }
+          organizationId
         },
         include: {
           rule: {
             select: {
               id: true,
               name: true,
-              severity: true
+              severity: true,
+              category: true
+            }
+          },
+          clinician: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
             }
           }
         },
         orderBy: { triggeredAt: 'desc' },
-        take: 10
+        take: 20  // Get more alerts to show resolution history
       }),
 
       // Most recent observations (any type)
@@ -870,6 +888,8 @@ const getPatientContext = async (req, res) => {
           totalActive: activeMedications.length
         },
         conditions: conditions.map(enrollment => ({
+          enrollmentId: enrollment.id,
+          billingProgramId: enrollment.billingProgramId,
           program: enrollment.careProgram,
           condition: enrollment.conditionPreset,
           clinician: enrollment.clinician,
@@ -886,16 +906,22 @@ const getPatientContext = async (req, res) => {
           totalRecent: recentAssessments.length
         },
         alerts: {
-          active: activeAlerts.map(alert => ({
+          recent: activeAlerts.map(alert => ({
             id: alert.id,
+            ruleId: alert.ruleId,
             rule: alert.rule,
             severity: alert.severity,
             status: alert.status,
             message: alert.message,
             triggeredAt: alert.triggeredAt,
-            riskScore: alert.riskScore
+            riskScore: alert.riskScore,
+            resolutionNotes: alert.resolutionNotes,
+            resolvedAt: alert.resolvedAt,
+            resolvedBy: alert.clinician,
+            acknowledgedAt: alert.acknowledgedAt
           })),
-          totalActive: activeAlerts.length
+          totalActive: activeAlerts.filter(a => a.status !== 'RESOLVED').length,
+          totalRecent: activeAlerts.length
         },
         recentActivity: {
           observations: recentObservations.map(obs => ({
@@ -908,7 +934,7 @@ const getPatientContext = async (req, res) => {
         summary: {
           totalActiveConditions: conditions.length,
           totalActiveMedications: activeMedications.length,
-          totalActiveAlerts: activeAlerts.length,
+          totalActiveAlerts: activeAlerts.filter(a => a.status !== 'RESOLVED').length,
           lastObservation: recentObservations.length > 0 ? recentObservations[0].recordedAt : null
         }
       }

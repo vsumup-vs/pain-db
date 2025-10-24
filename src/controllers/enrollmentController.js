@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { scheduleInitialAssessments } = require('../services/assessmentScheduler');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -124,10 +125,6 @@ const createEnrollment = async (req, res) => {
       });
     }
 
-    // Add this at the top with other imports
-    const { setupDailyReminderRule } = require('../services/reminderService');
-    
-    // In the createEnrollment function, update the enrollment creation:
     // SECURITY: Get organizationId from authenticated user context
     const organizationId = req.organizationId || req.user?.currentOrganization;
 
@@ -182,6 +179,15 @@ const createEnrollment = async (req, res) => {
         }
       }
     });
+
+    // Auto-create scheduled assessments for this enrollment
+    try {
+      await scheduleInitialAssessments(enrollment.id, conditionPresetId, clinicianId);
+      console.log(`[enrollmentController] Initial assessments scheduled for enrollment ${enrollment.id}`);
+    } catch (error) {
+      console.error('[enrollmentController] Failed to schedule initial assessments:', error);
+      // Don't fail enrollment creation if scheduling fails - log and continue
+    }
 
     res.status(201).json({
       success: true,
@@ -890,6 +896,21 @@ const createBulkEnrollments = async (req, res) => {
           clinicianId: clinicianRecord.id,
           careProgramId: careProgramRecord.id
         });
+
+        // Auto-create scheduled assessments for this enrollment
+        if (newEnrollment.conditionPresetId) {
+          try {
+            await scheduleInitialAssessments(
+              newEnrollment.id,
+              newEnrollment.conditionPresetId,
+              newEnrollment.clinicianId
+            );
+            console.log(`[enrollmentController] Initial assessments scheduled for bulk enrollment ${newEnrollment.id}`);
+          } catch (error) {
+            console.error(`[enrollmentController] Failed to schedule initial assessments for enrollment ${newEnrollment.id}:`, error);
+            results.warnings.push(`Failed to schedule assessments for patient ${patientRecord.email}: ${error.message}`);
+          }
+        }
 
       } catch (error) {
         console.error('Error processing enrollment:', error);

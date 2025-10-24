@@ -24,7 +24,7 @@ import api from '../services/api'
  * - createFollowUpTask: Whether to create a follow-up task
  * - followUpTaskType, followUpTaskTitle, followUpTaskDescription, followUpTaskDueDate
  */
-export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLoading, activeTimerMinutes }) {
+export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLoading, activeTimerMinutes, enrollmentId, isBulkMode = false, bulkCount = 0 }) {
   // Fetch clinicians for task assignment (includes nurses, care coordinators, etc.)
   const { data: cliniciansResponse } = useQuery({
     queryKey: ['clinicians'],
@@ -40,6 +40,7 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -47,6 +48,7 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
       interventionType: '',
       patientOutcome: '',
       timeSpentMinutes: 20, // Default to 20 min threshold for CPT billing
+      cptCode: '', // NEW: CPT code for billing
       createFollowUpTask: false,
       followUpTaskType: 'FOLLOW_UP_CALL',
       followUpTaskTitle: '',
@@ -63,6 +65,39 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
   const createEncounterNote = watch('createEncounterNote')
   const selectedPatientOutcome = watch('patientOutcome')
   const selectedInterventionType = watch('interventionType')
+  const timeSpentMinutes = watch('timeSpentMinutes')
+  const selectedCptCode = watch('cptCode')
+
+  // Get current billing month (YYYY-MM format)
+  const getBillingMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
+  // Fetch available CPT codes when modal opens (only if enrollmentId provided)
+  const { data: availableCPTData, isLoading: isLoadingCPTCodes } = useQuery({
+    queryKey: ['availableCPTCodes', enrollmentId, getBillingMonth(), timeSpentMinutes],
+    queryFn: () => api.getAvailableCPTCodes(enrollmentId, getBillingMonth(), timeSpentMinutes),
+    enabled: isOpen && !!enrollmentId && timeSpentMinutes > 0,
+    staleTime: 30000 // Cache for 30 seconds
+  });
+
+  // Debug: Log enrollmentId when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('ResolutionModal opened - enrollmentId:', enrollmentId);
+      console.log('Alert data:', alert?.data);
+    }
+  }, [isOpen, enrollmentId, alert]);
+
+  // Auto-select recommended CPT code when available
+  useEffect(() => {
+    if (availableCPTData?.recommendedCode && !selectedCptCode) {
+      setValue('cptCode', availableCPTData.recommendedCode);
+    }
+  }, [availableCPTData, selectedCptCode, setValue]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -72,6 +107,7 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
         interventionType: '',
         patientOutcome: '',
         timeSpentMinutes: activeTimerMinutes || 20, // Use timer minutes if available, otherwise default to 20
+        cptCode: '', // NEW: Reset CPT code
         createFollowUpTask: false,
         followUpTaskType: 'FOLLOW_UP_CALL',
         followUpTaskTitle: '',
@@ -89,7 +125,8 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
     onSubmit(data)
   }
 
-  if (!isOpen || !alert) return null
+  if (!isOpen) return null
+  if (!isBulkMode && !alert) return null
 
   // Intervention type options
   const interventionTypes = [
@@ -140,41 +177,45 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
               </div>
               <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
                 <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                  Resolve Alert
+                  {isBulkMode ? `Bulk Resolve ${bulkCount} Alerts` : 'Resolve Alert'}
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  {alert.rule?.name || 'Alert'} - {alert.patient?.firstName} {alert.patient?.lastName}
-                </p>
+                {!isBulkMode && alert && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {alert.rule?.name || 'Alert'} - {alert.patient?.firstName} {alert.patient?.lastName}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Alert Information */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Alert Details</h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-500">Severity:</span>
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                    alert.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
-                    alert.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
-                    alert.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {alert.severity}
-                  </span>
+            {/* Alert Information - only show for single alert mode */}
+            {!isBulkMode && alert && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Alert Details</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">Severity:</span>
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      alert.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                      alert.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                      alert.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {alert.severity}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Triggered:</span>
+                    <span className="ml-2 text-gray-900">
+                      {new Date(alert.triggeredAt).toLocaleDateString()} {new Date(alert.triggeredAt).toLocaleTimeString()}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-500">Triggered:</span>
-                  <span className="ml-2 text-gray-900">
-                    {new Date(alert.triggeredAt).toLocaleDateString()} {new Date(alert.triggeredAt).toLocaleTimeString()}
-                  </span>
+                <div className="mt-2">
+                  <span className="text-gray-500 text-sm">Message:</span>
+                  <p className="text-gray-900 text-sm mt-1">{alert.message}</p>
                 </div>
               </div>
-              <div className="mt-2">
-                <span className="text-gray-500 text-sm">Message:</span>
-                <p className="text-gray-900 text-sm mt-1">{alert.message}</p>
-              </div>
-            </div>
+            )}
 
             {/* Required Documentation Warning */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
@@ -311,6 +352,100 @@ export default function ResolutionModal({ alert, isOpen, onClose, onSubmit, isLo
                     ? 'Time pre-filled from active timer. You can adjust if needed.'
                     : 'Note: 20+ minutes qualifies for CPT 99457 billing'}
                 </p>
+              </div>
+
+              {/* CPT Code - Contextual Selection */}
+              <div>
+                <label htmlFor="cptCode" className="block text-sm font-medium text-gray-700 mb-1">
+                  CPT Code (optional)
+                  <span className="text-xs text-gray-500 ml-2">(for billing documentation)</span>
+                </label>
+
+                {/* Show loading state while fetching codes */}
+                {isLoadingCPTCodes && enrollmentId && (
+                  <div className="text-sm text-gray-500 py-2">
+                    Loading available CPT codes...
+                  </div>
+                )}
+
+                {/* Show CPT codes if enrollment has billing program */}
+                {!isLoadingCPTCodes && availableCPTData?.availableCodes && (
+                  <>
+                    <select
+                      id="cptCode"
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      {...register('cptCode')}
+                    >
+                      <option value="">Select CPT Code (optional)</option>
+
+                      {/* Available codes */}
+                      {availableCPTData.availableCodes
+                        .filter(code => code.available)
+                        .map(code => (
+                          <option
+                            key={code.code}
+                            value={code.code}
+                            className={code.code === availableCPTData.recommendedCode ? 'font-bold bg-green-50' : ''}
+                          >
+                            {code.code === availableCPTData.recommendedCode && '⭐ '}
+                            {code.code} - {code.description}
+                            {code.reimbursementRate && ` ($${code.reimbursementRate})`}
+                          </option>
+                        ))}
+                    </select>
+
+                    {/* Show recommended code hint */}
+                    {availableCPTData.recommendedCode && (
+                      <p className="mt-1 text-xs text-green-600 flex items-center">
+                        <CheckCircleIcon className="h-3 w-3 mr-1" />
+                        Recommended: {availableCPTData.recommendedCode} based on {timeSpentMinutes} minutes
+                      </p>
+                    )}
+
+                    {/* Show unavailable codes with reasons */}
+                    {availableCPTData.availableCodes.filter(code => !code.available).length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                          Show unavailable codes ({availableCPTData.availableCodes.filter(c => !c.available).length})
+                        </summary>
+                        <div className="mt-2 space-y-1">
+                          {availableCPTData.availableCodes
+                            .filter(code => !code.available)
+                            .map(code => (
+                              <div key={code.code} className="text-xs text-gray-500 bg-gray-50 p-2 rounded flex items-start">
+                                <ExclamationTriangleIcon className="h-4 w-4 text-gray-400 mr-1 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-medium">{code.code}</span> - {code.description}
+                                  <br />
+                                  <span className="text-red-600">{code.unavailableReason}</span>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Show billing program info */}
+                    <p className="mt-1 text-xs text-gray-500">
+                      Program: {availableCPTData.billingProgram} ({availableCPTData.billingProgramCode})
+                    </p>
+                  </>
+                )}
+
+                {/* Fallback: No enrollment or no billing program */}
+                {!enrollmentId && (
+                  <div className="text-sm text-gray-500 py-2 bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 inline mr-2" />
+                    No enrollment found - CPT code selection unavailable
+                  </div>
+                )}
+
+                {!isLoadingCPTCodes && enrollmentId && availableCPTData?.error && (
+                  <div className="text-sm text-gray-500 py-2 bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 inline mr-2" />
+                    {availableCPTData.error}
+                  </div>
+                )}
               </div>
 
               {/* Follow-up Task Creation */}

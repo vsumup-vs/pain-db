@@ -378,6 +378,7 @@ model Organization {
   supportTickets      SupportTicket[]      // Support tickets raised by this org
   subscriptionHistory SubscriptionHistory[]
   invoices            Invoice[]
+  scheduledAssessments ScheduledAssessment[] // Scheduled assessments for patients in this org
 
   // ENHANCEMENT: Add indexes
   @@index([name])
@@ -521,6 +522,7 @@ model Patient {
   tasks              Task[]
   encounterNotes     EncounterNote[]
   assessmentReminders AssessmentReminder[]
+  scheduledAssessments ScheduledAssessment[]
 
   // ENHANCEMENT: Add composite unique constraint and indexes
   @@unique([organizationId, email]) // Unique email per organization
@@ -555,6 +557,8 @@ model Clinician {
   timeLogs       TimeLog[]
   alerts         Alert[]
   encounterNotes EncounterNote[]
+  scheduledAssessmentsScheduled  ScheduledAssessment[] @relation("ScheduledBy")
+  scheduledAssessmentsCompleted  ScheduledAssessment[] @relation("CompletedBy")
 
   // ENHANCEMENT: Add indexes
   @@index([organizationId])
@@ -605,6 +609,7 @@ model Enrollment {
   observations    Observation[]    // PHASE 3: Observations linked to this enrollment
   timeLogs        TimeLog[]        // PHASE 3: Time logs linked to this enrollment
   assessmentReminders AssessmentReminder[]
+  scheduledAssessments ScheduledAssessment[]
 
   // ENHANCEMENT: Prevent duplicate enrollments
   @@unique([patientId, careProgramId, startDate])
@@ -717,6 +722,7 @@ model AssessmentTemplate {
   conditionPresetTemplates ConditionPresetTemplate[]
   items                    AssessmentTemplateItem[]
   assessmentReminders      AssessmentReminder[]
+  scheduledAssessments     ScheduledAssessment[]
 
   // ENHANCEMENT: Unique per organization (or globally if null)
   @@unique([organizationId, name])
@@ -767,6 +773,7 @@ model Assessment {
   clinician Clinician?         @relation(fields: [clinicianId], references: [id])
   template  AssessmentTemplate @relation(fields: [templateId], references: [id])
   tasks     Task[]
+  scheduledAssessment ScheduledAssessment? @relation("CompletedScheduledAssessment")
 
   // ENHANCEMENT: Add indexes
   @@index([patientId])
@@ -774,6 +781,81 @@ model Assessment {
   @@index([completedAt])
   @@index([createdAt])
   @@map("assessments")
+}
+
+enum ScheduledAssessmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum ScheduledAssessmentFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  AS_NEEDED
+}
+
+model ScheduledAssessment {
+  id                     String                       @id @default(cuid())
+  organizationId         String
+  patientId              String
+  enrollmentId           String
+  templateId             String
+  conditionPresetId      String?                      // Optional: link to condition preset
+
+  // Scheduling
+  frequency              ScheduledAssessmentFrequency
+  dueDate                DateTime
+  scheduledBy            String?                      // Clinician ID who scheduled it
+
+  // Status
+  status                 ScheduledAssessmentStatus    @default(PENDING)
+  priority               Int                          @default(0) // 0=normal, 1=high, 2=urgent
+  isRequired             Boolean                      @default(true)
+
+  // Completion tracking
+  completedAt            DateTime?
+  completedBy            String?                      // Clinician ID who completed it
+  completedAssessmentId  String?  @unique            // Link to actual Assessment record
+
+  // Notifications
+  notificationsSent      Int                          @default(0)
+  lastNotificationAt     DateTime?
+
+  // Metadata
+  notes                  String?
+  metadata               Json?                        // Flexible field for custom data
+
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+
+  // Relationships
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient            Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  enrollment         Enrollment           @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  template           AssessmentTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  conditionPreset    ConditionPreset?     @relation(fields: [conditionPresetId], references: [id], onDelete: SetNull)
+  scheduledByClinician Clinician?         @relation("ScheduledBy", fields: [scheduledBy], references: [id], onDelete: SetNull)
+  completedByClinician Clinician?         @relation("CompletedBy", fields: [completedBy], references: [id], onDelete: SetNull)
+  completedAssessment  Assessment?        @relation("CompletedScheduledAssessment", fields: [completedAssessmentId], references: [id], onDelete: SetNull)
+
+  // Indexes
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([enrollmentId])
+  @@index([templateId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([frequency])
+  @@index([priority])
+  @@index([scheduledBy])
+  @@index([completedBy])
+  @@map("scheduled_assessments")
 }
 
 enum TimeLogSource {
@@ -842,6 +924,7 @@ model ConditionPreset {
   templates       ConditionPresetTemplate[]
   alertRules      ConditionPresetAlertRule[]
   enrollments     Enrollment[]
+  scheduledAssessments ScheduledAssessment[]
 
   // ENHANCEMENT: Unique per organization (or globally if null)
   @@unique([organizationId, name])

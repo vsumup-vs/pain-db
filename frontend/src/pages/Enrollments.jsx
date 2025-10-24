@@ -309,7 +309,7 @@ export default function Enrollments() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Care Program</p>
-                  <p className="text-sm text-gray-900">{enrollment.conditionPreset?.name || 'N/A'}</p>
+                  <p className="text-sm text-gray-900">{enrollment.careProgram?.name || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Start Date</p>

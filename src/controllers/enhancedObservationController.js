@@ -23,10 +23,10 @@ class EnhancedObservationController {
       const observationData = req.body;
 
       // Validate required fields
-      if (!observationData.patientId || !observationData.clinicianId || !observationData.metricDefinitionId) {
+      if (!observationData.patientId || !observationData.metricDefinitionId) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required fields: patientId, clinicianId, metricDefinitionId'
+          message: 'Missing required fields: patientId, metricDefinitionId'
         });
       }
 
@@ -35,6 +35,7 @@ class EnhancedObservationController {
         where: { id: observationData.patientId },
         select: {
           id: true,
+          organizationId: true,
           organization: {
             select: {
               id: true,
@@ -59,6 +60,9 @@ class EnhancedObservationController {
           message: 'Observation recording is not available for platform organizations. This is a patient-care feature for healthcare providers only.'
         });
       }
+
+      // Add organizationId to observation data (required field)
+      observationData.organizationId = patient.organizationId;
 
       const result = await this.continuityService.createObservationWithContext(observationData);
 
@@ -88,9 +92,7 @@ class EnhancedObservationController {
       const {
         context,
         enrollmentId,
-        billingRelevant,
-        providerReviewed,
-        metricDefinitionId,
+        metricId,
         limit = 50,
         offset = 0
       } = req.query;
@@ -127,17 +129,15 @@ class EnhancedObservationController {
 
       // Build where clause
       const where = { patientId };
-      
+
       if (context) where.context = context;
       if (enrollmentId) where.enrollmentId = enrollmentId;
-      if (billingRelevant !== undefined) where.billingRelevant = billingRelevant === 'true';
-      if (providerReviewed !== undefined) where.providerReviewed = providerReviewed === 'true';
-      if (metricDefinitionId) where.metricDefinitionId = metricDefinitionId;
+      if (metricId) where.metricId = metricId;
 
       const observations = await prisma.observation.findMany({
         where,
         include: {
-          metricDefinition: true,
+          metric: true,
           clinician: {
             select: { id: true, firstName: true, lastName: true }
           }
@@ -171,24 +171,32 @@ class EnhancedObservationController {
   }
 
   /**
-   * Update observation provider review status
+   * Update observation notes
    * PATCH /api/observations/:observationId/review
    */
   async updateProviderReview(req, res) {
     try {
       const { observationId } = req.params;
-      const { providerReviewed, reviewedBy, reviewNotes } = req.body;
+      const { reviewNotes } = req.body;
+
+      const observation = await prisma.observation.findUnique({
+        where: { id: observationId }
+      });
+
+      if (!observation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Observation not found'
+        });
+      }
 
       const updatedObservation = await prisma.observation.update({
         where: { id: observationId },
         data: {
-          providerReviewed: providerReviewed === true,
-          reviewedBy: reviewedBy || null,
-          reviewedAt: providerReviewed === true ? new Date() : null,
-          notes: reviewNotes ? `${req.body.notes || ''}\n[Review: ${reviewNotes}]`.trim() : req.body.notes
+          notes: reviewNotes ? `${observation.notes || ''}\n[Review: ${reviewNotes}]`.trim() : observation.notes
         },
         include: {
-          metricDefinition: true,
+          metric: true,
           clinician: {
             select: { id: true, firstName: true, lastName: true }
           }
@@ -198,14 +206,14 @@ class EnhancedObservationController {
       res.json({
         success: true,
         data: updatedObservation,
-        message: `Observation ${providerReviewed ? 'approved' : 'marked for review'} by provider`
+        message: 'Observation review notes updated'
       });
 
     } catch (error) {
-      console.error('Error updating provider review:', error);
+      console.error('Error updating observation review:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to update provider review status',
+        message: 'Failed to update observation review',
         error: error.message
       });
     }
