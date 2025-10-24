@@ -62,3 +62,11 @@ Thumbs.db
 ```
 *.log
 frontend/dist/
+
+# Temporary test scripts in root directory only (not part of main codebase)
+/check-*.js
+/cleanup-*.js
+/create-*.js
+/find-*.js
+/test-*.js
+/verify-*.js
