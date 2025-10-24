@@ -1,6 +1,6 @@
 # Product Roadmap
 
-> Last Updated: 2025-10-22
+> Last Updated: 2025-10-25
 > Version: 1.0.0
 > Status: Active Development
 
@@ -164,6 +164,22 @@ The following features have been implemented:
   - 7-Day Engagement Trend chart with color-coded bars (green: highly engaged, blue: engaged, yellow: moderate, red: at-risk)
   - Displays: engagement score (0-100), assessment adherence %, medication adherence %, observation consistency, critical alerts
   - **Success Metric**: Care managers can identify at-risk patients and track engagement trends over time
+- [x] **View Completed Assessments** - Interface for viewing historical assessment responses with full question/answer details `S` (2 days) ✅ **COMPLETE** (Added 2025-10-25)
+  - Frontend: AssessmentDetailsModal.jsx component with gradient UI design
+  - Display: Patient info, completion date, clinician notes, all questions with answers, scores
+  - Integration: "View Details" button added to completed assessments in Assessments.jsx
+  - Backend: Enhanced assessmentController.js to include template items with metric definitions
+  - **Success Metric**: Clinicians can review historical assessment data without leaving the platform
+- [x] **Assessment Completion Bug Fix** - Fixed React rendering errors preventing assessment completion `S` (1 day) ✅ **COMPLETE** (Added 2025-10-25)
+  - Fixed "Objects are not valid as React child" error in AssessmentModal.jsx
+  - Handle both string and {label, value} object formats for categorical/ordinal options
+  - Support for multiple option storage formats (direct arrays, nested objects, validation info)
+  - **Success Metric**: Clinicians can complete all assessment types without errors
+- [x] **Assessment Template Cleanup** - Database cleanup of duplicate/empty assessment templates `S` (1 day) ✅ **COMPLETE** (Added 2025-10-25)
+  - Migrated 54 completed assessments from empty templates to working templates (preserved history)
+  - Deleted 4 empty duplicate templates (CKD, COPD, Heart Failure, Weight Log)
+  - Reduced total templates from 22 to 18
+  - **Success Metric**: All assessment templates have valid questions, no empty duplicates
 
 #### Nice-to-Have (Defer to Phase 2 if time-constrained)
 
