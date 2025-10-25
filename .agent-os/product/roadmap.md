@@ -180,6 +180,18 @@ The following features have been implemented:
   - Deleted 4 empty duplicate templates (CKD, COPD, Heart Failure, Weight Log)
   - Reduced total templates from 22 to 18
   - **Success Metric**: All assessment templates have valid questions, no empty duplicates
+- [x] **Care Program Data Cleanup** - Fixed invalid metric keys and removed duplicates across all care programs `M` (3-4 days) ✅ **COMPLETE** (Added 2025-10-25)
+  - Fixed invalid metric keys in 38 of 62 care programs (weight → body_weight, pain_level → pain_scale_0_10, etc.)
+  - Removed 9 duplicate metrics and 3 duplicate condition presets
+  - Migrated 18 observations, 5 assessment template items, and 1 enrollment before deletion
+  - Created diagnostic and fix scripts (check-care-program-metrics.js, fix-care-program-metrics.js, cleanup-duplicates-safe.js)
+  - **Success Metric**: All care programs now have valid metric keys, no duplicate platform-level records
+- [x] **React Error Fixes** - Fixed infinite loop and Temporal Dead Zone errors in React components `S` (2-3 days) ✅ **COMPLETE** (Added 2025-10-25)
+  - Fixed CareProgramSettingsBuilder infinite loop with useRef to prevent circular useEffect dependency
+  - Fixed FilterBuilder Temporal Dead Zone error by reordering variable declarations
+  - Resolved "Maximum update depth exceeded" error in care program settings
+  - Resolved "Cannot access before initialization" error in saved views filter builder
+  - **Success Metric**: Both components now render without errors, UI fully functional
 
 #### Nice-to-Have (Defer to Phase 2 if time-constrained)
 
