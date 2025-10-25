@@ -318,6 +318,7 @@ model User {
   tasksAssignedBy      Task[]             @relation("TaskAssignedBy")
   tasksCompleted       Task[]             @relation("TaskCompletedBy")
   attestedEncounterNotes EncounterNote[] @relation("AttestedEncounterNotes")
+  savedViews           SavedView[]
 
   // ENHANCEMENT: Add indexes for common queries
   @@index([email])
@@ -379,6 +380,7 @@ model Organization {
   subscriptionHistory SubscriptionHistory[]
   invoices            Invoice[]
   scheduledAssessments ScheduledAssessment[] // Scheduled assessments for patients in this org
+  savedViews          SavedView[]
 
   // ENHANCEMENT: Add indexes
   @@index([name])
@@ -1572,4 +1574,51 @@ model Invoice {
   @@index([status])
   @@index([dueDate])
   @@map("invoices")
+}
+
+// Saved Views & Filters (Phase 1b)
+enum ViewType {
+  PATIENT_LIST
+  TRIAGE_QUEUE
+  ASSESSMENT_LIST
+  ENROLLMENT_LIST
+  ALERT_LIST
+  TASK_LIST
+}
+
+model SavedView {
+  id             String   @id @default(cuid())
+  userId         String   // Owner of the view
+  organizationId String   // Organization context
+  name           String   // User-defined name (e.g., "AM Hypertension Round")
+  description    String?  // Optional description
+  viewType       ViewType // PATIENT_LIST, TRIAGE_QUEUE, ASSESSMENT_LIST, etc.
+
+  // Filter criteria stored as JSON
+  filters        Json     // { status: 'ACTIVE', enrollmentType: 'RPM', riskScore: { gte: 7 }, ... }
+
+  // Display preferences
+  displayConfig  Json?    // { columns: [...], sortBy: 'lastName', sortOrder: 'asc', pageSize: 25 }
+
+  // Sharing
+  isShared       Boolean  @default(false) // Share with organization
+  sharedWithIds  String[] // Specific user IDs to share with
+
+  // Metadata
+  isDefault      Boolean  @default(false) // Set as default view for this user
+  usageCount     Int      @default(0)     // Track how often used
+  lastUsedAt     DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([viewType])
+  @@index([isShared])
+  @@map("saved_views")
 }

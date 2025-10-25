@@ -32,6 +32,7 @@ import TestPatientContext from './pages/TestPatientContext'
 import TestAlertEvaluation from './pages/TestAlertEvaluation'
 import ClinicianWorkflowAnalytics from './pages/ClinicianWorkflowAnalytics'
 import PatientEngagementMetrics from './pages/PatientEngagementMetrics'
+import SavedViews from './pages/SavedViews'
 import { api } from './services/api'
 
 // Protected Route component
@@ -145,6 +146,7 @@ function App() {
                 <Route path="/enrollments" element={<Enrollments />} />
                 <Route path="/enrollments/:id" element={<EnrollmentDetails />} />
                 <Route path="/care-programs" element={<CarePrograms />} />
+                <Route path="/saved-views" element={<SavedViews />} />
                 <Route path="/admin/organizations" element={<AdminOrganizations />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/platform/organizations" element={<PlatformOrganizations />} />

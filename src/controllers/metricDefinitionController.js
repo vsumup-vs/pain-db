@@ -394,7 +394,7 @@ const getAllMetricDefinitions = async (req, res) => {
     };
 
     // Add additional filters
-    if (isActive !== undefined) where.isActive = isActive === 'true';
+    // Note: MetricDefinition doesn't have isActive field - removed filter
     if (category) where.category = category;
     if (valueType) where.valueType = valueType;
     if (search) {
@@ -798,12 +798,7 @@ const validateMetricValue = async (req, res) => {
       });
     }
 
-    if (!metricDefinition.isActive) {
-      return res.status(400).json({
-        success: false,
-        message: 'Metric definition is not active'
-      });
-    }
+    // Note: MetricDefinition doesn't have isActive field - removed validation check
 
     let isValid = true;
     let errors = [];

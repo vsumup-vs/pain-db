@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
+import CareProgramSettingsBuilder from '../components/CareProgramSettingsBuilder'
 
 // Program type badge colors
 const PROGRAM_TYPE_COLORS = {
@@ -46,7 +47,7 @@ export default function CarePrograms() {
     type: '',
     description: '',
     isActive: true,
-    settings: ''
+    settings: {}
   })
 
   const queryClient = useQueryClient()
@@ -115,7 +116,7 @@ export default function CarePrograms() {
       type: '',
       description: '',
       isActive: true,
-      settings: ''
+      settings: {}
     })
   }
 
@@ -132,7 +133,7 @@ export default function CarePrograms() {
       type: program.type,
       description: program.description || '',
       isActive: program.isActive,
-      settings: program.settings ? JSON.stringify(program.settings, null, 2) : ''
+      settings: program.settings || {}
     })
     setIsModalOpen(true)
   }
@@ -160,23 +161,12 @@ export default function CarePrograms() {
       return
     }
 
-    // Parse settings JSON if provided
-    let parsedSettings = null
-    if (formData.settings.trim()) {
-      try {
-        parsedSettings = JSON.parse(formData.settings)
-      } catch (error) {
-        toast.error('Invalid JSON in settings field')
-        return
-      }
-    }
-
     const submitData = {
       name: formData.name.trim(),
       type: formData.type,
       description: formData.description.trim() || null,
       isActive: formData.isActive,
-      settings: parsedSettings
+      settings: Object.keys(formData.settings).length > 0 ? formData.settings : null
     }
 
     if (editingProgram) {
@@ -459,20 +449,17 @@ export default function CarePrograms() {
             />
           </div>
 
+          {/* Visual Settings Builder */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Settings (JSON)
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Program Settings
             </label>
-            <textarea
-              value={formData.settings}
-              onChange={(e) => setFormData({ ...formData, settings: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              rows={6}
-              placeholder={`{\n  "frequency": "daily",\n  "alerts": { "threshold": 180 },\n  "billingCode": "99454"\n}`}
+            <CareProgramSettingsBuilder
+              settings={formData.settings}
+              programType={formData.type}
+              onChange={(settings) => setFormData({ ...formData, settings })}
+              showJson={true}
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Optional: Custom program settings in JSON format
-            </p>
           </div>
 
           <div className="flex items-center">

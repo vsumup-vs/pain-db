@@ -291,7 +291,16 @@ export const api = {
   // Assessments (for completing scheduled assessments)
   createAssessment: (data) => apiClient.post('/assessments', data),
   getAssessment: (id) => apiClient.get(`/assessments/${id}`),
-  getPatientAssessments: (patientId) => apiClient.get(`/assessments/patient/${patientId}`)
+  getPatientAssessments: (patientId) => apiClient.get(`/assessments/patient/${patientId}`),
+
+  // Saved Views
+  getSavedViews: (params) => apiClient.get('/saved-views', { params }),
+  getSavedView: (id) => apiClient.get(`/saved-views/${id}`),
+  createSavedView: (data) => apiClient.post('/saved-views', data),
+  updateSavedView: (id, data) => apiClient.put(`/saved-views/${id}`, data),
+  deleteSavedView: (id) => apiClient.delete(`/saved-views/${id}`),
+  setDefaultView: (id) => apiClient.post(`/saved-views/${id}/set-default`),
+  incrementViewUsage: (id) => apiClient.post(`/saved-views/${id}/use`)
 }
 
 export default api

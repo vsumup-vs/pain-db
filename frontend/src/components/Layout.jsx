@@ -27,7 +27,8 @@ import {
   UserCircleIcon,
   CheckIcon,
   ArrowPathIcon,
-  PresentationChartLineIcon
+  PresentationChartLineIcon,
+  BookmarkIcon
 } from '@heroicons/react/24/outline'
 
 // Platform Configuration (Platform Admin only)
@@ -60,6 +61,7 @@ const clinicalNavigation = [
   { name: 'Metric Definitions', href: '/metric-definitions', icon: ChartBarIcon },
   { name: 'Alert Rules', href: '/alert-rules', icon: ShieldCheckIcon },
   { name: 'Condition Presets', href: '/condition-presets', icon: ClipboardDocumentCheckIcon },
+  { name: 'Saved Views', href: '/saved-views', icon: BookmarkIcon },
 ]
 
 // ORG_ADMIN specific navigation (client admin)

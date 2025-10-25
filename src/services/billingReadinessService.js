@@ -24,13 +24,71 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 /**
+ * Find the correct billing program version for a given month
+ *
+ * This function implements automatic version selection based on effective dates.
+ * It's used to handle CMS rule changes (e.g., when requirements change from 16 days → 18 days).
+ *
+ * Example: If an enrollment has CMS_RPM_2025 but we're calculating for 2026-01,
+ * this function will automatically find and use CMS_RPM_2026 instead.
+ *
+ * @param {string} programType - Program type (RPM, RTM, CCM, etc.)
+ * @param {string} billingMonth - Month to calculate (YYYY-MM format)
+ * @param {string} region - Program region (e.g., 'US', 'UK')
+ * @param {string} payer - Program payer (e.g., 'CMS', 'NHS')
+ * @returns {Promise<Object|null>} Correct billing program version or null
+ */
+async function findCorrectBillingProgramVersion(programType, billingMonth, region = 'US', payer = null) {
+  const [year, month] = billingMonth.split('-').map(Number);
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+  // Find the billing program that's effective for this month
+  const whereClause = {
+    programType,
+    region,
+    isActive: true,
+    effectiveFrom: { lte: endDate },
+    OR: [
+      { effectiveTo: null },
+      { effectiveTo: { gte: startDate } }
+    ]
+  };
+
+  // Add payer filter if specified
+  if (payer) {
+    whereClause.payer = payer;
+  }
+
+  const correctVersion = await prisma.billingProgram.findFirst({
+    where: whereClause,
+    include: {
+      cptCodes: {
+        where: { isActive: true },
+        orderBy: { displayOrder: 'asc' }
+      },
+      eligibilityRules: {
+        where: { isRequired: true },
+        orderBy: { priority: 'asc' }
+      }
+    },
+    orderBy: {
+      effectiveFrom: 'desc' // Prefer most recent version if multiple match
+    }
+  });
+
+  return correctVersion;
+}
+
+/**
  * Calculate billing readiness for a specific enrollment
  *
  * @param {string} enrollmentId - Enrollment ID to calculate billing for
  * @param {string} billingMonth - Month to calculate (YYYY-MM format, e.g., "2025-10")
+ * @param {boolean} autoSelectVersion - Whether to automatically select correct program version (default: true)
  * @returns {Promise<Object>} Billing readiness details
  */
-async function calculateBillingReadiness(enrollmentId, billingMonth) {
+async function calculateBillingReadiness(enrollmentId, billingMonth, autoSelectVersion = true) {
   // Parse billing month
   const [year, month] = billingMonth.split('-').map(Number);
   const startDate = new Date(year, month - 1, 1);
@@ -64,7 +122,26 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
     throw new Error(`Enrollment ${enrollmentId} has no billing program assigned`);
   }
 
-  const billingProgram = enrollment.billingProgram;
+  // Store original billing program from enrollment
+  let billingProgram = enrollment.billingProgram;
+  let versionAutoSelected = false;
+  let originalProgramCode = billingProgram.code;
+
+  // Automatic version selection: Find correct version for billing month
+  if (autoSelectVersion) {
+    const correctVersion = await findCorrectBillingProgramVersion(
+      billingProgram.programType,
+      billingMonth,
+      billingProgram.region,
+      billingProgram.payer
+    );
+
+    // Use correct version if found and different from enrolled version
+    if (correctVersion && correctVersion.id !== billingProgram.id) {
+      billingProgram = correctVersion;
+      versionAutoSelected = true;
+    }
+  }
 
   // Check if billing program is active and effective for this month
   if (!billingProgram.isActive) {
@@ -77,6 +154,8 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
       reason: 'Billing program is not active',
       billingProgram: null,
       billingProgramCode: null,
+      versionAutoSelected,
+      originalProgramCode: versionAutoSelected ? originalProgramCode : billingProgram.code,
       cptCodes: []
     };
   }
@@ -94,6 +173,8 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
       reason: `Billing program not effective for ${billingMonth}`,
       billingProgram: billingProgram.name,
       billingProgramCode: billingProgram.code,
+      versionAutoSelected,
+      originalProgramCode: versionAutoSelected ? originalProgramCode : billingProgram.code,
       cptCodes: []
     };
   }
@@ -116,6 +197,11 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
       reason: 'Failed eligibility requirements',
       billingProgram: billingProgram.name,
       billingProgramCode: billingProgram.code,
+      versionAutoSelected,
+      ...(versionAutoSelected && {
+        originalProgramCode,
+        versionChangeNotice: `Billing calculated using ${billingProgram.code} (enrollment uses ${originalProgramCode})`
+      }),
       eligibilityRules: eligibilityResults,
       cptCodes: []
     };
@@ -157,6 +243,11 @@ async function calculateBillingReadiness(enrollmentId, billingMonth) {
     eligible: isEligible,
     billingProgram: billingProgram.name,
     billingProgramCode: billingProgram.code,
+    versionAutoSelected,
+    ...(versionAutoSelected && {
+      originalProgramCode,
+      versionChangeNotice: `Billing calculated using ${billingProgram.code} (enrollment uses ${originalProgramCode})`
+    }),
     eligibilityRules: eligibilityResults,
     cptCodes: cptCodeResults,
     totalReimbursement: totalReimbursement.toFixed(2),
@@ -757,6 +848,7 @@ async function getAvailableCPTCodes(enrollmentId, billingMonth, duration = null)
 }
 
 module.exports = {
+  findCorrectBillingProgramVersion,
   calculateBillingReadiness,
   calculateOrganizationBillingReadiness,
   generateBillingSummary,

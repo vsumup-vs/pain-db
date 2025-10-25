@@ -28,6 +28,7 @@ export default function EnhancedEnrollmentForm({
   })
 
   const [selectedPreset, setSelectedPreset] = useState(null)
+  const [selectedProgram, setSelectedProgram] = useState(null)
   const [medicationSearch, setMedicationSearch] = useState('')
   const [showMedicationForm, setShowMedicationForm] = useState(false)
 
@@ -42,6 +43,27 @@ export default function EnhancedEnrollmentForm({
   })
 
   const drugs = drugsResponse?.data || []
+
+  // Update selected program when care program changes
+  useEffect(() => {
+    if (formData.careProgramId && carePrograms) {
+      const program = carePrograms.find(p => p.id === formData.careProgramId)
+      setSelectedProgram(program)
+    } else {
+      setSelectedProgram(null)
+    }
+  }, [formData.careProgramId, carePrograms])
+
+  // Auto-populate default preset when program is selected
+  useEffect(() => {
+    if (selectedProgram?.settings?.presetConfiguration?.defaultPresetId) {
+      const defaultPresetId = selectedProgram.settings.presetConfiguration.defaultPresetId
+      setFormData(prev => ({
+        ...prev,
+        conditionPresetId: defaultPresetId
+      }))
+    }
+  }, [selectedProgram])
 
   // Update selected preset when conditionPresetId changes
   useEffect(() => {
@@ -102,6 +124,46 @@ export default function EnhancedEnrollmentForm({
   const getDrugName = (drugId) => {
     const drug = drugs.find(d => d.id === drugId)
     return drug ? `${drug.name} ${drug.strength}` : 'Select medication'
+  }
+
+  // Filter available presets based on program configuration
+  const getAvailablePresets = () => {
+    if (!conditionPresets) return []
+
+    // No program selected or no preset configuration - show all presets
+    if (!selectedProgram?.settings?.presetConfiguration) {
+      return conditionPresets
+    }
+
+    const config = selectedProgram.settings.presetConfiguration
+
+    // If recommended presets are specified, filter to only those (plus default)
+    if (config.recommendedPresetIds && config.recommendedPresetIds.length > 0) {
+      return conditionPresets.filter(p =>
+        p.id === config.defaultPresetId ||
+        config.recommendedPresetIds.includes(p.id)
+      )
+    }
+
+    // No filtering - show all presets
+    return conditionPresets
+  }
+
+  // Check if preset dropdown should be disabled
+  const isPresetLocked = () => {
+    if (!selectedProgram?.settings?.presetConfiguration) return false
+    const config = selectedProgram.settings.presetConfiguration
+    return config.defaultPresetId && config.allowOverride === false
+  }
+
+  // Check if preset field is required
+  const isPresetRequired = () => {
+    // If there's a default preset configured, it's auto-populated so not required from user
+    if (selectedProgram?.settings?.presetConfiguration?.defaultPresetId) {
+      return false
+    }
+    // Otherwise, require preset selection
+    return true
   }
 
   return (
@@ -173,22 +235,35 @@ export default function EnhancedEnrollmentForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Condition Preset *
+              Condition Preset {isPresetRequired() && '*'}
+              {isPresetLocked() && (
+                <span className="ml-2 text-xs text-gray-500 italic">
+                  (Pre-configured by program)
+                </span>
+              )}
             </label>
             <select
               name="conditionPresetId"
               value={formData.conditionPresetId}
               onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required={isPresetRequired()}
+              disabled={isPresetLocked()}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                isPresetLocked() ? 'bg-gray-100 cursor-not-allowed' : ''
+              }`}
             >
               <option value="">Select a condition preset</option>
-              {conditionPresets && conditionPresets.map((preset) => (
+              {getAvailablePresets().map((preset) => (
                 <option key={preset.id} value={preset.id}>
                   {preset.name}
                 </option>
               ))}
             </select>
+            {isPresetLocked() && (
+              <p className="mt-1 text-xs text-gray-500">
+                This care program requires a specific condition preset. Contact your administrator if you need to change it.
+              </p>
+            )}
             {selectedPreset && (
               <div className="mt-2 p-3 bg-blue-50 rounded-md">
                 <div className="flex items-start">

@@ -47,6 +47,7 @@ const encounterNoteRoutes = require('./src/routes/encounterNoteRoutes');
 const timeTrackingRoutes = require('./src/routes/timeTrackingRoutes');
 const analyticsRoutes = require('./src/routes/analyticsRoutes');
 const platformRoutes = require('./src/routes/platformRoutes');
+const savedViewRoutes = require('./src/routes/savedViewRoutes');
 
 // Import authentication
 const passport = require('passport');
@@ -58,6 +59,9 @@ const alertScheduler = require('./src/services/alertScheduler');
 
 // Import assessment scheduler for background jobs
 const assessmentScheduler = require('./src/services/assessmentScheduler');
+
+// Import daily wrap-up scheduler for background jobs
+const dailyWrapUpScheduler = require('./src/services/dailyWrapUpScheduler');
 
 // Initialize passport
 app.use(passport.initialize());
@@ -127,7 +131,8 @@ app.get('/api', (req, res) => {
       drugs: '/api/drugs',
       'patient-medications': '/api/patient-medications',
       billing: '/api/billing',
-      'care-programs': '/api/care-programs'
+      'care-programs': '/api/care-programs',
+      'saved-views': '/api/saved-views'
     }
   });
 });
@@ -157,6 +162,7 @@ app.use('/api/assessments', requireAuth, injectOrganizationContext, auditOrganiz
 console.log('🔧 DEBUG: Registering /api/scheduled-assessments route');
 app.use('/api/scheduled-assessments', requireAuth, injectOrganizationContext, auditOrganizationAccess, scheduledAssessmentRoutes);
 console.log('🔧 DEBUG: Route registered successfully');
+app.use('/api/saved-views', requireAuth, injectOrganizationContext, auditOrganizationAccess, savedViewRoutes);
 
 // Platform configuration routes (platform-wide resources, no organization context needed)
 // These are managed by SUPER_ADMIN and available to all organizations
@@ -212,6 +218,7 @@ process.on('SIGINT', async () => {
   console.log('Received SIGINT, shutting down gracefully...');
   alertScheduler.stopScheduledJobs();
   assessmentScheduler.stopScheduledJobs();
+  dailyWrapUpScheduler.stopScheduledJobs();
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -220,6 +227,7 @@ process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, shutting down gracefully...');
   alertScheduler.stopScheduledJobs();
   assessmentScheduler.stopScheduledJobs();
+  dailyWrapUpScheduler.stopScheduledJobs();
   await prisma.$disconnect();
   process.exit(0);
 });
@@ -240,6 +248,11 @@ if (require.main === module) {
     console.log('🔄 Starting assessment scheduler...');
     assessmentScheduler.initializeScheduler();
     console.log('✅ Assessment scheduler started successfully');
+
+    // Start daily wrap-up scheduler
+    console.log('📧 Starting daily wrap-up scheduler...');
+    dailyWrapUpScheduler.startScheduledJobs();
+    console.log('✅ Daily wrap-up scheduler started successfully');
   });
 }
 
