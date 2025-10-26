@@ -44,7 +44,7 @@ export default function TriageQueue() {
   })
   const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
-  const limit = 20
+  const limit = 50 // Increased from 20 for better triage workflow visibility
 
   // Task creation state
   const [createTaskForAlert, setCreateTaskForAlert] = useState({}) // { alertId: boolean }

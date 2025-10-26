@@ -15,7 +15,12 @@ const {
   getPatientObservationHistory,
   getObservationStats,
   bulkCreateObservations,
-  getObservationsByEnrollment
+  getObservationsByEnrollment,
+  // Review endpoints
+  getUnreviewedObservations,
+  reviewObservation,
+  bulkReviewObservations,
+  flagObservation
 } = require('../controllers/observationController');
 
 // Base routes with validation
@@ -32,5 +37,11 @@ router.get('/patient/:patientId/history', commonValidations.pagination, commonVa
 
 // Enrollment-specific routes
 router.get('/enrollment/:enrollmentId', getObservationsByEnrollment);
+
+// Review routes (RPM workflow)
+router.get('/review/unreviewed', commonValidations.pagination, handleValidationErrors, getUnreviewedObservations);
+router.post('/review/bulk', bulkReviewObservations);
+router.post('/review/:id', reviewObservation);
+router.post('/review/:id/flag', flagObservation);
 
 module.exports = router;

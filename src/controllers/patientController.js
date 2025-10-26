@@ -112,7 +112,7 @@ const getAllPatients = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 10,
+      limit = 50, // Increased from 10 for better performance and UX
       search,
       gender,
       sortBy = 'createdAt',

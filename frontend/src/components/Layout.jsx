@@ -56,6 +56,7 @@ const clinicalNavigation = [
   { name: 'Enrollments', href: '/enrollments', icon: ClipboardDocumentListIcon },
   { name: 'Care Programs', href: '/care-programs', icon: ChartBarIcon },
   { name: 'Observations', href: '/observations', icon: EyeIcon },
+  { name: 'Observation Review', href: '/observation-review', icon: ClipboardDocumentCheckIcon },
   { name: 'Alerts', href: '/alerts', icon: BellIcon },
   { name: 'Assessment Templates', href: '/assessment-templates', icon: DocumentTextIcon },
   { name: 'Metric Definitions', href: '/metric-definitions', icon: ChartBarIcon },

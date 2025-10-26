@@ -34,7 +34,7 @@ export default function Tasks() {
   const [filterTaskType, setFilterTaskType] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
-  const limit = 20
+  const limit = 50 // Increased from 20 for better task visibility
 
   // Patient Context Panel state
   const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)

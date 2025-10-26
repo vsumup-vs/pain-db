@@ -11,7 +11,9 @@ import {
   EyeIcon,
   ShareIcon,
   UserGroupIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  DocumentDuplicateIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { api } from '../services/api'
@@ -21,6 +23,8 @@ export default function SavedViews() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterViewType, setFilterViewType] = useState('')
   const [filterIsShared, setFilterIsShared] = useState('')
+  const [filterRole, setFilterRole] = useState('')
+  const [showTemplates, setShowTemplates] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingView, setEditingView] = useState(null)
   const [formData, setFormData] = useState({
@@ -52,8 +56,24 @@ export default function SavedViews() {
 
   const savedViews = savedViewsData || []
 
-  // Filter by search term locally
-  const filteredViews = savedViews.filter((view) => {
+  // Separate templates from user views
+  const templates = savedViews.filter((view) => view.isTemplate)
+  const userViews = savedViews.filter((view) => !view.isTemplate)
+
+  // Filter templates by search term and role
+  const filteredTemplates = templates.filter((view) => {
+    if (!searchTerm && !filterRole) return true
+    const searchLower = searchTerm.toLowerCase()
+    const matchesSearch =
+      !searchTerm ||
+      view.name.toLowerCase().includes(searchLower) ||
+      view.description?.toLowerCase().includes(searchLower)
+    const matchesRole = !filterRole || view.suggestedRole === filterRole
+    return matchesSearch && matchesRole
+  })
+
+  // Filter user views by search term
+  const filteredUserViews = userViews.filter((view) => {
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
     return (
@@ -161,6 +181,21 @@ export default function SavedViews() {
     setDefaultMutation.mutate(id)
   }
 
+  const handleCloneTemplate = (template) => {
+    // Clone template as a new user view
+    const clonedData = {
+      name: template.name + ' (My Copy)',
+      description: template.description || '',
+      viewType: template.viewType,
+      filters: template.filters,
+      displayConfig: template.displayConfig || {},
+      isShared: false,
+      sharedWithIds: [],
+      isDefault: false
+    }
+    createMutation.mutate(clonedData)
+  }
+
   const viewTypeLabels = {
     PATIENT_LIST: 'Patient List',
     TRIAGE_QUEUE: 'Triage Queue',
@@ -231,6 +266,18 @@ export default function SavedViews() {
           <option value="TASK_LIST">Task List</option>
         </select>
         <select
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          className="border border-gray-300 rounded-md px-4 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">All Roles</option>
+          <option value="CARE_MANAGER">Care Manager</option>
+          <option value="CLINICIAN">Clinician</option>
+          <option value="BILLING_ADMIN">Billing Admin</option>
+          <option value="NURSE">Nurse</option>
+          <option value="ALL">General/All</option>
+        </select>
+        <select
           value={filterIsShared}
           onChange={(e) => setFilterIsShared(e.target.value)}
           className="border border-gray-300 rounded-md px-4 py-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -241,19 +288,107 @@ export default function SavedViews() {
         </select>
       </div>
 
-      {/* Saved Views List */}
+      {/* Template/User Views Toggle */}
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          onClick={() => setShowTemplates(!showTemplates)}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            showTemplates
+              ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+              : 'bg-gray-100 text-gray-700 border border-gray-300'
+          }`}
+        >
+          <SparklesIcon className="h-4 w-4 inline mr-1" />
+          {showTemplates ? 'Hide Templates' : 'Show Templates'}
+        </button>
+        {showTemplates && filteredTemplates.length > 0 && (
+          <span className="text-sm text-gray-500">
+            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''} available
+          </span>
+        )}
+      </div>
+
+      {/* Templates Section */}
+      {showTemplates && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <SparklesIcon className="h-6 w-6 text-indigo-600 mr-2" />
+            Template Library
+          </h2>
+          {filteredTemplates.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-gray-300">
+              <SparklesIcon className="mx-auto h-10 w-10 text-gray-400" />
+              <p className="mt-2 text-sm text-gray-500">No templates match your filters</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredTemplates.map((view) => (
+                <div
+                  key={view.id}
+                  className="bg-gradient-to-br from-indigo-50 to-white rounded-lg shadow-sm border-2 border-indigo-200 p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <SparklesIcon className="h-5 w-5 text-indigo-600 flex-shrink-0" />
+                        <h3 className="text-lg font-medium text-gray-900">{view.name}</h3>
+                      </div>
+                      {view.description && (
+                        <p className="mt-1 text-sm text-gray-600">{view.description}</p>
+                      )}
+                      <div className="mt-3 flex items-center gap-2 flex-wrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            viewTypeColors[view.viewType]
+                          }`}
+                        >
+                          {viewTypeLabels[view.viewType]}
+                        </span>
+                        {view.suggestedRole && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {view.suggestedRole.replace('_', ' ')}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          Template
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <button
+                      onClick={() => handleCloneTemplate(view)}
+                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-indigo-300 rounded-md text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50"
+                    >
+                      <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
+                      Use as Template
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* User Views List */}
       <div className="mt-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <BookmarkIcon className="h-6 w-6 text-gray-900 mr-2" />
+          My Saved Views
+        </h2>
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-indigo-600"></div>
             <p className="mt-2 text-sm text-gray-500">Loading saved views...</p>
           </div>
-        ) : filteredViews.length === 0 ? (
+        ) : filteredUserViews.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
             <BookmarkIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No saved views</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by creating a new saved view.
+              Get started by creating a new saved view or cloning a template.
             </p>
             <div className="mt-6">
               <button
@@ -267,7 +402,7 @@ export default function SavedViews() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredViews.map((view) => (
+            {filteredUserViews.map((view) => (
               <div
                 key={view.id}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"

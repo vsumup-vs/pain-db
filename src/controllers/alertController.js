@@ -109,7 +109,7 @@ const getAlerts = async (req, res) => {
       ruleId,
       status,
       page = 1,
-      limit = 10,
+      limit = 50, // Increased from 10 for better performance and UX
       sortBy = 'triggeredAt',
       sortOrder = 'desc'
     } = req.query;
@@ -803,12 +803,34 @@ const resolveAlert = async (req, res) => {
         });
       }
 
+      // 6. Auto-mark triggering observation as REVIEWED (RPM workflow)
+      let reviewedObservation = null;
+      if (alert.observationId) {
+        try {
+          reviewedObservation = await tx.observation.update({
+            where: { id: alert.observationId },
+            data: {
+              review_status: 'REVIEWED',
+              reviewed_at: new Date(),
+              reviewed_by: clinicianIdForTimeLog || currentUserId,
+              review_method: 'ALERT',
+              review_notes: `Auto-reviewed via alert resolution: ${resolutionNotes.trim()}`,
+              related_alert_id: alert.id
+            }
+          });
+        } catch (obsError) {
+          console.warn(`Failed to auto-review observation ${alert.observationId}:`, obsError.message);
+          // Continue even if observation review fails (non-critical)
+        }
+      }
+
       return {
         alert: updatedAlert,
         timeLog,
         auditLog,
         followUpTask,
-        encounterNote
+        encounterNote,
+        reviewedObservation
       };
     });
 

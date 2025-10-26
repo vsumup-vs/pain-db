@@ -138,6 +138,12 @@ export const api = {
   getPatientObservationHistory: (patientId, params) => apiClient.get(`/observations/patient/${patientId}/history`, { params }),
   getObservationsByEnrollment: (enrollmentId) => apiClient.get(`/observations/enrollment/${enrollmentId}`),
 
+  // Observation Review (RPM Workflow)
+  getUnreviewedObservations: (params) => apiClient.get('/observations/review/unreviewed', { params }),
+  reviewObservation: (observationId, data) => apiClient.post(`/observations/review/${observationId}`, data),
+  bulkReviewObservations: (data) => apiClient.post('/observations/review/bulk', data),
+  flagObservation: (observationId, data) => apiClient.post(`/observations/review/${observationId}/flag`, data),
+
   // Smart Assessment Continuity System
   // Assessment continuity endpoints
   createAssessmentWithContinuity: (data) => apiClient.post('/continuity/assessments/with-continuity', data),

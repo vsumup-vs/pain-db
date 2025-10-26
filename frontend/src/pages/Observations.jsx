@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  ChartBarIcon, 
-  CalendarIcon, 
+import {
+  ChartBarIcon,
+  CalendarIcon,
   MagnifyingGlassIcon,
   UserIcon,
   ClockIcon,
@@ -13,7 +13,11 @@ import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import PatientContextPanel from '../components/PatientContextPanel'
@@ -21,6 +25,7 @@ import PatientContextPanel from '../components/PatientContextPanel'
 export default function Observations() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedProgram, setSelectedProgram] = useState('') // New: Program filter
+  const [reviewStatus, setReviewStatus] = useState('') // New: Review status filter
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: '',
@@ -30,8 +35,30 @@ export default function Observations() {
   const [selectedPatient, setSelectedPatient] = useState(null) // New: For patient context panel
   const [showPatientContext, setShowPatientContext] = useState(false) // New: Show patient context
 
+  // View mode state with localStorage persistence
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('observations-view-mode') || 'table'
+  })
+
+  // Table sorting state
+  const [sortConfig, setSortConfig] = useState({ key: 'recordedAt', direction: 'desc' })
+
+  // Handle view mode change
+  const handleViewChange = (mode) => {
+    setViewMode(mode)
+    localStorage.setItem('observations-view-mode', mode)
+  }
+
+  // Handle column sort
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+
   const { data: observationsResponse, isLoading, error } = useQuery({
-    queryKey: ['observations', searchTerm, dateRange],
+    queryKey: ['observations', searchTerm, dateRange, reviewStatus],
     queryFn: () => {
       // Only include date parameters if they have values
       const params = { search: searchTerm }
@@ -40,6 +67,9 @@ export default function Observations() {
       }
       if (dateRange.endDate && dateRange.endDate.trim() !== '') {
         params.endDate = dateRange.endDate
+      }
+      if (reviewStatus && reviewStatus !== '') {
+        params.reviewStatus = reviewStatus
       }
       return api.getObservations(params)
     },
@@ -204,15 +234,44 @@ export default function Observations() {
   const formatObservationContext = (observation) => {
     const context = observation.context || {}
     const raw = observation.raw || {}
-    
+
     const details = []
-    
+
     if (raw.notes) details.push(`Notes: ${raw.notes}`)
     if (raw.location) details.push(`Location: ${raw.location}`)
     if (context.assessmentType) details.push(`Assessment: ${context.assessmentType}`)
     if (context.enrollmentId) details.push(`Enrollment: ${context.enrollmentId}`)
-    
+
     return details
+  }
+
+  const getReviewStatusBadge = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            Pending
+          </span>
+        )
+      case 'REVIEWED':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            ✓ Reviewed
+          </span>
+        )
+      case 'FLAGGED':
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+            🚩 Flagged
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            Unknown
+          </span>
+        )
+    }
   }
 
   const handleViewDetails = (observation) => {
@@ -284,9 +343,38 @@ export default function Observations() {
               Detailed view of patient-recorded health metrics and assessment data
             </p>
           </div>
-          <div className="flex items-center space-x-3 text-sm text-gray-600 bg-white px-4 py-2 rounded-xl shadow-lg">
-            <ChartBarIcon className="h-5 w-5 text-purple-500" />
-            <span className="font-medium">{filteredObservations.length} observations</span>
+          <div className="flex items-center space-x-4">
+            {/* View Toggle */}
+            <div className="flex items-center space-x-2 bg-white px-2 py-2 rounded-xl shadow-lg">
+              <button
+                onClick={() => handleViewChange('table')}
+                className={`p-2 rounded-lg transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Table view"
+              >
+                <ListBulletIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => handleViewChange('card')}
+                className={`p-2 rounded-lg transition-all ${
+                  viewMode === 'card'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Card view"
+              >
+                <Squares2X2Icon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Observation Count */}
+            <div className="flex items-center space-x-3 text-sm text-gray-600 bg-white px-4 py-2 rounded-xl shadow-lg">
+              <ChartBarIcon className="h-5 w-5 text-purple-500" />
+              <span className="font-medium">{filteredObservations.length} observations</span>
+            </div>
           </div>
         </div>
 
@@ -341,6 +429,20 @@ export default function Observations() {
             </div>
 
             <div className="relative">
+              <CheckCircleIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <select
+                value={reviewStatus}
+                onChange={(e) => setReviewStatus(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
+              >
+                <option value="">All Review Statuses</option>
+                <option value="PENDING">Pending Review</option>
+                <option value="REVIEWED">Reviewed</option>
+                <option value="FLAGGED">Flagged</option>
+              </select>
+            </div>
+
+            <div className="relative">
               <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="date"
@@ -364,7 +466,7 @@ export default function Observations() {
           </div>
         </div>
 
-        {/* Observations Grid */}
+        {/* Observations List/Grid */}
         {filteredObservations.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
             <ChartBarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -373,7 +475,160 @@ export default function Observations() {
               {hasActiveFilters ? 'Try adjusting your filters to see more results.' : 'No observations have been recorded yet.'}
             </p>
           </div>
+        ) : viewMode === 'table' ? (
+          /* Table View */
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      onClick={() => handleSort('patient')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Patient</span>
+                        {sortConfig.key === 'patient' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('metric')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Metric</span>
+                        {sortConfig.key === 'metric' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('value')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Value</span>
+                        {sortConfig.key === 'value' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('recordedAt')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Date/Time</span>
+                        {sortConfig.key === 'recordedAt' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Source
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Review Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {[...filteredObservations].sort((a, b) => {
+                    const { key, direction } = sortConfig
+                    let aVal, bVal
+
+                    if (key === 'patient') {
+                      aVal = `${a.patient?.firstName} ${a.patient?.lastName}`.toLowerCase()
+                      bVal = `${b.patient?.firstName} ${b.patient?.lastName}`.toLowerCase()
+                    } else if (key === 'metric') {
+                      aVal = a.metric?.displayName?.toLowerCase() || ''
+                      bVal = b.metric?.displayName?.toLowerCase() || ''
+                    } else if (key === 'value') {
+                      aVal = typeof a.value === 'object' ? JSON.stringify(a.value) : String(a.value)
+                      bVal = typeof b.value === 'object' ? JSON.stringify(b.value) : String(b.value)
+                    } else if (key === 'recordedAt') {
+                      aVal = new Date(a.recordedAt).getTime()
+                      bVal = new Date(b.recordedAt).getTime()
+                    }
+
+                    if (aVal < bVal) return direction === 'asc' ? -1 : 1
+                    if (aVal > bVal) return direction === 'asc' ? 1 : -1
+                    return 0
+                  }).map((observation) => {
+                    const SourceIcon = getSourceIcon(observation.source)
+                    const valueSeverityColor = getValueSeverityColor(observation)
+
+                    return (
+                      <tr key={observation.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
+                            <div className="text-sm font-medium text-gray-900">
+                              {observation.patient?.firstName} {observation.patient?.lastName}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{observation.metric?.displayName}</div>
+                          <div className="text-xs text-gray-500">{observation.metric?.valueType}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className={`text-sm font-semibold px-2 py-1 rounded inline-block ${valueSeverityColor}`}>
+                            {getObservationValue(observation)}
+                            {observation.metric?.unit && (
+                              <span className="text-gray-500 ml-1">{observation.metric.unit}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {new Date(observation.recordedAt).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(observation.recordedAt).toLocaleTimeString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${getSourceColor(observation.source)}`}>
+                            <SourceIcon className="h-3 w-3 mr-1" />
+                            {formatSource(observation.source)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getReviewStatusBadge(observation.reviewStatus)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleViewPatient(observation.patient)}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="View Patient"
+                            >
+                              <UserIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleViewDetails(observation)}
+                              className="text-purple-600 hover:text-purple-800"
+                              title="View Details"
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         ) : (
+          /* Card View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredObservations.map((observation) => {
               const SourceIcon = getSourceIcon(observation.source)
@@ -452,11 +707,12 @@ export default function Observations() {
 
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-2">
                         <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${getSourceColor(observation.source)}`}>
                           <SourceIcon className="h-3 w-3 mr-1" />
                           {formatSource(observation.source)}
                         </span>
+                        {getReviewStatusBadge(observation.reviewStatus)}
                         {frequency.uniqueDays > 0 && (
                           <span
                             className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border border-green-200 bg-green-50 text-green-700"
@@ -603,6 +859,66 @@ export default function Observations() {
                         {new Date(selectedObservation.createdAt).toLocaleString()}
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Review Information */}
+                <div className="bg-indigo-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Review Status</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Status:</span>
+                      <div className="mt-1">
+                        {getReviewStatusBadge(selectedObservation.reviewStatus)}
+                      </div>
+                    </div>
+                    {selectedObservation.reviewStatus !== 'PENDING' && (
+                      <>
+                        {selectedObservation.reviewMethod && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Review Method:</span>
+                            <div className="text-sm text-gray-900">
+                              {selectedObservation.reviewMethod === 'MANUAL' ? 'Manual Review' :
+                               selectedObservation.reviewMethod === 'ALERT' ? 'Auto-reviewed (Alert Resolution)' :
+                               selectedObservation.reviewMethod === 'BULK' ? 'Bulk Review' :
+                               selectedObservation.reviewMethod}
+                            </div>
+                          </div>
+                        )}
+                        {selectedObservation.reviewedAt && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Reviewed At:</span>
+                            <div className="text-sm text-gray-900">
+                              {new Date(selectedObservation.reviewedAt).toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                        {selectedObservation.reviewedBy && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Reviewed By:</span>
+                            <div className="text-sm text-gray-900">
+                              {selectedObservation.reviewedBy.firstName} {selectedObservation.reviewedBy.lastName}
+                            </div>
+                          </div>
+                        )}
+                        {selectedObservation.reviewNotes && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Review Notes:</span>
+                            <div className="text-sm text-gray-900 mt-1 bg-white p-2 rounded border">
+                              {selectedObservation.reviewNotes}
+                            </div>
+                          </div>
+                        )}
+                        {selectedObservation.relatedAlertId && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-700">Related Alert:</span>
+                            <div className="text-sm text-gray-900">
+                              Alert ID: {selectedObservation.relatedAlertId}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 
 /**
@@ -18,6 +18,7 @@ const FIELD_DEFINITIONS = {
     { key: 'alertSeverity', label: 'Alert Severity', type: 'multiselect', options: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
     { key: 'enrolledPrograms', label: 'Enrolled Programs', type: 'multiselect', options: ['RPM', 'RTM', 'CCM', 'General Wellness'] },
     { key: 'riskScore', label: 'Risk Score', type: 'number-comparison', min: 0, max: 10 },
+    { key: 'billingProgress', label: 'Billing Progress %', type: 'number-comparison', min: 0, max: 100 },
     { key: 'lastAssessmentDays', label: 'Last Assessment (days ago)', type: 'number-comparison', min: 0 },
     { key: 'medicationAdherence', label: 'Medication Adherence %', type: 'number-comparison', min: 0, max: 100 }
   ],
@@ -71,33 +72,58 @@ const FilterBuilder = ({ viewType, filters, onChange, showJson = false }) => {
 
   // Convert existing JSON filters to UI rules
   function convertFiltersToRules(filters) {
-    return Object.entries(filters).map(([key, value], index) => {
+    const rules = [];
+    let ruleIndex = 0;
+
+    Object.entries(filters).forEach(([key, value]) => {
       const fieldDef = availableFields.find(f => f.key === key);
-      if (!fieldDef) return null;
+      if (!fieldDef) return;
 
       if (fieldDef.type === 'number-comparison' && typeof value === 'object') {
-        return {
-          id: Date.now() + index,
-          field: key,
-          operator: value.operator || '>=',
-          value: value.value
-        };
+        // Handle range structures with min/max
+        if (value.min !== undefined) {
+          rules.push({
+            id: Date.now() + ruleIndex++,
+            field: key,
+            operator: '>=',
+            value: value.min
+          });
+        }
+        if (value.max !== undefined) {
+          rules.push({
+            id: Date.now() + ruleIndex++,
+            field: key,
+            operator: '<=',
+            value: value.max
+          });
+        }
+        // Handle standard operator/value structure
+        if (value.operator && value.value !== undefined) {
+          rules.push({
+            id: Date.now() + ruleIndex++,
+            field: key,
+            operator: value.operator,
+            value: value.value
+          });
+        }
       } else if (Array.isArray(value)) {
-        return {
-          id: Date.now() + index,
+        rules.push({
+          id: Date.now() + ruleIndex++,
           field: key,
           operator: 'in',
           value: value
-        };
+        });
       } else {
-        return {
-          id: Date.now() + index,
+        rules.push({
+          id: Date.now() + ruleIndex++,
           field: key,
           operator: '==',
           value: value
-        };
+        });
       }
-    }).filter(Boolean);
+    });
+
+    return rules;
   }
 
   // Initialize rules state with existing filters or default rule
@@ -106,6 +132,16 @@ const FilterBuilder = ({ viewType, filters, onChange, showJson = false }) => {
       ? convertFiltersToRules(filters)
       : [{ id: Date.now(), field: '', operator: '>=', value: '' }]
   );
+
+  // Update rules when filters prop changes (e.g., when editing a saved view)
+  useEffect(() => {
+    if (filters && Object.keys(filters).length > 0) {
+      const convertedRules = convertFiltersToRules(filters);
+      if (convertedRules.length > 0) {
+        setRules(convertedRules);
+      }
+    }
+  }, [filters]);
 
   // Convert UI rules to JSON filters
   function convertRulesToFilters(rules) {

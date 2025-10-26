@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { 
-  PlusIcon, 
-  PencilIcon, 
-  TrashIcon, 
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
   UserGroupIcon,
   MagnifyingGlassIcon,
   UserIcon,
@@ -12,7 +12,11 @@ import {
   PhoneIcon,
   CalendarIcon,
   MapPinIcon,
-  XMarkIcon
+  XMarkIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
@@ -22,6 +26,28 @@ export default function Patients() {
   const [editingPatient, setEditingPatient] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const queryClient = useQueryClient()
+
+  // View mode state with localStorage persistence
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('patients-view-mode') || 'card'
+  })
+
+  // Table sorting state
+  const [sortConfig, setSortConfig] = useState({ key: 'firstName', direction: 'asc' })
+
+  // Handle view mode change
+  const handleViewChange = (mode) => {
+    setViewMode(mode)
+    localStorage.setItem('patients-view-mode', mode)
+  }
+
+  // Handle column sort
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }))
+  }
 
   const { data: patientsResponse, isLoading } = useQuery({
     queryKey: ['patients', searchTerm],
@@ -150,13 +176,42 @@ export default function Patients() {
               Manage patient information and medical records
             </p>
           </div>
-          <button
-            onClick={handleCreate}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2"
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span>Add Patient</span>
-          </button>
+          <div className="flex items-center space-x-4">
+            {/* View Toggle */}
+            <div className="flex items-center space-x-2 bg-white px-2 py-2 rounded-xl shadow-lg">
+              <button
+                onClick={() => handleViewChange('table')}
+                className={`p-2 rounded-lg transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Table view"
+              >
+                <ListBulletIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => handleViewChange('card')}
+                className={`p-2 rounded-lg transition-all ${
+                  viewMode === 'card'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Card view"
+              >
+                <Squares2X2Icon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Add Patient Button */}
+            <button
+              onClick={handleCreate}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center space-x-2"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span>Add Patient</span>
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -187,7 +242,7 @@ export default function Patients() {
           )}
         </div>
 
-        {/* Patients Grid */}
+        {/* Patients List/Grid */}
         {patients.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
             <UserGroupIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -205,7 +260,131 @@ export default function Patients() {
               </button>
             )}
           </div>
+        ) : viewMode === 'table' ? (
+          /* Table View */
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th
+                      onClick={() => handleSort('firstName')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Name</span>
+                        {sortConfig.key === 'firstName' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      MRN
+                    </th>
+                    <th
+                      onClick={() => handleSort('email')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Contact</span>
+                        {sortConfig.key === 'email' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('dateOfBirth')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Date of Birth</span>
+                        {sortConfig.key === 'dateOfBirth' && (
+                          sortConfig.direction === 'asc' ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Gender
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {[...patients].sort((a, b) => {
+                    const { key, direction } = sortConfig
+                    let aVal, bVal
+
+                    if (key === 'firstName') {
+                      aVal = `${a.firstName} ${a.lastName}`.toLowerCase()
+                      bVal = `${b.firstName} ${b.lastName}`.toLowerCase()
+                    } else if (key === 'email') {
+                      aVal = a.email?.toLowerCase() || ''
+                      bVal = b.email?.toLowerCase() || ''
+                    } else if (key === 'dateOfBirth') {
+                      aVal = a.dateOfBirth ? new Date(a.dateOfBirth).getTime() : 0
+                      bVal = b.dateOfBirth ? new Date(b.dateOfBirth).getTime() : 0
+                    }
+
+                    if (aVal < bVal) return direction === 'asc' ? -1 : 1
+                    if (aVal > bVal) return direction === 'asc' ? 1 : -1
+                    return 0
+                  }).map((patient) => (
+                    <tr key={patient.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
+                          <div className="text-sm font-medium text-gray-900">
+                            {patient.firstName} {patient.lastName}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{patient.mrn || 'Not assigned'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{patient.email || '-'}</div>
+                        {patient.phone && (
+                          <div className="text-xs text-gray-500">{patient.phone}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${getGenderColor(patient.gender)}`}>
+                          {patient.gender || 'Not specified'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleEdit(patient)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit Patient"
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(patient.id)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete Patient"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         ) : (
+          /* Card View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {patients.map((patient) => (
               <div key={patient.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group">

@@ -15,7 +15,8 @@ async function getSavedViews(req, res) {
     const where = {
       OR: [
         { userId }, // User's own views
-        { isShared: true, organizationId } // Shared views in their org
+        { isShared: true, organizationId }, // Shared views in their org
+        { isTemplate: true, organizationId } // Templates in their org
       ]
     };
 

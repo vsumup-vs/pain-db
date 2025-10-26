@@ -888,6 +888,356 @@ const getObservationsByEnrollment = async (req, res) => {
   }
 };
 
+/**
+ * Get unreviewed observations (for Review Queue)
+ * GET /api/observations/review/unreviewed
+ */
+const getUnreviewedObservations = async (req, res) => {
+  try {
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+    const { enrollmentId, metricId, limit = 50, offset = 0 } = req.query;
+
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Organization context required'
+      });
+    }
+
+    // Build where clause
+    const where = {
+      organizationId,
+      review_status: 'PENDING',
+      // Exclude observations that have active (PENDING or ACKNOWLEDGED) alerts
+      alerts_alerts_observation_idToobservations: {
+        none: {
+          status: { in: ['PENDING', 'ACKNOWLEDGED'] }
+        }
+      }
+    };
+
+    if (enrollmentId) {
+      where.enrollmentId = enrollmentId;
+    }
+
+    if (metricId) {
+      where.metricId = metricId;
+    }
+
+    // Get unreviewed observations
+    const observations = await prisma.observation.findMany({
+      where,
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            dateOfBirth: true
+          }
+        },
+        metric: {
+          select: {
+            id: true,
+            displayName: true,
+            unit: true,
+            normalRange: true
+          }
+        },
+        enrollment: {
+          select: {
+            id: true,
+            careProgram: {
+              select: {
+                name: true,
+                type: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { recordedAt: 'desc' },
+      take: parseInt(limit),
+      skip: parseInt(offset)
+    });
+
+    // Count total
+    const total = await prisma.observation.count({ where });
+
+    res.json({
+      success: true,
+      data: observations,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: total > parseInt(offset) + parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error getting unreviewed observations:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Mark single observation as reviewed
+ * POST /api/observations/review/:id
+ */
+const reviewObservation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewNotes } = req.body;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId || !organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    // Find clinician ID for current user (match by email)
+    const userEmail = req.user?.userData?.email || req.user?.email;
+    const clinician = await prisma.clinician.findFirst({
+      where: {
+        email: userEmail,
+        organizationId
+      },
+      select: { id: true }
+    });
+
+    if (!clinician) {
+      return res.status(403).json({
+        success: false,
+        error: 'Clinician profile required to review observations'
+      });
+    }
+
+    // Check observation exists and belongs to organization
+    const observation = await prisma.observation.findFirst({
+      where: { id, organizationId }
+    });
+
+    if (!observation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Observation not found'
+      });
+    }
+
+    // Update observation as reviewed
+    const updatedObservation = await prisma.observation.update({
+      where: { id },
+      data: {
+        review_status: 'REVIEWED',
+        reviewed_at: new Date(),
+        reviewed_by: clinician.id,
+        review_method: 'MANUAL',
+        review_notes: reviewNotes || 'Reviewed via Review Queue'
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        metric: {
+          select: {
+            displayName: true,
+            unit: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: updatedObservation,
+      message: 'Observation marked as reviewed'
+    });
+  } catch (error) {
+    console.error('Error reviewing observation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Bulk review multiple observations
+ * POST /api/observations/review/bulk
+ */
+const bulkReviewObservations = async (req, res) => {
+  try {
+    const { observationIds, reviewNotes } = req.body;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId || !organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    if (!observationIds || !Array.isArray(observationIds) || observationIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'observationIds array is required'
+      });
+    }
+
+    // Find clinician ID for current user (match by email)
+    const userEmail = req.user?.userData?.email || req.user?.email;
+    const clinician = await prisma.clinician.findFirst({
+      where: {
+        email: userEmail,
+        organizationId
+      },
+      select: { id: true }
+    });
+
+    if (!clinician) {
+      return res.status(403).json({
+        success: false,
+        error: 'Clinician profile required to review observations'
+      });
+    }
+
+    // Bulk update observations
+    const result = await prisma.observation.updateMany({
+      where: {
+        id: { in: observationIds },
+        organizationId,
+        review_status: 'PENDING' // Only update pending observations
+      },
+      data: {
+        review_status: 'REVIEWED',
+        reviewed_at: new Date(),
+        reviewed_by: clinician.id,
+        review_method: 'BULK',
+        review_notes: reviewNotes || 'Bulk reviewed via Review Queue'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `${result.count} observations marked as reviewed`,
+      count: result.count
+    });
+  } catch (error) {
+    console.error('Error bulk reviewing observations:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Flag observation for follow-up
+ * POST /api/observations/review/:id/flag
+ */
+const flagObservation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewNotes } = req.body;
+    const currentUserId = req.user?.userId;
+    const organizationId = req.organizationId || req.user?.currentOrganization;
+
+    if (!currentUserId || !organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+
+    // Validate review notes are provided for flagged observations
+    if (!reviewNotes || reviewNotes.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Review notes are required when flagging observations (minimum 10 characters)'
+      });
+    }
+
+    // Find clinician ID for current user (match by email)
+    const userEmail = req.user?.userData?.email || req.user?.email;
+    const clinician = await prisma.clinician.findFirst({
+      where: {
+        email: userEmail,
+        organizationId
+      },
+      select: { id: true }
+    });
+
+    if (!clinician) {
+      return res.status(403).json({
+        success: false,
+        error: 'Clinician profile required to flag observations'
+      });
+    }
+
+    // Check observation exists and belongs to organization
+    const observation = await prisma.observation.findFirst({
+      where: { id, organizationId }
+    });
+
+    if (!observation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Observation not found'
+      });
+    }
+
+    // Update observation as flagged
+    const updatedObservation = await prisma.observation.update({
+      where: { id },
+      data: {
+        review_status: 'FLAGGED',
+        reviewed_at: new Date(),
+        reviewed_by: clinician.id,
+        review_method: 'MANUAL',
+        review_notes: reviewNotes.trim()
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        metric: {
+          select: {
+            displayName: true,
+            unit: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: updatedObservation,
+      message: 'Observation flagged for follow-up'
+    });
+  } catch (error) {
+    console.error('Error flagging observation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+};
+
 module.exports = {
   createObservation,
   getAllObservations,
@@ -897,5 +1247,10 @@ module.exports = {
   getPatientObservationHistory,
   getObservationStats,
   bulkCreateObservations,
-  getObservationsByEnrollment  // Add the new function
+  getObservationsByEnrollment,
+  // Review endpoints
+  getUnreviewedObservations,
+  reviewObservation,
+  bulkReviewObservations,
+  flagObservation
 };

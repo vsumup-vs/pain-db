@@ -15,6 +15,7 @@ import Clinicians from './pages/Clinicians'
 import ConditionPresets from './pages/ConditionPresets'
 import MetricDefinitions from './pages/MetricDefinitions'
 import Observations from './pages/Observations'
+import ObservationReview from './pages/ObservationReview'
 import Alerts from './pages/Alerts'
 import TriageQueue from './pages/TriageQueue'
 import Tasks from './pages/Tasks'
@@ -134,6 +135,7 @@ function App() {
                 <Route path="/metric-definitions" element={<MetricDefinitions />} />
                 <Route path="/assessment-templates" element={<AssessmentTemplatesEnhanced />} />
                 <Route path="/observations" element={<Observations />} />
+                <Route path="/observation-review" element={<ObservationReview />} />
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/triage-queue" element={<TriageQueue />} />
                 <Route path="/tasks" element={<Tasks />} />

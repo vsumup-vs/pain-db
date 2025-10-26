@@ -18,15 +18,19 @@ export default function Alerts() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
+  const limit = 50 // Pagination limit for performance
   const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false)
   const [selectedAlertForResolution, setSelectedAlertForResolution] = useState(null)
   const queryClient = useQueryClient()
 
   const { data: alertsResponse, isLoading } = useQuery({
-    queryKey: ['alerts', statusFilter, severityFilter],
+    queryKey: ['alerts', statusFilter, severityFilter, page],
     queryFn: () => api.getAlerts({
       status: statusFilter !== 'all' ? statusFilter : undefined,
       severity: severityFilter !== 'all' ? severityFilter : undefined,
+      page,
+      limit,
     }),
   })
 
@@ -394,6 +398,38 @@ export default function Alerts() {
             ))
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {filteredAlerts.length > 0 && alertsResponse?.pagination && (
+          <div className="mt-6 bg-white rounded-xl shadow-lg border border-gray-100 p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing {((alertsResponse.pagination.page - 1) * alertsResponse.pagination.limit) + 1} to{' '}
+                {Math.min(alertsResponse.pagination.page * alertsResponse.pagination.limit, alertsResponse.pagination.total)} of{' '}
+                {alertsResponse.pagination.total} alerts
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  Previous
+                </button>
+                <span className="px-4 py-2 text-gray-700">
+                  Page {alertsResponse.pagination.page} of {alertsResponse.pagination.totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= alertsResponse.pagination.totalPages}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Resolution Modal */}

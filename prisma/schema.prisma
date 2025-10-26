@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,7 +7,975 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
+model User {
+  id                     String             @id @default(cuid())
+  email                  String             @unique
+  passwordHash           String?
+  firstName              String?
+  lastName               String?
+  avatar                 String?
+  phone                  String?
+  isActive               Boolean            @default(true)
+  emailVerified          DateTime?
+  mfaEnabled             Boolean            @default(false)
+  mfaSecret              String?
+  backupCodes            String[]           @default([])
+  lastLoginAt            DateTime?
+  passwordResetToken     String?            @unique
+  passwordResetExpires   DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  isPlatformAdmin        Boolean            @default(false)
+  claimedAlerts          Alert[]            @relation("ClaimedAlerts")
+  escalatedAlerts        Alert[]            @relation("EscalatedAlerts")
+  resolvedAlerts         Alert[]            @relation("ResolvedAlerts")
+  snoozedAlerts          Alert[]            @relation("SnoozedAlerts")
+  suppressedAlerts       Alert[]            @relation("SuppressedAlerts")
+  auditLogs              AuditLog[]
+  attestedEncounterNotes EncounterNote[]    @relation("AttestedEncounterNotes")
+  refreshTokens          RefreshToken[]
+  savedViews             SavedView[]
+  socialAccounts         SocialAccount[]
+  tasksAssignedBy        Task[]             @relation("TaskAssignedBy")
+  tasksAssignedTo        Task[]             @relation("TaskAssignedTo")
+  tasksCompleted         Task[]             @relation("TaskCompletedBy")
+  userOrganizations      UserOrganization[]
+
+  @@index([email])
+  @@index([isActive])
+  @@index([lastLoginAt])
+  @@map("users")
+}
+
+model Organization {
+  id                    String                @id @default(cuid())
+  name                  String                @unique
+  type                  OrganizationType
+  email                 String?               @unique
+  phone                 String?
+  address               String?
+  website               String?
+  isActive              Boolean               @default(true)
+  settings              Json?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  subscriptionStatus    SubscriptionStatus?   @default(TRIAL)
+  subscriptionTier      SubscriptionTier?     @default(BASIC)
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  trialEndsAt           DateTime?
+  maxUsers              Int?                  @default(10)
+  maxPatients           Int?                  @default(100)
+  maxClinicians         Int?                  @default(10)
+  billingContactName    String?
+  billingContactEmail   String?
+  billingContactPhone   String?
+  onboardedBy           String?
+  onboardedAt           DateTime?
+  notes                 String?
+  alertRules            AlertRule[]
+  assessmentTemplates   AssessmentTemplate[]
+  carePrograms          CareProgram[]
+  clinicians            Clinician[]
+  conditionPresets      ConditionPreset[]
+  encounterNotes        EncounterNote[]
+  enrollments           Enrollment[]
+  metricDefinitions     MetricDefinition[]
+  patients              Patient[]
+  savedViews            SavedView[]
+  scheduledAssessments  ScheduledAssessment[]
+  tasks                 Task[]
+  userOrganizations     UserOrganization[]
+
+  @@index([name])
+  @@index([type])
+  @@index([isActive])
+  @@map("organizations")
+}
+
+model UserOrganization {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           UserRole
+  permissions    Permission[]
+  isActive       Boolean      @default(true)
+  joinedAt       DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([role])
+  @@map("user_organizations")
+}
+
+model SocialAccount {
+  id           String         @id @default(cuid())
+  userId       String
+  provider     SocialProvider
+  providerId   String
+  email        String?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("social_accounts")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model CareProgram {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  type           ProgramType
+  description    String?
+  isActive       Boolean      @default(true)
+  settings       Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrollments    Enrollment[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([type])
+  @@index([isActive])
+  @@map("care_programs")
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  organizationId String?
+  action         String
+  resource       String?
+  resourceId     String?
+  ipAddress      String?
+  userAgent      String?
+  oldValues      Json?
+  newValues      Json?
+  metadata       Json?
+  hipaaRelevant  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  user           User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@index([hipaaRelevant])
+  @@map("audit_logs")
+}
+
+model Patient {
+  id                   String                @id @default(cuid())
+  organizationId       String
+  firstName            String
+  lastName             String
+  dateOfBirth          DateTime
+  gender               String?
+  email                String?
+  phone                String?
+  address              String?
+  emergencyContact     String?
+  medicalRecordNumber  String?               @unique
+  insuranceInfo        Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  alerts               Alert[]
+  assessmentReminders  AssessmentReminder[]
+  assessments          Assessment[]
+  encounterNotes       EncounterNote[]
+  enrollments          Enrollment[]
+  observations         Observation[]
+  patientMedications   PatientMedication[]
+  organization         Organization          @relation(fields: [organizationId], references: [id])
+  scheduledAssessments ScheduledAssessment[]
+  tasks                Task[]
+  timeLogs             TimeLog[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([firstName, lastName])
+  @@index([dateOfBirth])
+  @@index([email])
+  @@map("patients")
+}
+
+model Clinician {
+  id                                                String                @id @default(cuid())
+  organizationId                                    String
+  firstName                                         String
+  lastName                                          String
+  email                                             String                @unique
+  phone                                             String?
+  address                                           String?
+  specialization                                    String?
+  department                                        String?
+  credentials                                       String?
+  createdAt                                         DateTime              @default(now())
+  updatedAt                                         DateTime              @updatedAt
+  emergencyContact                                  Json?                 @map("emergency_contact")
+  licenseNumber                                     String?               @map("license_number")
+  alerts                                            Alert[]
+  assessments                                       Assessment[]
+  organization                                      Organization          @relation(fields: [organizationId], references: [id])
+  encounterNotes                                    EncounterNote[]
+  enrollments                                       Enrollment[]
+  observations                                      Observation[]
+  observations_observations_reviewed_byToclinicians Observation[]         @relation("observations_reviewed_byToclinicians")
+  scheduledAssessmentsCompleted                     ScheduledAssessment[] @relation("CompletedBy")
+  scheduledAssessmentsScheduled                     ScheduledAssessment[] @relation("ScheduledBy")
+  timeLogs                                          TimeLog[]
+
+  @@index([organizationId])
+  @@index([firstName, lastName])
+  @@index([specialization])
+  @@index([department])
+  @@map("clinicians")
+}
+
+model Enrollment {
+  id                   String                @id @default(cuid())
+  organizationId       String
+  patientId            String
+  clinicianId          String
+  careProgramId        String
+  conditionPresetId    String
+  status               EnrollmentStatus      @default(PENDING)
+  startDate            DateTime
+  endDate              DateTime?
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  billingProgramId     String?
+  billingEligibility   Json?
+  assessmentReminders  AssessmentReminder[]
+  billingProgram       BillingProgram?       @relation(fields: [billingProgramId], references: [id])
+  careProgram          CareProgram           @relation(fields: [careProgramId], references: [id])
+  clinician            Clinician             @relation(fields: [clinicianId], references: [id])
+  organization         Organization          @relation(fields: [organizationId], references: [id])
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  observations         Observation[]
+  scheduledAssessments ScheduledAssessment[]
+  timeLogs             TimeLog[]
+
+  @@unique([patientId, careProgramId, startDate])
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([clinicianId])
+  @@index([status])
+  @@index([startDate])
+  @@index([billingProgramId])
+  @@map("enrollments")
+}
+
+model MetricDefinition {
+  id               String                   @id @default(cuid())
+  key              String
+  displayName      String
+  description      String?
+  unit             String?
+  valueType        ValueType
+  category         String?
+  isStandardized   Boolean                  @default(false)
+  scaleMin         Decimal?
+  scaleMax         Decimal?
+  decimalPrecision Int?
+  options          Json?
+  normalRange      Json?
+  standardCoding   Json?
+  validationInfo   Json?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  organizationId   String?
+  sourceMetricId   String?
+  templateItems    AssessmentTemplateItem[]
+  organization     Organization?            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceMetric     MetricDefinition?        @relation("MetricClones", fields: [sourceMetricId], references: [id])
+  clonedMetrics    MetricDefinition[]       @relation("MetricClones")
+  observations     Observation[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@index([key])
+  @@index([displayName])
+  @@index([category])
+  @@index([valueType])
+  @@index([isStandardized])
+  @@index([sourceMetricId])
+  @@map("metric_definitions")
+}
+
+model Observation {
+  id                                              String             @id @default(cuid())
+  patientId                                       String
+  clinicianId                                     String?
+  metricId                                        String
+  value                                           Json
+  unit                                            String?
+  source                                          SourceType         @default(MANUAL)
+  context                                         ObservationContext @default(CLINICAL_MONITORING)
+  notes                                           String?
+  recordedAt                                      DateTime           @default(now())
+  createdAt                                       DateTime           @default(now())
+  updatedAt                                       DateTime           @updatedAt
+  organizationId                                  String
+  enrollmentId                                    String?
+  review_status                                   ReviewStatus       @default(PENDING)
+  reviewed_at                                     DateTime?
+  reviewed_by                                     String?
+  review_method                                   ReviewMethod?
+  review_notes                                    String?
+  related_alert_id                                String?
+  alerts_alerts_observation_idToobservations      Alert[]            @relation("alerts_observation_idToobservations")
+  clinician                                       Clinician?         @relation(fields: [clinicianId], references: [id])
+  enrollment                                      Enrollment?        @relation(fields: [enrollmentId], references: [id], map: "observations_enrollmentid_fkey")
+  metric                                          MetricDefinition   @relation(fields: [metricId], references: [id])
+  patient                                         Patient            @relation(fields: [patientId], references: [id])
+  alerts_observations_related_alert_idToalerts    Alert?             @relation("observations_related_alert_idToalerts", fields: [related_alert_id], references: [id])
+  clinicians_observations_reviewed_byToclinicians Clinician?         @relation("observations_reviewed_byToclinicians", fields: [reviewed_by], references: [id])
+
+  @@unique([patientId, metricId, recordedAt])
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([metricId])
+  @@index([recordedAt])
+  @@index([source])
+  @@index([context])
+  @@index([enrollmentId], map: "observations_enrollmentid_idx")
+  @@index([related_alert_id])
+  @@index([review_status])
+  @@index([reviewed_by])
+  @@map("observations")
+}
+
+model AssessmentTemplate {
+  id                       String                    @id @default(cuid())
+  name                     String
+  description              String?
+  questions                Json
+  scoring                  Json?
+  isStandardized           Boolean                   @default(false)
+  category                 String?
+  standardCoding           Json?
+  validationInfo           Json?
+  scoringInfo              Json?
+  copyrightInfo            String?
+  clinicalUse              String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  organizationId           String?
+  sourceTemplateId         String?
+  assessmentReminders      AssessmentReminder[]
+  items                    AssessmentTemplateItem[]
+  organization             Organization?             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceTemplate           AssessmentTemplate?       @relation("TemplateClones", fields: [sourceTemplateId], references: [id])
+  clonedTemplates          AssessmentTemplate[]      @relation("TemplateClones")
+  assessments              Assessment[]
+  conditionPresetTemplates ConditionPresetTemplate[]
+  scheduledAssessments     ScheduledAssessment[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([name])
+  @@index([category])
+  @@index([isStandardized])
+  @@index([sourceTemplateId])
+  @@map("assessment_templates")
+}
+
+model AssessmentTemplateItem {
+  id                 String             @id @default(cuid())
+  templateId         String
+  metricDefinitionId String
+  displayOrder       Int                @default(0)
+  isRequired         Boolean            @default(false)
+  helpText           String?
+  defaultValue       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  metricDefinition   MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
+  template           AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, metricDefinitionId])
+  @@index([templateId])
+  @@index([metricDefinitionId])
+  @@index([displayOrder])
+  @@map("assessment_template_items")
+}
+
+model Assessment {
+  id                  String               @id @default(cuid())
+  patientId           String
+  clinicianId         String?
+  templateId          String
+  responses           Json
+  score               Json?
+  completedAt         DateTime?
+  notes               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  clinician           Clinician?           @relation(fields: [clinicianId], references: [id])
+  patient             Patient              @relation(fields: [patientId], references: [id])
+  template            AssessmentTemplate   @relation(fields: [templateId], references: [id])
+  scheduledAssessment ScheduledAssessment? @relation("CompletedScheduledAssessment")
+  tasks               Task[]
+
+  @@index([patientId])
+  @@index([templateId])
+  @@index([completedAt])
+  @@index([createdAt])
+  @@map("assessments")
+}
+
+model ScheduledAssessment {
+  id                    String                       @id @default(cuid())
+  organizationId        String
+  patientId             String
+  enrollmentId          String
+  templateId            String
+  conditionPresetId     String?
+  frequency             ScheduledAssessmentFrequency
+  dueDate               DateTime
+  scheduledBy           String?
+  status                ScheduledAssessmentStatus    @default(PENDING)
+  priority              Int                          @default(0)
+  isRequired            Boolean                      @default(true)
+  completedAt           DateTime?
+  completedBy           String?
+  completedAssessmentId String?                      @unique
+  notificationsSent     Int                          @default(0)
+  lastNotificationAt    DateTime?
+  notes                 String?
+  metadata              Json?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  completedAssessment   Assessment?                  @relation("CompletedScheduledAssessment", fields: [completedAssessmentId], references: [id])
+  completedByClinician  Clinician?                   @relation("CompletedBy", fields: [completedBy], references: [id])
+  conditionPreset       ConditionPreset?             @relation(fields: [conditionPresetId], references: [id])
+  enrollment            Enrollment                   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient               Patient                      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  scheduledByClinician  Clinician?                   @relation("ScheduledBy", fields: [scheduledBy], references: [id])
+  template              AssessmentTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([enrollmentId])
+  @@index([templateId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([frequency])
+  @@index([priority])
+  @@index([scheduledBy])
+  @@index([completedBy])
+  @@map("scheduled_assessments")
+}
+
+model TimeLog {
+  id           String        @id @default(cuid())
+  patientId    String
+  clinicianId  String
+  activity     String
+  duration     Int
+  cptCode      CPTCode?
+  notes        String?
+  billable     Boolean       @default(true)
+  loggedAt     DateTime      @default(now())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  autoStarted  Boolean       @default(false)
+  source       TimeLogSource @default(MANUAL)
+  startedAt    DateTime?
+  enrollmentId String?
+  clinician    Clinician     @relation(fields: [clinicianId], references: [id])
+  enrollment   Enrollment?   @relation(fields: [enrollmentId], references: [id], map: "time_logs_enrollmentid_fkey")
+  patient      Patient       @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([clinicianId])
+  @@index([loggedAt])
+  @@index([billable])
+  @@index([cptCode])
+  @@index([source])
+  @@index([autoStarted])
+  @@index([enrollmentId], map: "time_logs_enrollmentid_idx")
+  @@map("time_logs")
+}
+
+model ConditionPreset {
+  id                   String                     @id @default(cuid())
+  name                 String
+  defaultProtocolId    String?
+  description          String?
+  isActive             Boolean                    @default(true)
+  isStandardized       Boolean                    @default(false)
+  category             String?
+  standardCoding       Json?
+  clinicalGuidelines   Json?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  organizationId       String?
+  sourcePresetId       String?
+  alertRules           ConditionPresetAlertRule[]
+  diagnoses            ConditionPresetDiagnosis[]
+  templates            ConditionPresetTemplate[]
+  organization         Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourcePreset         ConditionPreset?           @relation("PresetClones", fields: [sourcePresetId], references: [id])
+  clonedPresets        ConditionPreset[]          @relation("PresetClones")
+  scheduledAssessments ScheduledAssessment[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([name])
+  @@index([category])
+  @@index([isStandardized])
+  @@index([isActive])
+  @@index([sourcePresetId])
+  @@map("condition_presets")
+}
+
+model ConditionPresetDiagnosis {
+  id                String          @id @default(cuid())
+  conditionPresetId String
+  icd10             String
+  snomed            String?
+  label             String
+  isPrimary         Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  conditionPreset   ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+
+  @@unique([conditionPresetId, icd10])
+  @@index([conditionPresetId])
+  @@index([icd10])
+  @@index([isPrimary])
+  @@map("condition_preset_diagnoses")
+}
+
+model ConditionPresetTemplate {
+  id                String             @id @default(cuid())
+  conditionPresetId String
+  templateId        String
+  isRequired        Boolean            @default(true)
+  frequency         String?
+  displayOrder      Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
+  conditionPreset   ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+  template          AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([conditionPresetId, templateId])
+  @@index([conditionPresetId])
+  @@index([templateId])
+  @@index([displayOrder])
+  @@map("condition_preset_templates")
+}
+
+model AlertRule {
+  id               String                     @id @default(cuid())
+  name             String
+  description      String?
+  conditions       Json
+  actions          Json
+  isActive         Boolean                    @default(true)
+  isStandardized   Boolean                    @default(false)
+  category         String?
+  severity         Severity?
+  priority         Int                        @default(0)
+  standardCoding   Json?
+  clinicalEvidence Json?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  organizationId   String?
+  sourceRuleId     String?
+  organization     Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceRule       AlertRule?                 @relation("RuleClones", fields: [sourceRuleId], references: [id])
+  clonedRules      AlertRule[]                @relation("RuleClones")
+  alerts           Alert[]
+  conditionPresets ConditionPresetAlertRule[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([name])
+  @@index([category])
+  @@index([isActive])
+  @@index([isStandardized])
+  @@index([severity])
+  @@index([sourceRuleId])
+  @@map("alert_rules")
+}
+
+model ConditionPresetAlertRule {
+  id                String          @id @default(cuid())
+  conditionPresetId String
+  alertRuleId       String
+  isEnabled         Boolean         @default(true)
+  priority          Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  rule              AlertRule       @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  conditionPreset   ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
+
+  @@unique([conditionPresetId, alertRuleId])
+  @@index([conditionPresetId])
+  @@index([alertRuleId])
+  @@map("condition_preset_alert_rules")
+}
+
+model Alert {
+  id                                                 String            @id @default(cuid())
+  ruleId                                             String
+  patientId                                          String
+  clinicianId                                        String?
+  severity                                           Severity
+  status                                             AlertStatus       @default(PENDING)
+  message                                            String
+  data                                               Json?
+  triggeredAt                                        DateTime          @default(now())
+  acknowledgedAt                                     DateTime?
+  resolvedAt                                         DateTime?
+  organizationId                                     String
+  claimedAt                                          DateTime?
+  claimedById                                        String?
+  priorityRank                                       Int?
+  riskScore                                          Float?
+  slaBreachTime                                      DateTime?
+  interventionType                                   InterventionType?
+  patientOutcome                                     PatientOutcome?
+  resolutionNotes                                    String?
+  resolvedById                                       String?
+  timeSpentMinutes                                   Int?
+  isSuppressed                                       Boolean           @default(false)
+  snoozedAt                                          DateTime?
+  snoozedById                                        String?
+  snoozedUntil                                       DateTime?
+  suppressNotes                                      String?
+  suppressReason                                     SuppressReason?
+  suppressedAt                                       DateTime?
+  suppressedById                                     String?
+  escalatedAt                                        DateTime?
+  escalatedToId                                      String?
+  escalationLevel                                    Int?
+  escalationReason                                   String?
+  isEscalated                                        Boolean           @default(false)
+  observation_id                                     String?
+  claimedBy                                          User?             @relation("ClaimedAlerts", fields: [claimedById], references: [id])
+  clinician                                          Clinician?        @relation(fields: [clinicianId], references: [id])
+  escalatedTo                                        User?             @relation("EscalatedAlerts", fields: [escalatedToId], references: [id])
+  observations_alerts_observation_idToobservations   Observation?      @relation("alerts_observation_idToobservations", fields: [observation_id], references: [id])
+  patient                                            Patient           @relation(fields: [patientId], references: [id])
+  resolvedBy                                         User?             @relation("ResolvedAlerts", fields: [resolvedById], references: [id])
+  rule                                               AlertRule         @relation(fields: [ruleId], references: [id])
+  snoozedBy                                          User?             @relation("SnoozedAlerts", fields: [snoozedById], references: [id])
+  suppressedBy                                       User?             @relation("SuppressedAlerts", fields: [suppressedById], references: [id])
+  encounterNotes                                     EncounterNote[]
+  observations_observations_related_alert_idToalerts Observation[]     @relation("observations_related_alert_idToalerts")
+  tasks                                              Task[]
+
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([ruleId])
+  @@index([status])
+  @@index([severity])
+  @@index([triggeredAt])
+  @@index([riskScore])
+  @@index([priorityRank])
+  @@index([slaBreachTime])
+  @@index([claimedById])
+  @@index([snoozedUntil])
+  @@index([isSuppressed])
+  @@index([snoozedById])
+  @@index([suppressedById])
+  @@index([isEscalated])
+  @@index([escalatedToId])
+  @@index([escalationLevel])
+  @@index([observation_id])
+  @@map("alerts")
+}
+
+model Drug {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  genericName        String?
+  brandName          String?
+  dosageForm         String?
+  strength           String?
+  manufacturer       String?
+  ndcNumber          String?             @unique
+  description        String?
+  sideEffects        String[]
+  contraindications  String[]
+  interactions       String[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  patientMedications PatientMedication[]
+
+  @@index([name])
+  @@index([genericName])
+  @@index([brandName])
+  @@map("drugs")
+}
+
+model PatientMedication {
+  id                  String                @id @default(cuid())
+  patientId           String
+  drugId              String
+  prescribedBy        String?
+  dosage              String
+  frequency           String
+  route               String?
+  startDate           DateTime
+  endDate             DateTime?
+  isActive            Boolean               @default(true)
+  instructions        String?
+  notes               String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  medicationAdherence MedicationAdherence[]
+  drug                Drug                  @relation(fields: [drugId], references: [id])
+  patient             Patient               @relation(fields: [patientId], references: [id])
+
+  @@unique([patientId, drugId, startDate])
+  @@index([patientId])
+  @@index([drugId])
+  @@index([isActive])
+  @@index([startDate])
+  @@map("patient_medications")
+}
+
+model MedicationAdherence {
+  id                  String            @id @default(cuid())
+  patientMedicationId String
+  takenAt             DateTime
+  doseTaken           String?
+  adherenceScore      Float?
+  notes               String?
+  recordedAt          DateTime          @default(now())
+  patientMedication   PatientMedication @relation(fields: [patientMedicationId], references: [id])
+
+  @@unique([patientMedicationId, takenAt])
+  @@index([patientMedicationId])
+  @@index([takenAt])
+  @@index([adherenceScore])
+  @@map("medication_adherence")
+}
+
+model Task {
+  id              String       @id @default(cuid())
+  taskType        TaskType
+  title           String       @db.VarChar(200)
+  description     String?
+  status          TaskStatus   @default(PENDING)
+  priority        TaskPriority @default(MEDIUM)
+  dueDate         DateTime
+  completedAt     DateTime?
+  completionNotes String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  assignedToId    String
+  assignedById    String
+  completedById   String?
+  patientId       String
+  alertId         String?
+  assessmentId    String?
+  organizationId  String
+  alert           Alert?       @relation(fields: [alertId], references: [id])
+  assessment      Assessment?  @relation(fields: [assessmentId], references: [id])
+  assignedBy      User         @relation("TaskAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+  assignedTo      User         @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+  completedBy     User?        @relation("TaskCompletedBy", fields: [completedById], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient         Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, assignedToId, status, dueDate], map: "task_assigned_status_due")
+  @@index([organizationId, patientId, status], map: "task_patient_status")
+  @@index([organizationId, dueDate, status], map: "task_due_status")
+  @@index([alertId], map: "task_alert")
+  @@index([assessmentId], map: "task_assessment")
+  @@map("tasks")
+}
+
+model EncounterNote {
+  id                String        @id @default(cuid())
+  encounterType     EncounterType
+  vitalsSnapshot    Json?
+  assessmentSummary String?
+  alertsSummary     String?
+  subjective        String?
+  objective         String?
+  assessment        String?
+  plan              String?
+  additionalNotes   String?
+  isLocked          Boolean       @default(false)
+  attestedById      String?
+  attestedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  organizationId    String
+  patientId         String
+  clinicianId       String
+  alertId           String?
+  alert             Alert?        @relation(fields: [alertId], references: [id])
+  attestedBy        User?         @relation("AttestedEncounterNotes", fields: [attestedById], references: [id])
+  clinician         Clinician     @relation(fields: [clinicianId], references: [id])
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient           Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([clinicianId])
+  @@index([encounterType])
+  @@index([createdAt])
+  @@index([isLocked])
+  @@index([attestedById])
+  @@index([alertId])
+  @@map("encounter_notes")
+}
+
+model AssessmentReminder {
+  id           String             @id @default(cuid())
+  patientId    String
+  templateId   String
+  enrollmentId String
+  reminderType ReminderType
+  sentAt       DateTime
+  dueAt        DateTime
+  assessmentId String?
+  completedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  enrollment   Enrollment         @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  patient      Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  template     AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([templateId])
+  @@index([enrollmentId])
+  @@index([sentAt])
+  @@index([dueAt])
+  @@map("assessment_reminders")
+}
+
+model BillingProgram {
+  id               String                   @id @default(cuid())
+  name             String
+  code             String                   @unique
+  region           String
+  payer            String?
+  programType      String
+  version          String
+  effectiveFrom    DateTime
+  effectiveTo      DateTime?
+  isActive         Boolean                  @default(true)
+  requirements     Json
+  description      String?
+  notes            String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @default(now()) @updatedAt
+  cptCodes         BillingCPTCode[]
+  eligibilityRules BillingEligibilityRule[]
+  enrollments      Enrollment[]
+
+  @@index([region, programType])
+  @@index([isActive])
+  @@index([effectiveFrom, effectiveTo])
+  @@index([code])
+  @@map("billing_programs")
+}
+
+model BillingCPTCode {
+  id                String         @id @default(cuid())
+  billingProgramId  String
+  code              String
+  description       String
+  category          String
+  isRecurring       Boolean        @default(false)
+  criteria          Json
+  reimbursementRate Decimal?       @db.Decimal(10, 2)
+  currency          String?        @default("USD")
+  displayOrder      Int            @default(0)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @default(now()) @updatedAt
+  billingProgram    BillingProgram @relation(fields: [billingProgramId], references: [id], onDelete: Cascade)
+
+  @@unique([billingProgramId, code])
+  @@index([billingProgramId])
+  @@index([code])
+  @@index([category])
+  @@index([isActive])
+  @@map("billing_cpt_codes")
+}
+
+model BillingEligibilityRule {
+  id               String         @id @default(cuid())
+  billingProgramId String
+  ruleName         String         @db.VarChar(200)
+  ruleType         String
+  priority         Int            @default(0)
+  isRequired       Boolean        @default(true)
+  ruleLogic        Json
+  description      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @default(now()) @updatedAt
+  billingProgram   BillingProgram @relation(fields: [billingProgramId], references: [id], onDelete: Cascade)
+
+  @@index([billingProgramId])
+  @@index([ruleType])
+  @@index([priority])
+  @@map("billing_eligibility_rules")
+}
+
+model SavedView {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  name           String
+  description    String?
+  viewType       ViewType
+  filters        Json
+  displayConfig  Json?
+  isShared       Boolean      @default(false)
+  sharedWithIds  String[]     @default([])
+  isDefault      Boolean      @default(false)
+  usageCount     Int          @default(0)
+  lastUsedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  isTemplate     Boolean      @default(false) @map("is_template")
+  suggestedRole  String?      @map("suggested_role")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([viewType])
+  @@index([isShared])
+  @@index([isTemplate])
+  @@map("saved_views")
+}
+
 enum ValueType {
   numeric
   text
@@ -84,11 +1049,11 @@ enum CPTCode {
   CODE_99213
   CODE_99214
   CODE_99215
-  CODE_99453  // RTM: Setup and patient education
-  CODE_99454  // RTM: Device supply with daily recording/transmission
-  CODE_99457  // RTM: Interactive communication (20+ minutes)
-  CODE_99458  // RTM: Additional 20 minutes
-  CODE_99091  // CCM: Collection and interpretation of physiologic data
+  CODE_99453
+  CODE_99454
+  CODE_99457
+  CODE_99458
+  CODE_99091
 }
 
 enum UserRole {
@@ -102,13 +1067,13 @@ enum UserRole {
 }
 
 enum OrganizationType {
-  PLATFORM   // Internal platform organization for SaaS operations
   HOSPITAL
   CLINIC
   PRACTICE
   RESEARCH
   INSURANCE
   PHARMACY
+  PLATFORM
 }
 
 enum SocialProvider {
@@ -132,6 +1097,18 @@ enum ObservationContext {
   PROGRAM_ENROLLMENT
   CLINICAL_MONITORING
   ROUTINE_FOLLOWUP
+}
+
+enum ReviewStatus {
+  PENDING
+  REVIEWED
+  FLAGGED
+}
+
+enum ReviewMethod {
+  MANUAL
+  ALERT
+  BULK
 }
 
 enum TaskType {
@@ -217,11 +1194,6 @@ enum Permission {
   MEDICATION_UPDATE
   MEDICATION_DELETE
   MEDICATION_PRESCRIBE
-  TASK_CREATE
-  TASK_READ
-  TASK_UPDATE
-  TASK_DELETE
-  TASK_ASSIGN
   REPORT_READ
   REPORT_CREATE
   ANALYTICS_READ
@@ -230,7 +1202,11 @@ enum Permission {
   BILLING_READ
   BILLING_MANAGE
   COMPLIANCE_READ
-  // Platform Admin Permissions
+  TASK_CREATE
+  TASK_READ
+  TASK_UPDATE
+  TASK_DELETE
+  TASK_ASSIGN
   PLATFORM_ORG_CREATE
   PLATFORM_ORG_READ
   PLATFORM_ORG_UPDATE
@@ -283,508 +1259,6 @@ enum TicketCategory {
   GENERAL
 }
 
-// Authentication Models
-model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
-  passwordHash         String?
-  firstName            String?
-  lastName             String?
-  avatar               String?
-  phone                String?
-  isPlatformAdmin      Boolean   @default(false) // Platform-level administrator
-  isActive             Boolean   @default(true)
-  emailVerified        DateTime?
-  mfaEnabled           Boolean   @default(false)
-  mfaSecret            String?
-  backupCodes          String[]  @default([])
-  lastLoginAt          DateTime?
-  passwordResetToken   String?   @unique // ENHANCEMENT: Make unique
-  passwordResetExpires DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-
-  // Relationships
-  socialAccounts       SocialAccount[]
-  userOrganizations    UserOrganization[]
-  refreshTokens        RefreshToken[]
-  auditLogs            AuditLog[]
-  claimedAlerts        Alert[]            @relation("ClaimedAlerts")
-  resolvedAlerts       Alert[]            @relation("ResolvedAlerts")
-  snoozedAlerts        Alert[]            @relation("SnoozedAlerts")
-  suppressedAlerts     Alert[]            @relation("SuppressedAlerts")
-  escalatedAlerts      Alert[]            @relation("EscalatedAlerts")
-  tasksAssignedTo      Task[]             @relation("TaskAssignedTo")
-  tasksAssignedBy      Task[]             @relation("TaskAssignedBy")
-  tasksCompleted       Task[]             @relation("TaskCompletedBy")
-  attestedEncounterNotes EncounterNote[] @relation("AttestedEncounterNotes")
-  savedViews           SavedView[]
-
-  // ENHANCEMENT: Add indexes for common queries
-  @@index([email])
-  @@index([isActive])
-  @@index([lastLoginAt])
-  @@map("users")
-}
-
-model Organization {
-  id        String           @id @default(cuid())
-  name      String           @unique // ENHANCEMENT: Organization names should be unique
-  type      OrganizationType
-  email     String?          @unique // ENHANCEMENT: Organization emails should be unique
-  phone     String?
-  address   String?
-  website   String?
-  isActive  Boolean          @default(true)
-  settings  Json?
-
-  // Subscription & Billing Fields (for CLIENT organizations)
-  subscriptionStatus    SubscriptionStatus?  @default(TRIAL)
-  subscriptionTier      SubscriptionTier?    @default(BASIC)
-  subscriptionStartDate DateTime?
-  subscriptionEndDate   DateTime?
-  trialEndsAt           DateTime?
-
-  // Usage Limits
-  maxUsers      Int? @default(10)
-  maxPatients   Int? @default(100)
-  maxClinicians Int? @default(10)
-
-  // Billing Contact
-  billingContactName  String?
-  billingContactEmail String?
-  billingContactPhone String?
-
-  // Metadata
-  onboardedBy String?   // User ID of platform admin who onboarded this org
-  onboardedAt DateTime?
-  notes       String?   // Internal notes about this organization
-
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-
-  // Relationships
-  userOrganizations   UserOrganization[]
-  carePrograms        CareProgram[]
-  patients            Patient[]
-  clinicians          Clinician[]
-  enrollments         Enrollment[]
-  metricDefinitions   MetricDefinition[]   // Custom metrics for this org
-  assessmentTemplates AssessmentTemplate[] // Custom templates for this org
-  conditionPresets    ConditionPreset[]    // Custom condition presets for this org
-  alertRules          AlertRule[]          // Custom alert rules for this org
-  alerts              Alert[]              // Alerts for this organization
-  tasks               Task[]
-  encounterNotes      EncounterNote[]
-  supportTickets      SupportTicket[]      // Support tickets raised by this org
-  subscriptionHistory SubscriptionHistory[]
-  invoices            Invoice[]
-  scheduledAssessments ScheduledAssessment[] // Scheduled assessments for patients in this org
-  savedViews          SavedView[]
-
-  // ENHANCEMENT: Add indexes
-  @@index([name])
-  @@index([type])
-  @@index([isActive])
-  @@index([subscriptionStatus])
-  @@index([subscriptionTier])
-  @@map("organizations")
-}
-
-model UserOrganization {
-  id             String       @id @default(cuid())
-  userId         String
-  organizationId String
-  role           UserRole
-  permissions    Permission[]
-  isActive       Boolean      @default(true)
-  joinedAt       DateTime     @default(now())
-
-  // Relationships
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizationId])
-  @@index([userId])
-  @@index([organizationId])
-  @@index([role])
-  @@map("user_organizations")
-}
-
-model SocialAccount {
-  id           String         @id @default(cuid())
-  userId       String
-  provider     SocialProvider
-  providerId   String
-  email        String?
-  accessToken  String?
-  refreshToken String?
-  expiresAt    DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerId])
-  @@index([userId])
-  @@map("social_accounts")
-}
-
-model RefreshToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("refresh_tokens")
-}
-
-model CareProgram {
-  id             String      @id @default(cuid())
-  organizationId String
-  name           String
-  type           ProgramType
-  description    String?
-  isActive       Boolean     @default(true)
-  settings       Json?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  // Relationships
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  enrollments  Enrollment[]
-
-  // ENHANCEMENT: Unique program names per organization
-  @@unique([organizationId, name])
-  @@index([organizationId])
-  @@index([type])
-  @@index([isActive])
-  @@map("care_programs")
-}
-
-model AuditLog {
-  id             String   @id @default(cuid())
-  userId         String?
-  organizationId String?
-  action         String
-  resource       String?
-  resourceId     String?
-  ipAddress      String?
-  userAgent      String?
-  oldValues      Json?
-  newValues      Json?
-  metadata       Json?
-  hipaaRelevant  Boolean  @default(false)
-  createdAt      DateTime @default(now())
-
-  // Relationships
-  user User? @relation(fields: [userId], references: [id])
-
-  // ENHANCEMENT: Add indexes for audit queries
-  @@index([userId])
-  @@index([action])
-  @@index([resource])
-  @@index([createdAt])
-  @@index([hipaaRelevant])
-  @@map("audit_logs")
-}
-
-// Core Models
-model Patient {
-  id                  String   @id @default(cuid())
-  organizationId      String
-  firstName           String
-  lastName            String
-  dateOfBirth         DateTime
-  gender              String?
-  email               String?
-  phone               String?
-  address             String?
-  emergencyContact    String?
-  medicalRecordNumber String?  @unique
-  insuranceInfo       Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  // Relationships
-  organization       Organization        @relation(fields: [organizationId], references: [id])
-  enrollments        Enrollment[]
-  observations       Observation[]
-  assessments        Assessment[]
-  timeLogs           TimeLog[]
-  alerts             Alert[]
-  patientMedications PatientMedication[]
-  tasks              Task[]
-  encounterNotes     EncounterNote[]
-  assessmentReminders AssessmentReminder[]
-  scheduledAssessments ScheduledAssessment[]
-
-  // ENHANCEMENT: Add composite unique constraint and indexes
-  @@unique([organizationId, email]) // Unique email per organization
-  @@index([organizationId])
-  @@index([firstName, lastName])
-  @@index([dateOfBirth])
-  @@index([email])
-  @@map("patients")
-}
-
-model Clinician {
-  id               String   @id @default(cuid())
-  organizationId   String
-  firstName        String
-  lastName         String
-  email            String   @unique
-  phone            String?
-  address          String?
-  licenseNumber    String?  @unique @map("license_number") // ENHANCEMENT: License numbers should be unique
-  specialization   String?
-  department       String?
-  credentials      String?
-  emergencyContact String?  @map("emergency_contact")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  // Relationships
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  enrollments    Enrollment[]
-  observations   Observation[]
-  assessments    Assessment[]
-  timeLogs       TimeLog[]
-  alerts         Alert[]
-  encounterNotes EncounterNote[]
-  scheduledAssessmentsScheduled  ScheduledAssessment[] @relation("ScheduledBy")
-  scheduledAssessmentsCompleted  ScheduledAssessment[] @relation("CompletedBy")
-
-  // ENHANCEMENT: Add indexes
-  @@index([organizationId])
-  @@index([firstName, lastName])
-  @@index([specialization])
-  @@index([department])
-  @@map("clinicians")
-}
-
-model Enrollment {
-  id                String           @id @default(cuid())
-  organizationId    String
-  patientId         String
-  clinicianId       String
-  careProgramId     String
-  conditionPresetId String           // REQUIRED: Clinical monitoring protocol
-  billingProgramId  String?          // NEW: Link to specific billing configuration
-  status            EnrollmentStatus @default(PENDING)
-  startDate         DateTime
-  endDate           DateTime?
-  notes             String?
-
-  // NEW: Billing eligibility tracking (PHASE 0)
-  billingEligibility Json?           // {
-                                      //   eligible: true,
-                                      //   eligibilityDate: "2025-10-01",
-                                      //   verifiedRules: [
-                                      //     { ruleId: "rule-123", ruleName: "Medicare Part B", passed: true },
-                                      //     { ruleId: "rule-456", ruleName: "2+ Chronic Conditions", passed: true }
-                                      //   ],
-                                      //   chronicConditions: ["E11.9", "I10"],
-                                      //   insurance: { type: "Medicare Part B", memberId: "..." },
-                                      //   verifiedBy: "clinician-id",
-                                      //   verifiedAt: "2025-10-01T10:30:00Z",
-                                      //   notes: "Patient meets CCM criteria..."
-                                      // }
-
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-
-  // Relationships
-  organization    Organization     @relation(fields: [organizationId], references: [id])
-  patient         Patient          @relation(fields: [patientId], references: [id])
-  clinician       Clinician        @relation(fields: [clinicianId], references: [id])
-  careProgram     CareProgram      @relation(fields: [careProgramId], references: [id])
-  conditionPreset ConditionPreset  @relation(fields: [conditionPresetId], references: [id])
-  billingProgram  BillingProgram?  @relation(fields: [billingProgramId], references: [id])
-  observations    Observation[]    // PHASE 3: Observations linked to this enrollment
-  timeLogs        TimeLog[]        // PHASE 3: Time logs linked to this enrollment
-  assessmentReminders AssessmentReminder[]
-  scheduledAssessments ScheduledAssessment[]
-
-  // ENHANCEMENT: Prevent duplicate enrollments
-  @@unique([patientId, careProgramId, startDate])
-  @@index([organizationId])
-  @@index([patientId])
-  @@index([clinicianId])
-  @@index([status])
-  @@index([startDate])
-  @@index([billingProgramId])
-  @@map("enrollments")
-}
-
-model MetricDefinition {
-  id               String    @id @default(cuid())
-  organizationId   String?   // NULL = platform-level standardized, non-null = org-specific custom
-  sourceMetricId   String?   // Reference to original standardized metric (if cloned)
-  key              String    // No longer globally unique (allow per-org duplicates)
-  displayName      String    // No longer globally unique
-  description      String?
-  unit             String?
-  valueType        ValueType
-  category         String?
-  isStandardized   Boolean   @default(false) // True for platform library items
-  scaleMin         Decimal?
-  scaleMax         Decimal?
-  decimalPrecision Int?
-  options          Json?
-  normalRange      Json?
-  standardCoding   Json?
-  validationInfo   Json?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  // Relationships
-  organization     Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sourceMetric     MetricDefinition?  @relation("MetricClones", fields: [sourceMetricId], references: [id])
-  clonedMetrics    MetricDefinition[] @relation("MetricClones")
-  observations     Observation[]
-  templateItems    AssessmentTemplateItem[]
-
-  // ENHANCEMENT: Unique per organization (or globally if null)
-  @@unique([organizationId, key])
-  @@index([organizationId])
-  @@index([key])
-  @@index([displayName])
-  @@index([category])
-  @@index([valueType])
-  @@index([isStandardized])
-  @@index([sourceMetricId])
-  @@map("metric_definitions")
-}
-
-model Observation {
-  id             String             @id @default(cuid())
-  organizationId String
-  patientId      String
-  clinicianId    String?
-  enrollmentId   String?            // PHASE 3: Link to enrollment for billing
-  metricId       String
-  value          Json
-  unit           String?
-  source         SourceType         @default(MANUAL)
-  context        ObservationContext @default(CLINICAL_MONITORING)
-  notes          String?
-  recordedAt     DateTime           @default(now())
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-
-  // Relationships
-  patient    Patient          @relation(fields: [patientId], references: [id])
-  clinician  Clinician?       @relation(fields: [clinicianId], references: [id])
-  enrollment Enrollment?      @relation(fields: [enrollmentId], references: [id])
-  metric     MetricDefinition @relation(fields: [metricId], references: [id])
-
-  // ENHANCEMENT: Add composite unique constraint and indexes
-  @@unique([patientId, metricId, recordedAt]) // Prevent duplicate observations
-  @@index([organizationId])
-  @@index([patientId])
-  @@index([enrollmentId])
-  @@index([metricId])
-  @@index([recordedAt])
-  @@index([source])
-  @@index([context])
-  @@map("observations")
-}
-
-model AssessmentTemplate {
-  id               String   @id @default(cuid())
-  organizationId   String?  // NULL = platform-level standardized, non-null = org-specific custom
-  sourceTemplateId String?  // Reference to original standardized template (if cloned)
-  name             String   // No longer globally unique
-  description      String?
-  questions        Json
-  scoring          Json?
-  isStandardized   Boolean  @default(false) // True for platform library items
-  category         String?
-  standardCoding   Json?
-  validationInfo   Json?
-  scoringInfo      Json?
-  copyrightInfo    String?
-  clinicalUse      String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  // Relationships
-  organization             Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sourceTemplate           AssessmentTemplate?   @relation("TemplateClones", fields: [sourceTemplateId], references: [id])
-  clonedTemplates          AssessmentTemplate[]  @relation("TemplateClones")
-  assessments              Assessment[]
-  conditionPresetTemplates ConditionPresetTemplate[]
-  items                    AssessmentTemplateItem[]
-  assessmentReminders      AssessmentReminder[]
-  scheduledAssessments     ScheduledAssessment[]
-
-  // ENHANCEMENT: Unique per organization (or globally if null)
-  @@unique([organizationId, name])
-  @@index([organizationId])
-  @@index([name])
-  @@index([category])
-  @@index([isStandardized])
-  @@index([sourceTemplateId])
-  @@map("assessment_templates")
-}
-
-model AssessmentTemplateItem {
-  id                 String   @id @default(cuid())
-  templateId         String
-  metricDefinitionId String
-  displayOrder       Int      @default(0)
-  isRequired         Boolean  @default(false)
-  helpText           String?
-  defaultValue       String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  // Relationships
-  template         AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  metricDefinition MetricDefinition   @relation(fields: [metricDefinitionId], references: [id])
-
-  @@unique([templateId, metricDefinitionId])
-  @@index([templateId])
-  @@index([metricDefinitionId])
-  @@index([displayOrder])
-  @@map("assessment_template_items")
-}
-
-model Assessment {
-  id          String    @id @default(cuid())
-  patientId   String
-  clinicianId String?
-  templateId  String
-  responses   Json
-  score       Json?
-  completedAt DateTime?
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relationships
-  patient   Patient            @relation(fields: [patientId], references: [id])
-  clinician Clinician?         @relation(fields: [clinicianId], references: [id])
-  template  AssessmentTemplate @relation(fields: [templateId], references: [id])
-  tasks     Task[]
-  scheduledAssessment ScheduledAssessment? @relation("CompletedScheduledAssessment")
-
-  // ENHANCEMENT: Add indexes
-  @@index([patientId])
-  @@index([templateId])
-  @@index([completedAt])
-  @@index([createdAt])
-  @@map("assessments")
-}
-
 enum ScheduledAssessmentStatus {
   PENDING
   IN_PROGRESS
@@ -802,781 +1276,30 @@ enum ScheduledAssessmentFrequency {
   AS_NEEDED
 }
 
-model ScheduledAssessment {
-  id                     String                       @id @default(cuid())
-  organizationId         String
-  patientId              String
-  enrollmentId           String
-  templateId             String
-  conditionPresetId      String?                      // Optional: link to condition preset
-
-  // Scheduling
-  frequency              ScheduledAssessmentFrequency
-  dueDate                DateTime
-  scheduledBy            String?                      // Clinician ID who scheduled it
-
-  // Status
-  status                 ScheduledAssessmentStatus    @default(PENDING)
-  priority               Int                          @default(0) // 0=normal, 1=high, 2=urgent
-  isRequired             Boolean                      @default(true)
-
-  // Completion tracking
-  completedAt            DateTime?
-  completedBy            String?                      // Clinician ID who completed it
-  completedAssessmentId  String?  @unique            // Link to actual Assessment record
-
-  // Notifications
-  notificationsSent      Int                          @default(0)
-  lastNotificationAt     DateTime?
-
-  // Metadata
-  notes                  String?
-  metadata               Json?                        // Flexible field for custom data
-
-  createdAt              DateTime                     @default(now())
-  updatedAt              DateTime                     @updatedAt
-
-  // Relationships
-  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  patient            Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  enrollment         Enrollment           @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  template           AssessmentTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  conditionPreset    ConditionPreset?     @relation(fields: [conditionPresetId], references: [id], onDelete: SetNull)
-  scheduledByClinician Clinician?         @relation("ScheduledBy", fields: [scheduledBy], references: [id], onDelete: SetNull)
-  completedByClinician Clinician?         @relation("CompletedBy", fields: [completedBy], references: [id], onDelete: SetNull)
-  completedAssessment  Assessment?        @relation("CompletedScheduledAssessment", fields: [completedAssessmentId], references: [id], onDelete: SetNull)
-
-  // Indexes
-  @@index([organizationId])
-  @@index([patientId])
-  @@index([enrollmentId])
-  @@index([templateId])
-  @@index([status])
-  @@index([dueDate])
-  @@index([frequency])
-  @@index([priority])
-  @@index([scheduledBy])
-  @@index([completedBy])
-  @@map("scheduled_assessments")
-}
-
 enum TimeLogSource {
   AUTO
   MANUAL
   ADJUSTED
 }
 
-model TimeLog {
-  id           String         @id @default(cuid())
-  patientId    String
-  clinicianId  String
-  enrollmentId String?        // PHASE 3: Link to enrollment for billing
-  activity     String
-  duration     Int
-  cptCode      CPTCode?
-  notes        String?
-  billable     Boolean        @default(true)
-  loggedAt     DateTime       @default(now())
-
-  // Auto-tracking fields (Phase 1a)
-  autoStarted Boolean        @default(false) // True if timer was auto-started
-  source      TimeLogSource  @default(MANUAL) // How this time log was created
-  startedAt   DateTime?      // When timer actually started (for active timers)
-
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  // Relationships
-  patient    Patient     @relation(fields: [patientId], references: [id])
-  clinician  Clinician   @relation(fields: [clinicianId], references: [id])
-  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id])
-
-  // ENHANCEMENT: Add indexes
-  @@index([patientId])
-  @@index([clinicianId])
-  @@index([enrollmentId])
-  @@index([loggedAt])
-  @@index([billable])
-  @@index([cptCode])
-  @@index([source])
-  @@index([autoStarted])
-  @@map("time_logs")
-}
-
-model ConditionPreset {
-  id                 String   @id @default(cuid())
-  organizationId     String?  // NULL = platform-level standardized, non-null = org-specific custom
-  sourcePresetId     String?  // Reference to original standardized preset (if cloned)
-  name               String   // No longer globally unique (allow per-org duplicates)
-  defaultProtocolId  String?
-  description        String?
-  isActive           Boolean  @default(true)
-  isStandardized     Boolean  @default(false) // True for platform library items
-  category           String?
-  standardCoding     Json?
-  clinicalGuidelines Json?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  // Relationships
-  organization    Organization?                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sourcePreset    ConditionPreset?             @relation("PresetClones", fields: [sourcePresetId], references: [id])
-  clonedPresets   ConditionPreset[]            @relation("PresetClones")
-  diagnoses       ConditionPresetDiagnosis[]
-  templates       ConditionPresetTemplate[]
-  alertRules      ConditionPresetAlertRule[]
-  enrollments     Enrollment[]
-  scheduledAssessments ScheduledAssessment[]
-
-  // ENHANCEMENT: Unique per organization (or globally if null)
-  @@unique([organizationId, name])
-  @@index([organizationId])
-  @@index([name])
-  @@index([category])
-  @@index([isStandardized])
-  @@index([isActive])
-  @@index([sourcePresetId])
-  @@map("condition_presets")
-}
-
-model ConditionPresetDiagnosis {
-  id                String   @id @default(cuid())
-  conditionPresetId String
-  icd10             String
-  snomed            String?
-  label             String
-  isPrimary         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relationships
-  conditionPreset ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
-
-  // ENHANCEMENT: Add composite unique constraint
-  @@unique([conditionPresetId, icd10])
-  @@index([conditionPresetId])
-  @@index([icd10])
-  @@index([isPrimary])
-  @@map("condition_preset_diagnoses")
-}
-
-model ConditionPresetTemplate {
-  id                String   @id @default(cuid())
-  conditionPresetId String
-  templateId        String
-  isRequired        Boolean  @default(true)
-  frequency         String?
-  displayOrder      Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relationships
-  conditionPreset ConditionPreset    @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
-  template        AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  @@unique([conditionPresetId, templateId])
-  @@index([conditionPresetId])
-  @@index([templateId])
-  @@index([displayOrder])
-  @@map("condition_preset_templates")
-}
-
-model AlertRule {
-  id               String    @id @default(cuid())
-  organizationId   String?   // NULL = platform-level standardized, non-null = org-specific custom
-  sourceRuleId     String?   // Reference to original standardized rule (if cloned)
-  name             String    // No longer globally unique (allow per-org duplicates)
-  description      String?
-  conditions       Json
-  actions          Json
-  isActive         Boolean   @default(true)
-  isStandardized   Boolean   @default(false) // True for platform library items
-  category         String?
-  severity         Severity?
-  priority         Int       @default(0)
-  standardCoding   Json?
-  clinicalEvidence Json?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  // Relationships
-  organization     Organization?            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sourceRule       AlertRule?               @relation("RuleClones", fields: [sourceRuleId], references: [id])
-  clonedRules      AlertRule[]              @relation("RuleClones")
-  alerts           Alert[]
-  conditionPresets ConditionPresetAlertRule[]
-
-  // ENHANCEMENT: Unique per organization (or globally if null)
-  @@unique([organizationId, name])
-  @@index([organizationId])
-  @@index([name])
-  @@index([category])
-  @@index([isActive])
-  @@index([isStandardized])
-  @@index([severity])
-  @@index([sourceRuleId])
-  @@map("alert_rules")
-}
-
-model ConditionPresetAlertRule {
-  id                String   @id @default(cuid())
-  conditionPresetId String
-  alertRuleId       String
-  isEnabled         Boolean  @default(true)
-  priority          Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relationships
-  conditionPreset ConditionPreset @relation(fields: [conditionPresetId], references: [id], onDelete: Cascade)
-  rule            AlertRule       @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
-
-  @@unique([conditionPresetId, alertRuleId])
-  @@index([conditionPresetId])
-  @@index([alertRuleId])
-  @@map("condition_preset_alert_rules")
-}
-
-model Alert {
-  id             String      @id @default(cuid())
-  organizationId String
-  ruleId         String
-  patientId      String
-  clinicianId    String?
-  severity       Severity
-  status         AlertStatus @default(PENDING)
-  message        String
-  data           Json?
-  triggeredAt    DateTime    @default(now())
-  acknowledgedAt DateTime?
-  resolvedAt     DateTime?
-
-  // Triage Queue Fields (Phase 1a)
-  riskScore      Float?      // 0-10 risk score for prioritization
-  priorityRank   Int?        // Global rank across all alerts (1 = highest priority)
-  slaBreachTime  DateTime?   // When SLA will be breached
-  claimedById    String?     // User who claimed this alert
-  claimedAt      DateTime?   // When alert was claimed
-
-  // Resolution Documentation (Critical Fix #1, #3, #4)
-  resolvedById      String?          // User who resolved the alert
-  resolutionNotes   String?          @db.Text // Clinical documentation (required, min 10 chars)
-  interventionType  InterventionType? // Type of intervention performed (PHONE_CALL, VIDEO_CALL, etc.)
-  patientOutcome    PatientOutcome?  // Patient outcome after intervention (IMPROVED, STABLE, etc.)
-  timeSpentMinutes  Int?             // Time spent in minutes (for TimeLog creation and billing)
-
-  // Snooze & Suppress (Phase 1b)
-  snoozedUntil   DateTime?       // When snooze expires (alert will reactivate)
-  snoozedById    String?         // User who snoozed the alert
-  snoozedAt      DateTime?       // When alert was snoozed
-  isSuppressed   Boolean         @default(false) // Active suppression flag
-  suppressReason SuppressReason? // Documented reason for suppression
-  suppressedById String?         // User who suppressed the alert
-  suppressedAt   DateTime?       // When alert was suppressed
-  suppressNotes  String?         @db.Text // Additional notes for suppression (required if reason is OTHER)
-
-  // Escalation Tracking (Phase 1b)
-  isEscalated      Boolean         @default(false) // Alert has been escalated
-  escalatedAt      DateTime?       // When alert was escalated
-  escalatedToId    String?         // User/Supervisor who received escalation
-  escalationLevel  Int?            // Number of times escalated (1, 2, 3...)
-  escalationReason String?         @db.Text // Why alert was escalated (e.g., "SLA breach", "Manual escalation")
-
-  // Relationships
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  rule           AlertRule       @relation(fields: [ruleId], references: [id])
-  patient        Patient         @relation(fields: [patientId], references: [id])
-  clinician      Clinician?      @relation(fields: [clinicianId], references: [id])
-  claimedBy      User?           @relation("ClaimedAlerts", fields: [claimedById], references: [id], onDelete: SetNull)
-  resolvedBy     User?           @relation("ResolvedAlerts", fields: [resolvedById], references: [id], onDelete: SetNull)
-  snoozedBy      User?           @relation("SnoozedAlerts", fields: [snoozedById], references: [id], onDelete: SetNull)
-  suppressedBy   User?           @relation("SuppressedAlerts", fields: [suppressedById], references: [id], onDelete: SetNull)
-  escalatedTo    User?           @relation("EscalatedAlerts", fields: [escalatedToId], references: [id], onDelete: SetNull)
-  tasks          Task[]
-  encounterNotes EncounterNote[]
-
-  // ENHANCEMENT: Add indexes
-  @@index([organizationId])
-  @@index([patientId])
-  @@index([ruleId])
-  @@index([status])
-  @@index([severity])
-  @@index([triggeredAt])
-  @@index([riskScore])
-  @@index([priorityRank])
-  @@index([slaBreachTime])
-  @@index([claimedById])
-  @@index([snoozedUntil])
-  @@index([isSuppressed])
-  @@index([snoozedById])
-  @@index([suppressedById])
-  @@index([isEscalated])
-  @@index([escalatedToId])
-  @@index([escalationLevel])
-  @@map("alerts")
-}
-
-model Drug {
-  id                String   @id @default(cuid())
-  name              String   @unique // ENHANCEMENT: Drug names should be unique
-  genericName       String?
-  brandName         String?
-  dosageForm        String?
-  strength          String?
-  manufacturer      String?
-  ndcNumber         String?  @unique
-  description       String?
-  sideEffects       String[]
-  contraindications String[]
-  interactions      String[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  // Relationships
-  patientMedications PatientMedication[]
-
-  // ENHANCEMENT: Add indexes
-  @@index([name])
-  @@index([genericName])
-  @@index([brandName])
-  @@map("drugs")
-}
-
-model PatientMedication {
-  id           String    @id @default(cuid())
-  patientId    String
-  drugId       String
-  prescribedBy String?
-  dosage       String
-  frequency    String
-  route        String?
-  startDate    DateTime
-  endDate      DateTime?
-  isActive     Boolean   @default(true)
-  instructions String?
-  notes        String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  // Relationships
-  patient             Patient               @relation(fields: [patientId], references: [id])
-  drug                Drug                  @relation(fields: [drugId], references: [id])
-  medicationAdherence MedicationAdherence[]
-
-  // ENHANCEMENT: Add composite unique constraint and indexes
-  @@unique([patientId, drugId, startDate]) // Prevent duplicate prescriptions
-  @@index([patientId])
-  @@index([drugId])
-  @@index([isActive])
-  @@index([startDate])
-  @@map("patient_medications")
-}
-
-model MedicationAdherence {
-  id                  String   @id @default(cuid())
-  patientMedicationId String
-  takenAt             DateTime
-  doseTaken           String?
-  adherenceScore      Float?
-  notes               String?
-  recordedAt          DateTime @default(now())
-
-  // Relationships
-  patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
-
-  // ENHANCEMENT: Add composite unique constraint and indexes
-  @@unique([patientMedicationId, takenAt]) // Prevent duplicate adherence records
-  @@index([patientMedicationId])
-  @@index([takenAt])
-  @@index([adherenceScore])
-  @@map("medication_adherence")
-}
-
-model Task {
-  id              String       @id @default(cuid())
-  taskType        TaskType
-  title           String       @db.VarChar(200)
-  description     String?      @db.Text
-  status          TaskStatus   @default(PENDING)
-  priority        TaskPriority @default(MEDIUM)
-  dueDate         DateTime
-  completedAt     DateTime?
-  completionNotes String?      @db.Text
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  // Relationships - Assignment
-  assignedToId String
-  assignedTo   User   @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
-
-  assignedById String
-  assignedBy   User   @relation("TaskAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
-
-  completedById String?
-  completedBy   User?   @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
-
-  // Relationships - Clinical Context
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  alertId String?
-  alert   Alert?  @relation(fields: [alertId], references: [id], onDelete: SetNull)
-
-  assessmentId String?
-  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-
-  // Multi-Tenant
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  // Indexes
-  @@index([organizationId, assignedToId, status, dueDate], name: "task_assigned_status_due")
-  @@index([organizationId, patientId, status], name: "task_patient_status")
-  @@index([organizationId, dueDate, status], name: "task_due_status")
-  @@index([alertId], name: "task_alert")
-  @@index([assessmentId], name: "task_assessment")
-  @@map("tasks")
-}
-
-model EncounterNote {
-  id           String        @id @default(cuid())
-  encounterType EncounterType
-
-  // Auto-populated fields (read-only after creation)
-  vitalsSnapshot Json? // Snapshot of recent vitals at time of creation
-  assessmentSummary String? @db.Text // Summary of recent assessments
-  alertsSummary String? @db.Text // Summary of alerts that triggered this encounter
-
-  // Clinician-editable fields (SOAP format)
-  subjective String? @db.Text // Patient's reported symptoms/concerns
-  objective String? @db.Text // Clinician's observations and vital signs
-  assessment String? @db.Text // Clinical assessment and diagnosis
-  plan String? @db.Text // Treatment plan and next steps
-
-  // Additional documentation
-  additionalNotes String? @db.Text // Free-form clinical notes
-
-  // Attestation workflow
-  isLocked Boolean @default(false) // Once attested, note cannot be edited
-  attestedById String? // User who attested/finalized the note
-  attestedAt DateTime? // When note was attested
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  organizationId String
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  patientId String
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  clinicianId String
-  clinician Clinician @relation(fields: [clinicianId], references: [id])
-
-  attestedBy User? @relation("AttestedEncounterNotes", fields: [attestedById], references: [id], onDelete: SetNull)
-
-  alertId String? // Optional: link to specific alert that triggered encounter
-  alert Alert? @relation(fields: [alertId], references: [id], onDelete: SetNull)
-
-  // Indexes
-  @@index([organizationId])
-  @@index([patientId])
-  @@index([clinicianId])
-  @@index([encounterType])
-  @@index([createdAt])
-  @@index([isLocked])
-  @@index([attestedById])
-  @@index([alertId])
-  @@map("encounter_notes")
-}
-
-// Phase 1b: Assessment Reminder Tracking
-model AssessmentReminder {
-  id        String   @id @default(cuid())
-
-  // Relationships
-  patientId String
-  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  templateId String
-  template   AssessmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  enrollmentId String
-  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-
-  // Reminder details
-  reminderType ReminderType  // UPCOMING, OVERDUE, ESCALATION
-  sentAt       DateTime      // When reminder was sent
-  dueAt        DateTime      // When assessment is/was due
-
-  // Response tracking (optional)
-  assessmentId String?       // If patient completed assessment in response
-  completedAt  DateTime?     // When assessment was completed
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Indexes
-  @@index([patientId])
-  @@index([templateId])
-  @@index([enrollmentId])
-  @@index([sentAt])
-  @@index([dueAt])
-  @@map("assessment_reminders")
-}
-
 enum ReminderType {
-  UPCOMING     // Reminder sent before due date
-  OVERDUE      // Reminder sent after due date
-  ESCALATION   // Escalation reminder for severely overdue
+  UPCOMING
+  OVERDUE
+  ESCALATION
 }
 
 enum SuppressReason {
-  FALSE_POSITIVE           // Alert triggered incorrectly
-  PATIENT_CONTACTED        // Patient already contacted, issue resolved
-  DUPLICATE_ALERT          // Duplicate of existing alert
-  PLANNED_INTERVENTION     // Intervention already scheduled
-  PATIENT_HOSPITALIZED     // Patient in hospital, alert not actionable
-  DEVICE_MALFUNCTION       // Device error causing false reading
-  DATA_ENTRY_ERROR         // Manual data entry mistake
-  CLINICAL_JUDGMENT        // Clinician determines alert not actionable
-  OTHER                    // Other reason (requires notes)
+  FALSE_POSITIVE
+  PATIENT_CONTACTED
+  DUPLICATE_ALERT
+  PLANNED_INTERVENTION
+  PATIENT_HOSPITALIZED
+  DEVICE_MALFUNCTION
+  DATA_ENTRY_ERROR
+  CLINICAL_JUDGMENT
+  OTHER
 }
 
-// ============================================================================
-// PHASE 0: Configurable Billing Architecture
-// ============================================================================
-
-model BillingProgram {
-  id          String   @id @default(cuid())
-  name        String   // "CMS RPM 2025", "Medicare RTM", "UK NHS Remote 2025"
-  code        String   @unique // "CMS_RPM_2025", "NHS_REMOTE_2025"
-  region      String   // "US", "UK", "AU", "CA", "EU"
-  payer       String?  // "CMS", "Medicare", "Medicaid", "NHS", "Private"
-  programType String   // "RPM", "RTM", "CCM", "TCM", "REMOTE_MONITORING"
-  version     String   // "2025.1" for tracking requirement changes
-  effectiveFrom DateTime
-  effectiveTo   DateTime?
-  isActive    Boolean  @default(true)
-
-  // Billing requirements as JSON (flexible configuration)
-  requirements Json     // {
-                        //   dataCollectionDays: 16,
-                        //   clinicalTimeMinutes: 20,
-                        //   setupRequired: true,
-                        //   chronicConditionsMin: 2,
-                        //   eligibilityCriteria: { ... }
-                        // }
-
-  description String?  @db.Text
-  notes       String?  @db.Text
-
-  // Relationships
-  cptCodes         BillingCPTCode[]
-  eligibilityRules BillingEligibilityRule[]
-  enrollments      Enrollment[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([region, programType])
-  @@index([isActive])
-  @@index([effectiveFrom, effectiveTo])
-  @@index([code])
-  @@map("billing_programs")
-}
-
-model BillingCPTCode {
-  id                String   @id @default(cuid())
-  billingProgramId  String
-  code              String   // "99453", "99454", "99457", "98975", etc.
-  description       String   @db.Text // "Initial setup and patient education"
-  category          String   // "SETUP", "DATA_COLLECTION", "CLINICAL_TIME", "TREATMENT_TIME", "CARE_COORDINATION"
-  isRecurring       Boolean  @default(false) // Can bill monthly vs one-time
-
-  // Billing criteria as JSON (flexible configuration)
-  criteria          Json     // {
-                            //   type: "DATA_DAYS",
-                            //   threshold: 16,
-                            //   operator: ">=",
-                            //   calculationMethod: "unique_days_device_observations"
-                            // }
-                            // OR
-                            // {
-                            //   type: "CLINICAL_TIME",
-                            //   thresholdMinutes: 20,
-                            //   maxMinutes: 40,
-                            //   operator: ">=",
-                            //   calculationMethod: "sum_billable_time_logs"
-                            // }
-
-  // Reimbursement info
-  reimbursementRate Decimal? @db.Decimal(10, 2)
-  currency          String?  @default("USD")
-
-  displayOrder      Int      @default(0)
-  isActive          Boolean  @default(true)
-
-  // Relationships
-  billingProgram    BillingProgram @relation(fields: [billingProgramId], references: [id], onDelete: Cascade)
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@unique([billingProgramId, code])
-  @@index([billingProgramId])
-  @@index([code])
-  @@index([category])
-  @@index([isActive])
-  @@map("billing_cpt_codes")
-}
-
-model BillingEligibilityRule {
-  id                String   @id @default(cuid())
-  billingProgramId  String
-  ruleName          String   @db.VarChar(200) // "Medicare Part B Eligibility"
-  ruleType          String   // "INSURANCE", "DIAGNOSIS", "AGE", "CONSENT", "CUSTOM"
-  priority          Int      @default(0)
-  isRequired        Boolean  @default(true)
-
-  // Rule logic as JSON (flexible configuration)
-  ruleLogic         Json     // {
-                            //   type: "INSURANCE",
-                            //   operator: "IN",
-                            //   values: ["Medicare", "Medicaid"],
-                            //   errorMessage: "Patient must have Medicare or Medicaid"
-                            // }
-                            // OR
-                            // {
-                            //   type: "DIAGNOSIS",
-                            //   operator: "MIN_COUNT",
-                            //   minCount: 2,
-                            //   codingSystems: ["ICD-10"],
-                            //   expectedDuration: "12_MONTHS",
-                            //   errorMessage: "Requires 2+ chronic conditions lasting 12+ months"
-                            // }
-                            // OR
-                            // {
-                            //   type: "AGE",
-                            //   operator: ">=",
-                            //   value: 18,
-                            //   errorMessage: "Patient must be 18 or older"
-                            // }
-
-  description       String?  @db.Text
-
-  // Relationships
-  billingProgram    BillingProgram @relation(fields: [billingProgramId], references: [id], onDelete: Cascade)
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@index([billingProgramId])
-  @@index([ruleType])
-  @@index([priority])
-  @@map("billing_eligibility_rules")
-}
-
-// Platform Administration Models
-
-model SupportTicket {
-  id              String          @id @default(cuid())
-  organizationId  String
-  ticketNumber    String          @unique
-  subject         String
-  description     String          @db.Text
-  priority        TicketPriority  @default(MEDIUM)
-  status          TicketStatus    @default(OPEN)
-  category        TicketCategory
-  contactName     String
-  contactEmail    String
-  assignedTo      String?         // Platform admin user ID
-  resolvedBy      String?         // Platform admin user ID who resolved
-  resolvedAt      DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  // Relationships
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  responses    TicketResponse[]
-
-  @@index([organizationId])
-  @@index([status])
-  @@index([priority])
-  @@index([assignedTo])
-  @@index([category])
-  @@map("support_tickets")
-}
-
-model TicketResponse {
-  id              String        @id @default(cuid())
-  ticketId        String
-  respondedBy     String        // User ID (platform admin or client user)
-  responseText    String        @db.Text
-  isInternal      Boolean       @default(false) // Internal notes only visible to platform admins
-  attachments     Json?         // Array of attachment URLs
-  createdAt       DateTime      @default(now())
-
-  // Relationships
-  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-
-  @@index([ticketId])
-  @@index([respondedBy])
-  @@index([createdAt])
-  @@map("ticket_responses")
-}
-
-model SubscriptionHistory {
-  id               String              @id @default(cuid())
-  organizationId   String
-  previousStatus   SubscriptionStatus?
-  newStatus        SubscriptionStatus
-  previousTier     SubscriptionTier?
-  newTier          SubscriptionTier
-  changeReason     String              @db.Text
-  changedBy        String              // Platform admin user ID
-  effectiveDate    DateTime
-  notes            String?             @db.Text
-  createdAt        DateTime            @default(now())
-
-  // Relationships
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([effectiveDate])
-  @@map("subscription_history")
-}
-
-model Invoice {
-  id               String              @id @default(cuid())
-  organizationId   String
-  invoiceNumber    String              @unique
-  billingPeriodStart DateTime
-  billingPeriodEnd   DateTime
-  amount           Decimal             @db.Decimal(10, 2)
-  currency         String              @default("USD")
-  status           String              // "DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"
-  dueDate          DateTime
-  paidDate         DateTime?
-  paymentMethod    String?
-  items            Json                // Array of line items
-  notes            String?             @db.Text
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-
-  // Relationships
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([status])
-  @@index([dueDate])
-  @@map("invoices")
-}
-
-// Saved Views & Filters (Phase 1b)
 enum ViewType {
   PATIENT_LIST
   TRIAGE_QUEUE
@@ -1584,41 +1307,4 @@ enum ViewType {
   ENROLLMENT_LIST
   ALERT_LIST
   TASK_LIST
-}
-
-model SavedView {
-  id             String   @id @default(cuid())
-  userId         String   // Owner of the view
-  organizationId String   // Organization context
-  name           String   // User-defined name (e.g., "AM Hypertension Round")
-  description    String?  // Optional description
-  viewType       ViewType // PATIENT_LIST, TRIAGE_QUEUE, ASSESSMENT_LIST, etc.
-
-  // Filter criteria stored as JSON
-  filters        Json     // { status: 'ACTIVE', enrollmentType: 'RPM', riskScore: { gte: 7 }, ... }
-
-  // Display preferences
-  displayConfig  Json?    // { columns: [...], sortBy: 'lastName', sortOrder: 'asc', pageSize: 25 }
-
-  // Sharing
-  isShared       Boolean  @default(false) // Share with organization
-  sharedWithIds  String[] // Specific user IDs to share with
-
-  // Metadata
-  isDefault      Boolean  @default(false) // Set as default view for this user
-  usageCount     Int      @default(0)     // Track how often used
-  lastUsedAt     DateTime?
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relationships
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([organizationId])
-  @@index([viewType])
-  @@index([isShared])
-  @@map("saved_views")
 }
