@@ -23,7 +23,7 @@ const getDrugs = async (req, res) => {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
             { brandName: { contains: search, mode: 'insensitive' } },
-            { activeIngredient: { contains: search, mode: 'insensitive' } }
+            { genericName: { contains: search, mode: 'insensitive' } }
           ]
         } : {},
         drugClass ? { drugClass: { contains: drugClass, mode: 'insensitive' } } : {}
@@ -38,7 +38,7 @@ const getDrugs = async (req, res) => {
         orderBy: { [sortBy]: sortOrder },
         include: {
           _count: {
-            select: { prescriptions: true }
+            select: { patientMedications: true }
           }
         }
       }),
@@ -118,14 +118,11 @@ const createDrug = async (req, res) => {
     const {
       name,
       brandName,
-      activeIngredient,
-      drugClass,
-      fdaApproved = true,
-      controlledSubstance,
+      genericName,
       dosageForm,
       strength,
       manufacturer,
-      ndc,
+      ndcNumber,
       description,
       sideEffects,
       contraindications,
@@ -133,26 +130,22 @@ const createDrug = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !activeIngredient || !drugClass || !dosageForm || !strength) {
+    if (!name) {
       return res.status(400).json({
-        error: 'Validation failed: name, activeIngredient, drugClass, dosageForm, and strength are required'
+        error: 'Validation failed: name is required'
       });
     }
 
-    // Check if drug with same name, strength, and dosage form already exists
+    // Check if drug with same name already exists
     const existingDrug = await prisma.drug.findUnique({
       where: {
-        name_strength_dosageForm: {
-          name,
-          strength,
-          dosageForm
-        }
+        name: name
       }
     });
 
     if (existingDrug) {
       return res.status(409).json({
-        error: 'Drug with this name, strength, and dosage form already exists'
+        error: 'Drug with this name already exists'
       });
     }
 
@@ -160,14 +153,11 @@ const createDrug = async (req, res) => {
       data: {
         name,
         brandName,
-        activeIngredient,
-        drugClass,
-        fdaApproved,
-        controlledSubstance,
+        genericName,
         dosageForm,
         strength,
         manufacturer,
-        ndc,
+        ndcNumber,
         description,
         sideEffects,
         contraindications,
