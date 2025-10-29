@@ -18,7 +18,9 @@ import {
   BellSlashIcon,
   NoSymbolIcon,
   DocumentTextIcon,
-  BellAlertIcon
+  BellAlertIcon,
+  SparklesIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
@@ -30,6 +32,7 @@ import TimerWidget from '../components/TimerWidget'
 import AssessmentModal from '../components/AssessmentModal'
 import { useRealTimeAlerts } from '../hooks/useRealTimeAlerts'
 import { useAllTimers } from '../hooks/useTimer'
+import { useDefaultView } from '../hooks/useDefaultView'
 
 export default function TriageQueue() {
   const [filters, setFilters] = useState({
@@ -88,7 +91,108 @@ export default function TriageQueue() {
   const [selectedAssessmentForModal, setSelectedAssessmentForModal] = useState(null)
   const [isAssessmentModalOpen, setIsAssessmentModalOpen] = useState(false)
 
+  // Saved Views integration
+  const { defaultView, hasDefaultView } = useDefaultView('TRIAGE_QUEUE')
+  const [appliedViewName, setAppliedViewName] = useState(null)
+  const [isViewCleared, setIsViewCleared] = useState(false) // Track if user explicitly cleared view
+
   const queryClient = useQueryClient()
+
+  // Apply default view filters on page load
+  useEffect(() => {
+    // Only apply default view if:
+    // 1. A default view exists
+    // 2. No view is currently applied
+    // 3. User hasn't explicitly cleared the view
+    if (defaultView && !appliedViewName && !isViewCleared) {
+      const savedFilters = defaultView.filters || {}
+
+      // Helper function to extract simple values from complex filter objects
+      const extractFilterValue = (filterValue, defaultValue = 'all') => {
+        if (!filterValue) return defaultValue
+
+        // Handle arrays (take first element)
+        if (Array.isArray(filterValue)) {
+          const firstValue = filterValue[0]
+          if (typeof firstValue === 'object' && firstValue.not) {
+            // Negation operator: { not: 'RESOLVED' } - return opposite or default
+            console.log('[TriageQueue] NOT operator detected, using default:', defaultValue)
+            return defaultValue
+          }
+          return typeof firstValue === 'string' ? firstValue : defaultValue
+        }
+
+        // Handle negation operators: { not: 'RESOLVED' }
+        if (typeof filterValue === 'object' && filterValue.not) {
+          console.log('[TriageQueue] NOT operator detected, using default:', defaultValue)
+          return defaultValue
+        }
+
+        // Handle FilterBuilder format: { operator: 'equals', value: 'PENDING' }
+        if (typeof filterValue === 'object' && filterValue.value) {
+          return filterValue.value
+        }
+
+        // Handle simple strings
+        if (typeof filterValue === 'string') {
+          return filterValue
+        }
+
+        return defaultValue
+      }
+
+      // Apply filters from saved view with complex object handling
+      const newFilters = { ...filters }
+
+      if (savedFilters.severity) {
+        newFilters.severity = extractFilterValue(savedFilters.severity, 'all')
+      }
+
+      if (savedFilters.status) {
+        newFilters.status = extractFilterValue(savedFilters.status, 'PENDING')
+      }
+
+      if (savedFilters.claimedBy) {
+        newFilters.claimedBy = extractFilterValue(savedFilters.claimedBy, 'all')
+      }
+
+      if (savedFilters.slaBreached !== undefined) {
+        newFilters.slaStatus = savedFilters.slaBreached ? 'breached' : 'all'
+      }
+
+      // Handle riskScore range mapping to riskLevel
+      if (savedFilters.riskScoreMin !== undefined || savedFilters.riskScoreMax !== undefined) {
+        const min = savedFilters.riskScoreMin || 0
+        const max = savedFilters.riskScoreMax || 10
+        if (min >= 8) newFilters.riskLevel = 'critical'
+        else if (min >= 6) newFilters.riskLevel = 'high'
+        else if (min >= 4) newFilters.riskLevel = 'medium'
+        else if (max < 4) newFilters.riskLevel = 'low'
+      }
+
+      console.log('[TriageQueue] Applied filters:', newFilters)
+      setFilters(newFilters)
+      setAppliedViewName(defaultView.name)
+      toast.info(`Applied saved view: "${defaultView.name}"`, { autoClose: 3000 })
+    }
+  }, [defaultView, appliedViewName, isViewCleared])
+
+  // Function to clear saved view and reset filters
+  const clearSavedView = () => {
+    setFilters({
+      status: 'PENDING',
+      severity: 'all',
+      riskLevel: 'all',
+      claimedBy: 'all',
+      slaStatus: 'all',
+      escalationStatus: 'all',
+      sortBy: 'priorityRank',
+      sortOrder: 'asc'
+    })
+    setAppliedViewName(null)
+    setIsViewCleared(true) // Prevent default view from re-applying
+    toast.success('Cleared saved view filters')
+  }
 
   // Fetch current user profile to determine clinical access
   const { data: currentUser } = useQuery({
@@ -771,6 +875,46 @@ export default function TriageQueue() {
             </div>
           </div>
         </div>
+
+        {/* Saved View Indicator */}
+        {defaultView && (
+          <div className={`border rounded-xl p-4 mb-6 flex items-center justify-between ${
+            appliedViewName
+              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center">
+              <SparklesIcon className={`h-5 w-5 mr-2 ${appliedViewName ? 'text-purple-600' : 'text-gray-400'}`} />
+              <span className={`text-sm font-medium ${appliedViewName ? 'text-purple-900' : 'text-gray-600'}`}>
+                {appliedViewName ? (
+                  <>Active View: <span className="font-bold">{appliedViewName}</span></>
+                ) : (
+                  <>Default view available: <span className="font-semibold">{defaultView.name}</span> (not applied)</>
+                )}
+              </span>
+            </div>
+            {appliedViewName ? (
+              <button
+                onClick={clearSavedView}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <XCircleIcon className="h-4 w-4 mr-1" />
+                Clear View
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsViewCleared(false)
+                  setAppliedViewName(null) // This will trigger the useEffect to apply the view
+                }}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <SparklesIcon className="h-4 w-4 mr-1" />
+                Apply View
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Active Timers Section */}
         {timers && timers.length > 0 && (

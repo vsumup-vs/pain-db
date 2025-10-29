@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import {
@@ -16,16 +16,40 @@ import {
   ListBulletIcon,
   Squares2X2Icon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  SparklesIcon,
+  XCircleIcon,
+  EyeIcon,
+  ChartBarIcon,
+  BellIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
+import PatientContextPanel from '../components/PatientContextPanel'
+import { useDefaultView } from '../hooks/useDefaultView'
 
 export default function Patients() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPatient, setEditingPatient] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const queryClient = useQueryClient()
+
+  // Filter states - matching FilterBuilder fields for PATIENT_LIST
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterGender, setFilterGender] = useState('')
+  const [filterAgeMin, setFilterAgeMin] = useState('')
+  const [filterAgeMax, setFilterAgeMax] = useState('')
+
+  // Saved Views integration
+  const { defaultView, hasDefaultView } = useDefaultView('PATIENT_LIST')
+  const [appliedViewName, setAppliedViewName] = useState(null)
+  const [isViewCleared, setIsViewCleared] = useState(false) // Track if user explicitly cleared view
+
+  // Patient Context Panel state
+  const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState(null)
+
+  console.log('[Patients] useDefaultView result:', { defaultView, hasDefaultView, appliedViewName })
 
   // View mode state with localStorage persistence
   const [viewMode, setViewMode] = useState(() => {
@@ -49,9 +73,103 @@ export default function Patients() {
     }))
   }
 
+  // Apply default view filters on page load
+  useEffect(() => {
+    console.log('[Patients] useEffect triggered - checking conditions:', {
+      hasDefaultView: !!defaultView,
+      appliedViewName,
+      isViewCleared,
+      defaultView
+    })
+
+    // Only apply default view if:
+    // 1. A default view exists
+    // 2. No view is currently applied
+    // 3. User hasn't explicitly cleared the view
+    if (defaultView && !appliedViewName && !isViewCleared) {
+      const savedFilters = defaultView.filters || {}
+
+      console.log('[Patients] Applying default view:', defaultView.name)
+      console.log('[Patients] Saved filters:', savedFilters)
+
+      // Helper function to extract simple values from complex filter objects
+      const extractFilterValue = (filterValue, defaultValue = '') => {
+        if (!filterValue) return defaultValue
+
+        // Handle arrays (take first element)
+        if (Array.isArray(filterValue)) {
+          const firstValue = filterValue[0]
+          if (typeof firstValue === 'object' && firstValue.not) {
+            console.log('[Patients] NOT operator detected, using default:', defaultValue)
+            return defaultValue
+          }
+          return typeof firstValue === 'string' ? firstValue : defaultValue
+        }
+
+        // Handle negation operators: { not: 'value' }
+        if (typeof filterValue === 'object' && filterValue.not) {
+          console.log('[Patients] NOT operator detected, using default:', defaultValue)
+          return defaultValue
+        }
+
+        // Handle FilterBuilder format: { operator: 'equals', value: 'ACTIVE' }
+        if (typeof filterValue === 'object' && filterValue.value) {
+          return filterValue.value
+        }
+
+        // Handle simple strings
+        if (typeof filterValue === 'string') {
+          return filterValue
+        }
+
+        return defaultValue
+      }
+
+      // Apply all saved filters with complex object handling
+      if (savedFilters.searchTerm) {
+        setSearchTerm(extractFilterValue(savedFilters.searchTerm, ''))
+      }
+      if (savedFilters.status) {
+        setFilterStatus(extractFilterValue(savedFilters.status, ''))
+      }
+      if (savedFilters.gender) {
+        setFilterGender(extractFilterValue(savedFilters.gender, ''))
+      }
+      if (savedFilters.ageMin !== undefined) {
+        setFilterAgeMin(savedFilters.ageMin.toString())
+      }
+      if (savedFilters.ageMax !== undefined) {
+        setFilterAgeMax(savedFilters.ageMax.toString())
+      }
+
+      console.log('[Patients] Applied filters')
+      setAppliedViewName(defaultView.name)
+      toast.info(`Applied saved view: "${defaultView.name}"`, { autoClose: 3000 })
+    }
+  }, [defaultView, appliedViewName, isViewCleared])
+
+  // Function to clear saved view and reset filters
+  const clearSavedView = () => {
+    setSearchTerm('')
+    setFilterStatus('')
+    setFilterGender('')
+    setFilterAgeMin('')
+    setFilterAgeMax('')
+    setSortConfig({ key: 'firstName', direction: 'asc' })
+    setAppliedViewName(null)
+    setIsViewCleared(true) // Prevent default view from re-applying
+    toast.success('Cleared saved view filters')
+  }
+
   const { data: patientsResponse, isLoading } = useQuery({
-    queryKey: ['patients', searchTerm],
-    queryFn: () => api.getPatients({ search: searchTerm }),
+    queryKey: ['patients', searchTerm, filterStatus, filterGender, filterAgeMin, filterAgeMax],
+    queryFn: () => api.getPatients({
+      search: searchTerm,
+      status: filterStatus || undefined,
+      gender: filterGender || undefined,
+      ageMin: filterAgeMin ? parseInt(filterAgeMin) : undefined,
+      ageMax: filterAgeMax ? parseInt(filterAgeMax) : undefined
+    }),
   })
 
   // Extract patients array and pagination from response
@@ -214,6 +332,46 @@ export default function Patients() {
           </div>
         </div>
 
+        {/* Saved View Indicator */}
+        {defaultView && (
+          <div className={`border rounded-xl p-4 flex items-center justify-between ${
+            appliedViewName
+              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center">
+              <SparklesIcon className={`h-5 w-5 mr-2 ${appliedViewName ? 'text-purple-600' : 'text-gray-400'}`} />
+              <span className={`text-sm font-medium ${appliedViewName ? 'text-purple-900' : 'text-gray-600'}`}>
+                {appliedViewName ? (
+                  <>Active View: <span className="font-bold">{appliedViewName}</span></>
+                ) : (
+                  <>Default view available: <span className="font-semibold">{defaultView.name}</span> (not applied)</>
+                )}
+              </span>
+            </div>
+            {appliedViewName ? (
+              <button
+                onClick={clearSavedView}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <XCircleIcon className="h-4 w-4 mr-1" />
+                Clear View
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsViewCleared(false)
+                  setAppliedViewName(null) // This will trigger the useEffect to apply the view
+                }}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <SparklesIcon className="h-4 w-4 mr-1" />
+                Apply View
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Search */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="relative">
@@ -238,6 +396,96 @@ export default function Patients() {
           {searchTerm && (
             <div className="mt-3 text-sm text-gray-600">
               <span>Searching for "{searchTerm}" • {patients.length} results found</span>
+            </div>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-4">Filters</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="DECEASED">Deceased</option>
+              </select>
+            </div>
+
+            {/* Gender Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gender
+              </label>
+              <select
+                value={filterGender}
+                onChange={(e) => setFilterGender(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            {/* Age Min Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Min Age
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="120"
+                value={filterAgeMin}
+                onChange={(e) => setFilterAgeMin(e.target.value)}
+                placeholder="e.g., 18"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Age Max Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Max Age
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="120"
+                value={filterAgeMax}
+                onChange={(e) => setFilterAgeMax(e.target.value)}
+                placeholder="e.g., 65"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Clear Filters Button */}
+          {(filterStatus || filterGender || filterAgeMin || filterAgeMax) && (
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setFilterStatus('')
+                  setFilterGender('')
+                  setFilterAgeMin('')
+                  setFilterAgeMax('')
+                }}
+                className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+              >
+                <XCircleIcon className="h-4 w-4 mr-1" />
+                Clear Filters
+              </button>
             </div>
           )}
         </div>
@@ -362,6 +610,16 @@ export default function Patients() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex items-center space-x-2">
                           <button
+                            onClick={() => {
+                              setSelectedPatientId(patient.id)
+                              setIsPatientContextOpen(true)
+                            }}
+                            className="text-purple-600 hover:text-purple-800"
+                            title="View Patient Context"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
+                          <button
                             onClick={() => handleEdit(patient)}
                             className="text-blue-600 hover:text-blue-800"
                             title="Edit Patient"
@@ -441,17 +699,41 @@ export default function Patients() {
                     )}
                   </div>
 
-                  {/* Gender Badge */}
-                  {patient.gender && (
-                    <div className="mt-4">
+                  {/* Badges */}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {patient.gender && (
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${getGenderColor(patient.gender)}`}>
                         {patient.gender}
                       </span>
-                    </div>
-                  )}
+                    )}
+
+                    {patient.observationCount !== undefined && patient.observationCount > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border border-blue-200 bg-blue-50 text-blue-700">
+                        <ChartBarIcon className="h-3 w-3 mr-1" />
+                        {patient.observationCount} observations
+                      </span>
+                    )}
+
+                    {patient.activeAlertCount !== undefined && patient.activeAlertCount > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border border-red-200 bg-red-50 text-red-700">
+                        <BellIcon className="h-3 w-3 mr-1" />
+                        {patient.activeAlertCount} active alerts
+                      </span>
+                    )}
+                  </div>
 
                   {/* Actions */}
                   <div className="flex items-center justify-end space-x-2 mt-6 pt-4 border-t border-gray-100">
+                    <button
+                      onClick={() => {
+                        setSelectedPatientId(patient.id)
+                        setIsPatientContextOpen(true)
+                      }}
+                      className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                      title="View Patient Context"
+                    >
+                      <EyeIcon className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => handleEdit(patient)}
                       className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors duration-200"
@@ -515,6 +797,16 @@ export default function Patients() {
             isLoading={createMutation.isPending || updateMutation.isPending}
           />
         </Modal>
+
+        {/* Patient Context Panel */}
+        <PatientContextPanel
+          isOpen={isPatientContextOpen}
+          onClose={() => setIsPatientContextOpen(false)}
+          patientId={selectedPatientId}
+          clinicianId={null}
+          alert={null}
+          days={30}
+        />
       </div>
     </div>
   )
@@ -549,11 +841,38 @@ function PatientForm({ patient, onSubmit, isLoading }) {
     dateOfBirth: patient?.dateOfBirth ? patient.dateOfBirth.split('T')[0] : '',
     gender: patient?.gender || '',
     address: formatAddressForEdit(patient?.address),
+    emergencyContact: patient?.emergencyContact || '',
+    insuranceProvider: patient?.insuranceInfo?.provider || '',
+    insurancePolicyNumber: patient?.insuranceInfo?.policyNumber || '',
+    insuranceGroupNumber: patient?.insuranceInfo?.groupNumber || '',
+    insurancePhone: patient?.insuranceInfo?.phone || '',
   })
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit(formData)
+
+    // Combine insurance fields into JSON structure
+    const insuranceInfo = (formData.insuranceProvider || formData.insurancePolicyNumber) ? {
+      provider: formData.insuranceProvider || null,
+      policyNumber: formData.insurancePolicyNumber || null,
+      groupNumber: formData.insuranceGroupNumber || null,
+      phone: formData.insurancePhone || null,
+    } : null
+
+    // Prepare data for submission
+    const submitData = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender,
+      address: formData.address,
+      emergencyContact: formData.emergencyContact || null,
+      insuranceInfo: insuranceInfo,
+    }
+
+    onSubmit(submitData)
   }
 
   const handleChange = (e) => {
@@ -647,6 +966,75 @@ function PatientForm({ patient, onSubmit, isLoading }) {
           className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
           placeholder="Enter full address..."
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Emergency Contact
+        </label>
+        <input
+          type="text"
+          name="emergencyContact"
+          value={formData.emergencyContact}
+          onChange={handleChange}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+          placeholder="Name, relationship, phone (e.g., Jane Doe, Spouse, 555-0123)"
+        />
+      </div>
+
+      {/* Insurance Information Section */}
+      <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Insurance Information</h3>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Provider</label>
+            <input
+              type="text"
+              name="insuranceProvider"
+              value={formData.insuranceProvider}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="e.g., Blue Cross Blue Shield"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Policy Number</label>
+            <input
+              type="text"
+              name="insurancePolicyNumber"
+              value={formData.insurancePolicyNumber}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Policy/Member ID"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Group Number (optional)</label>
+            <input
+              type="text"
+              name="insuranceGroupNumber"
+              value={formData.insuranceGroupNumber}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Group ID"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Insurance Phone (optional)</label>
+            <input
+              type="tel"
+              name="insurancePhone"
+              value={formData.insurancePhone}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="Customer service phone"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">

@@ -115,6 +115,9 @@ const getAllPatients = async (req, res) => {
       limit = 50, // Increased from 10 for better performance and UX
       search,
       gender,
+      status,
+      ageMin,
+      ageMax,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -149,6 +152,33 @@ const getAllPatients = async (req, res) => {
       where.gender = gender;
     }
 
+    // Status filtering - filter by enrollment status (not a direct Patient field)
+    if (status) {
+      where.enrollments = {
+        some: {
+          status: status
+        }
+      };
+    }
+
+    // Age filtering - calculate date of birth range
+    if (ageMin || ageMax) {
+      const today = new Date();
+      where.dateOfBirth = {};
+
+      if (ageMin) {
+        // Max date of birth (for minimum age)
+        const maxDob = new Date(today.getFullYear() - parseInt(ageMin), today.getMonth(), today.getDate());
+        where.dateOfBirth.lte = maxDob;
+      }
+
+      if (ageMax) {
+        // Min date of birth (for maximum age)
+        const minDob = new Date(today.getFullYear() - parseInt(ageMax) - 1, today.getMonth(), today.getDate());
+        where.dateOfBirth.gte = minDob;
+      }
+    }
+
     const [patients, total] = await Promise.all([
       prisma.patient.findMany({
         where,
@@ -167,14 +197,40 @@ const getAllPatients = async (req, res) => {
                 }
               }
             }
+          },
+          _count: {
+            select: {
+              observations: true,
+              enrollments: true
+            }
           }
         }
       }),
       prisma.patient.count({ where })
     ]);
 
+    // Calculate alert counts for each patient (via their enrollments)
+    const patientsWithCounts = await Promise.all(
+      patients.map(async (patient) => {
+        const alertCount = patient.enrollments.length > 0
+          ? await prisma.alert.count({
+              where: {
+                enrollmentId: { in: patient.enrollments.map(e => e.id) },
+                status: { in: ['PENDING', 'ACKNOWLEDGED'] } // Only active alerts
+              }
+            })
+          : 0;
+
+        return {
+          ...patient,
+          observationCount: patient._count.observations,
+          activeAlertCount: alertCount
+        };
+      })
+    );
+
     res.json({
-      data: patients,
+      data: patientsWithCounts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

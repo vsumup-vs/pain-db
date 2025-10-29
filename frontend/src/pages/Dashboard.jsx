@@ -13,6 +13,12 @@ import {
 } from '@heroicons/react/24/outline'
 import ContinuityTestPanel from '../components/ContinuityTestPanel'
 
+// Import role-specific dashboards
+import ClinicianDashboard from './ClinicianDashboard'
+import NurseDashboard from './NurseDashboard'
+import BillingAdminDashboard from './BillingAdminDashboard'
+import ResearcherDashboard from './ResearcherDashboard'
+
 const StatCard = ({ title, value, icon: Icon, color = 'blue', trend, isLoading }) => {
   const colorClasses = {
     blue: 'from-blue-500 to-blue-600 bg-blue-50 text-blue-600 border-blue-200',
@@ -86,31 +92,58 @@ const RecentItemCard = ({ children, title, viewAllLink, icon: Icon, count }) => 
 )
 
 export default function Dashboard() {
-  // Fetch statistics
+  // Fetch current user to determine role
+  const { data: userResponse, isLoading: userLoading } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => api.getCurrentUserProfile(),
+  })
+
+  // Get user's role from current organization
+  const currentOrg = userResponse?.organizations?.find(
+    org => org.organizationId === userResponse.currentOrganization
+  ) || userResponse?.organizations?.[0]
+
+  const userRole = currentOrg?.role
+  const isPlatformOrg = currentOrg?.type === 'PLATFORM'
+
+  console.log('[Dashboard] User role detected:', userRole, 'Organization type:', currentOrg?.type)
+
+  // Determine if we need to show comprehensive dashboard
+  const showComprehensiveDashboard = !userLoading && (
+    isPlatformOrg ||
+    (userRole !== 'CLINICIAN' && userRole !== 'NURSE' && userRole !== 'BILLING_ADMIN' && userRole !== 'RESEARCHER')
+  )
+
+  // Fetch statistics for comprehensive dashboard (ALL HOOKS MUST BE AT TOP LEVEL)
   const { data: patientsStatsResponse, isLoading: patientsLoading } = useQuery({
     queryKey: ['patients-stats'],
     queryFn: () => api.getPatientsStats(),
+    enabled: showComprehensiveDashboard, // Only fetch when needed
   })
 
   const { data: cliniciansStatsResponse, isLoading: cliniciansLoading } = useQuery({
     queryKey: ['clinicians-stats'],
     queryFn: () => api.getCliniciansStats(),
+    enabled: showComprehensiveDashboard, // Only fetch when needed
   })
 
   const { data: alertsStatsResponse, isLoading: alertsLoading } = useQuery({
     queryKey: ['alerts-stats'],
     queryFn: () => api.getAlertsStats(),
+    enabled: showComprehensiveDashboard, // Only fetch when needed
   })
 
   // Fetch recent data using optimized endpoints
   const { data: recentPatientsResponse, isLoading: recentPatientsLoading } = useQuery({
     queryKey: ['recent-patients'],
     queryFn: () => api.getRecentPatients({ limit: 5 }),
+    enabled: showComprehensiveDashboard, // Only fetch when needed
   })
 
   const { data: recentAlertsResponse, isLoading: recentAlertsLoading } = useQuery({
     queryKey: ['recent-alerts'],
     queryFn: () => api.getRecentAlerts({ limit: 5 }),
+    enabled: showComprehensiveDashboard, // Only fetch when needed
   })
 
   // Extract data from responses
@@ -120,16 +153,46 @@ export default function Dashboard() {
   const recentPatients = recentPatientsResponse?.data || []
   const recentAlerts = recentAlertsResponse?.data?.alerts || []
 
+  // If still loading user data, show loading state
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Render role-specific dashboard
+  if (!isPlatformOrg) {
+    switch (userRole) {
+      case 'CLINICIAN':
+        return <ClinicianDashboard />
+      case 'NURSE':
+        return <NurseDashboard />
+      case 'BILLING_ADMIN':
+        return <BillingAdminDashboard />
+      case 'RESEARCHER':
+        return <ResearcherDashboard />
+      default:
+        // ORG_ADMIN and others get the comprehensive dashboard below
+        break
+    }
+  }
+
+  // Platform Admin and ORG_ADMIN get comprehensive dashboard
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="space-y-8 p-6">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Dashboard
+            {isPlatformOrg ? 'Platform Admin Dashboard' : 'Organization Dashboard'}
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Welcome to VitalEdge - Standards-Driven Clinical Intelligence. Empower your clinical team with evidence-based insights and optimized care workflows
+            Welcome to VitalEdge - Standards-Driven Clinical Intelligence. Comprehensive overview of your organization's clinical operations
           </p>
         </div>
 

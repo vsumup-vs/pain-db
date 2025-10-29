@@ -232,10 +232,8 @@ export default function EnrollmentDetails() {
 
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Care Program</h3>
-                <div className="text-sm text-gray-900">{enrollment.preset?.name}</div>
-                {enrollment.preset?.description && (
-                  <div className="text-sm text-gray-600 mt-1">{enrollment.preset?.description}</div>
-                )}
+                <div className="text-sm text-gray-900">{enrollment.careProgram?.name}</div>
+                <div className="text-sm text-gray-600 mt-1">Type: {enrollment.careProgram?.type}</div>
               </div>
 
               <div>
@@ -252,6 +250,55 @@ export default function EnrollmentDetails() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Billing Program</h3>
+                {enrollment.billingProgram ? (
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-900">{enrollment.billingProgram.name}</div>
+                    {enrollment.billingProgram.programType && (
+                      <div className="text-sm text-gray-600">
+                        Type: {enrollment.billingProgram.programType}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-400 italic">Not configured</div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Billing Eligibility</h3>
+                {enrollment.billingEligibility ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      {enrollment.billingEligibility.eligible ? (
+                        <>
+                          <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2" />
+                          <span className="text-sm text-green-700 font-medium">Eligible</span>
+                        </>
+                      ) : (
+                        <>
+                          <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500 mr-2" />
+                          <span className="text-sm text-yellow-700 font-medium">Not Eligible</span>
+                        </>
+                      )}
+                    </div>
+                    {enrollment.billingEligibility.verifiedAt && (
+                      <div className="text-sm text-gray-600">
+                        Verified: {new Date(enrollment.billingEligibility.verifiedAt).toLocaleDateString()}
+                      </div>
+                    )}
+                    {enrollment.billingEligibility.chronicConditions && enrollment.billingEligibility.chronicConditions.length > 0 && (
+                      <div className="text-sm text-gray-600">
+                        Chronic Conditions: {enrollment.billingEligibility.chronicConditions.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-400 italic">Not verified</div>
+                )}
               </div>
             </div>
 

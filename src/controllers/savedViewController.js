@@ -47,6 +47,18 @@ async function getSavedViews(req, res) {
       ]
     });
 
+    console.log(`[Backend API] getSavedViews - userId: ${userId}, organizationId: ${organizationId}, viewType: ${viewType}`);
+    console.log(`[Backend API] getSavedViews - returning ${savedViews.length} views`);
+    if (savedViews.length > 0) {
+      console.log(`[Backend API] First view:`, {
+        id: savedViews[0].id,
+        name: savedViews[0].name,
+        isDefault: savedViews[0].isDefault,
+        isShared: savedViews[0].isShared,
+        viewType: savedViews[0].viewType
+      });
+    }
+
     res.json(savedViews);
   } catch (error) {
     console.error('Error fetching saved views:', error);

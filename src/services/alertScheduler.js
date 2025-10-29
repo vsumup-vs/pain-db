@@ -1022,9 +1022,11 @@ async function checkAndEscalateSLABreaches() {
         },
         isEscalated: false, // Not yet escalated
         isSuppressed: false, // Don't escalate suppressed alerts
-        organization: {
-          type: {
-            not: 'PLATFORM' // Exclude platform organizations - patient care only
+        patient: {
+          organization: {
+            type: {
+              not: 'PLATFORM' // Exclude platform organizations - patient care only
+            }
           }
         }
       },

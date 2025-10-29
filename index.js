@@ -20,6 +20,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve static files for uploaded logos (public access)
+app.use('/uploads', express.static('public/uploads'));
+
 // Import routes
 const patientRoutes = require('./src/routes/patientRoutes');
 const clinicianRoutes = require('./src/routes/clinicianRoutes');
@@ -48,6 +51,7 @@ const timeTrackingRoutes = require('./src/routes/timeTrackingRoutes');
 const analyticsRoutes = require('./src/routes/analyticsRoutes');
 const platformRoutes = require('./src/routes/platformRoutes');
 const savedViewRoutes = require('./src/routes/savedViewRoutes');
+const organizationBrandingRoutes = require('./src/routes/organizationBrandingRoutes');
 
 // Import authentication
 const passport = require('passport');
@@ -157,6 +161,7 @@ app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganiza
 app.use('/api/billing', requireAuth, injectOrganizationContext, auditOrganizationAccess, billingRoutes);
 app.use('/api/time-tracking', requireAuth, injectOrganizationContext, auditOrganizationAccess, timeTrackingRoutes);
 app.use('/api/analytics', requireAuth, injectOrganizationContext, auditOrganizationAccess, analyticsRoutes);
+app.use('/api/organizations', requireAuth, organizationBrandingRoutes);
 app.use('/api/care-programs', requireAuth, injectOrganizationContext, auditOrganizationAccess, careProgramRoutes);
 app.use('/api/assessments', requireAuth, injectOrganizationContext, auditOrganizationAccess, assessmentRoutes);
 console.log('🔧 DEBUG: Registering /api/scheduled-assessments route');

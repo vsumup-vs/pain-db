@@ -237,6 +237,18 @@ export default function Clinicians() {
                         <span className="text-sm">License: {clinician.licenseNumber}</span>
                       </div>
                     )}
+                    {clinician.npiNumber && (
+                      <div className="flex items-center space-x-3 text-gray-600">
+                        <IdentificationIcon className="h-4 w-4 text-green-500" />
+                        <span className="text-sm">NPI: {clinician.npiNumber}</span>
+                      </div>
+                    )}
+                    {clinician.credentials && (
+                      <div className="flex items-center space-x-3 text-gray-600">
+                        <AcademicCapIcon className="h-4 w-4 text-indigo-500" />
+                        <span className="text-sm">{clinician.credentials}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -295,7 +307,9 @@ function ClinicianForm({ clinician, onSubmit, isLoading }) {
     phone: clinician?.phone || '',
     specialty: clinician?.specialty || '',
     licenseNumber: clinician?.licenseNumber || '',
+    npiNumber: clinician?.npiNumber || '',
     department: clinician?.department || '',
+    credentials: clinician?.credentials || '',
   })
 
   const handleSubmit = (e) => {
@@ -371,25 +385,51 @@ function ClinicianForm({ clinician, onSubmit, isLoading }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">NPI Number</label>
           <input
             type="text"
-            name="department"
-            value={formData.department}
+            name="npiNumber"
+            value={formData.npiNumber}
             onChange={handleChange}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+            placeholder="10-digit National Provider Identifier"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
+          <input
+            type="text"
+            name="specialty"
+            value={formData.specialty}
+            onChange={handleChange}
+            required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+            placeholder="e.g., Cardiology, Internal Medicine"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Credentials</label>
+          <input
+            type="text"
+            name="credentials"
+            value={formData.credentials}
+            onChange={handleChange}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+            placeholder="e.g., MD, DO, NP, PA"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
         <input
           type="text"
-          name="specialty"
-          value={formData.specialty}
+          name="department"
+          value={formData.department}
           onChange={handleChange}
-          required
           className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
         />
       </div>

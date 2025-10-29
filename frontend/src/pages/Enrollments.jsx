@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { 
-  PlusIcon, 
+import {
+  PlusIcon,
   EyeIcon,
   MagnifyingGlassIcon,
   UserGroupIcon,
@@ -12,13 +12,15 @@ import {
   XCircleIcon,
   ClockIcon,
   DocumentTextIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import Modal from '../components/Modal'
 import BulkEnrollmentUpload from '../components/BulkEnrollmentUpload'
 import EnhancedEnrollmentForm from '../components/EnhancedEnrollmentForm'
 import { useNavigate } from 'react-router-dom'
+import { useDefaultView } from '../hooks/useDefaultView'
 
 export default function Enrollments() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -27,6 +29,11 @@ export default function Enrollments() {
   const [searchTerm, setSearchTerm] = useState('')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+
+  // Saved Views integration
+  const { defaultView, hasDefaultView } = useDefaultView('ENROLLMENT_LIST')
+  const [appliedViewName, setAppliedViewName] = useState(null)
+  const [isViewCleared, setIsViewCleared] = useState(false) // Track if user explicitly cleared view
 
   const { data: enrollmentsResponse, isLoading } = useQuery({
     queryKey: ['enrollments', statusFilter],
@@ -74,6 +81,72 @@ export default function Enrollments() {
       enrollment.clinician?.lastName?.toLowerCase().includes(searchLower)
     )
   })
+
+  // Apply default view filters on page load
+  useEffect(() => {
+    // Only apply default view if:
+    // 1. A default view exists
+    // 2. No view is currently applied
+    // 3. User hasn't explicitly cleared the view
+    if (defaultView && !appliedViewName && !isViewCleared) {
+      const savedFilters = defaultView.filters || {}
+
+      // Helper function to extract simple values from complex filter objects
+      const extractFilterValue = (filterValue, defaultValue = 'all') => {
+        if (!filterValue) return defaultValue
+
+        // Handle arrays (take first element)
+        if (Array.isArray(filterValue)) {
+          const firstValue = filterValue[0]
+          if (typeof firstValue === 'object' && firstValue.not) {
+            // Negation operator: { not: 'ended' } - return default
+            console.log('[Enrollments] NOT operator detected, using default:', defaultValue)
+            return defaultValue
+          }
+          return typeof firstValue === 'string' ? firstValue : defaultValue
+        }
+
+        // Handle negation operators: { not: 'ended' }
+        if (typeof filterValue === 'object' && filterValue.not) {
+          console.log('[Enrollments] NOT operator detected, using default:', defaultValue)
+          return defaultValue
+        }
+
+        // Handle FilterBuilder format: { operator: 'equals', value: 'active' }
+        if (typeof filterValue === 'object' && filterValue.value) {
+          return filterValue.value
+        }
+
+        // Handle simple strings
+        if (typeof filterValue === 'string') {
+          return filterValue
+        }
+
+        return defaultValue
+      }
+
+      // Apply status filter
+      if (savedFilters.status) {
+        setStatusFilter(extractFilterValue(savedFilters.status, 'all'))
+      }
+
+      // Note: Additional filters like programType, billingEligible, dataCollectionDays
+      // would require backend API support and additional filter state in this component.
+      // For now, we apply the status filter which is currently supported.
+
+      setAppliedViewName(defaultView.name)
+      toast.info(`Applied saved view: "${defaultView.name}"`, { autoClose: 3000 })
+    }
+  }, [defaultView, appliedViewName, isViewCleared])
+
+  // Function to clear saved view and reset filters
+  const clearSavedView = () => {
+    setStatusFilter('all')
+    setSearchTerm('')
+    setAppliedViewName(null)
+    setIsViewCleared(true) // Prevent default view from re-applying
+    toast.success('Cleared saved view filters')
+  }
 
   const createMutation = useMutation({
     mutationFn: async (formData) => {
@@ -216,6 +289,46 @@ export default function Enrollments() {
         </div>
       </div>
 
+      {/* Saved View Indicator */}
+      {defaultView && (
+        <div className={`border rounded-xl p-4 flex items-center justify-between ${
+          appliedViewName
+            ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center">
+            <SparklesIcon className={`h-5 w-5 mr-2 ${appliedViewName ? 'text-purple-600' : 'text-gray-400'}`} />
+            <span className={`text-sm font-medium ${appliedViewName ? 'text-purple-900' : 'text-gray-600'}`}>
+              {appliedViewName ? (
+                <>Active View: <span className="font-bold">{appliedViewName}</span></>
+              ) : (
+                <>Default view available: <span className="font-semibold">{defaultView.name}</span> (not applied)</>
+              )}
+            </span>
+          </div>
+          {appliedViewName ? (
+            <button
+              onClick={clearSavedView}
+              className="inline-flex items-center px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+            >
+              <XCircleIcon className="h-4 w-4 mr-1" />
+              Clear View
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsViewCleared(false)
+                setAppliedViewName(null) // This will trigger the useEffect to apply the view
+              }}
+              className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+            >
+              <SparklesIcon className="h-4 w-4 mr-1" />
+              Apply View
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex items-center space-x-4">
@@ -300,7 +413,7 @@ export default function Enrollments() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-4">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Clinician</p>
                   <p className="text-sm text-gray-900">
@@ -312,19 +425,54 @@ export default function Enrollments() {
                   <p className="text-sm text-gray-900">{enrollment.careProgram?.name || 'N/A'}</p>
                 </div>
                 <div>
+                  <p className="text-sm font-medium text-gray-500">Condition Preset</p>
+                  <p className="text-sm text-gray-900">
+                    {enrollment.conditionPreset?.name ||
+                     <span className="text-gray-400 italic">None</span>
+                    }
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Diagnosis Code</p>
+                  <p className="text-sm text-gray-900">
+                    {enrollment.diagnosisCode ||
+                     <span className="text-gray-400 italic">Not specified</span>
+                    }
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Billing Program</p>
+                  <p className="text-sm text-gray-900">
+                    {enrollment.billingProgram?.name ||
+                     <span className="text-gray-400 italic">Not configured</span>
+                    }
+                  </p>
+                  {enrollment.billingProgram?.programType && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {enrollment.billingProgram.programType}
+                    </p>
+                  )}
+                </div>
+                <div>
                   <p className="text-sm font-medium text-gray-500">Start Date</p>
                   <p className="text-sm text-gray-900">
                     {enrollment.startDate ? new Date(enrollment.startDate).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
-              </div>
-
-              {enrollment.diagnosisCode && (
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-500">Diagnosis</p>
-                  <p className="text-sm text-gray-900">{enrollment.diagnosisCode}</p>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Last Assessment</p>
+                  <p className="text-sm text-gray-900">
+                    {enrollment.lastAssessmentDate ? (
+                      <span className="inline-flex items-center">
+                        <CalendarIcon className="h-4 w-4 mr-1.5 text-blue-500" />
+                        {new Date(enrollment.lastAssessmentDate).toLocaleDateString()}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">No assessments</span>
+                    )}
+                  </p>
                 </div>
-              )}
+              </div>
 
               {enrollment.notes && (
                 <div className="mb-4">

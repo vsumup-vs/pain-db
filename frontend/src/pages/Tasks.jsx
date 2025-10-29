@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import {
@@ -12,12 +12,14 @@ import {
   ExclamationTriangleIcon,
   FunnelIcon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import TaskModal from '../components/TaskModal'
 import TaskDetailModal from '../components/TaskDetailModal'
 import PatientContextPanel from '../components/PatientContextPanel'
+import { useDefaultView } from '../hooks/useDefaultView'
 
 export default function Tasks() {
   const [activeTab, setActiveTab] = useState('MY_TASKS')
@@ -40,7 +42,97 @@ export default function Tasks() {
   const [isPatientContextOpen, setIsPatientContextOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState(null)
 
+  // Saved Views integration
+  const { defaultView, hasDefaultView } = useDefaultView('TASK_LIST')
+  const [appliedViewName, setAppliedViewName] = useState(null)
+  const [isViewCleared, setIsViewCleared] = useState(false) // Track if user explicitly cleared view
+
   const queryClient = useQueryClient()
+
+  // Apply default view filters on page load
+  useEffect(() => {
+    // Only apply default view if:
+    // 1. A default view exists
+    // 2. No view is currently applied
+    // 3. User hasn't explicitly cleared the view
+    if (defaultView && !appliedViewName && !isViewCleared) {
+      const filters = defaultView.filters || {}
+
+      // Helper function to extract simple values from complex filter objects
+      const extractFilterValue = (filterValue, defaultValue = '') => {
+        if (!filterValue) return defaultValue
+
+        // Handle arrays (take first element)
+        if (Array.isArray(filterValue)) {
+          const firstValue = filterValue[0]
+          if (typeof firstValue === 'object' && firstValue.not) {
+            // Negation operator: { not: 'COMPLETED' } - return default
+            console.log('[Tasks] NOT operator detected, using default:', defaultValue)
+            return defaultValue
+          }
+          return typeof firstValue === 'string' ? firstValue : defaultValue
+        }
+
+        // Handle negation operators: { not: 'COMPLETED' }
+        if (typeof filterValue === 'object' && filterValue.not) {
+          console.log('[Tasks] NOT operator detected, using default:', defaultValue)
+          return defaultValue
+        }
+
+        // Handle FilterBuilder format: { operator: 'equals', value: 'PENDING' }
+        if (typeof filterValue === 'object' && filterValue.value) {
+          return filterValue.value
+        }
+
+        // Handle simple strings
+        if (typeof filterValue === 'string') {
+          return filterValue
+        }
+
+        return defaultValue
+      }
+
+      // Apply filters from saved view
+      if (filters.taskType) {
+        setFilterTaskType(extractFilterValue(filters.taskType, ''))
+      }
+      if (filters.priority) {
+        setFilterPriority(extractFilterValue(filters.priority, ''))
+      }
+      if (filters.status) {
+        setFilterStatus(extractFilterValue(filters.status, ''))
+      }
+
+      console.log('[Tasks] Applied filters:', {
+        taskType: extractFilterValue(filters.taskType, ''),
+        priority: extractFilterValue(filters.priority, ''),
+        status: extractFilterValue(filters.status, '')
+      })
+
+      // Handle special tab selections
+      if (filters.assignedTo === 'me') {
+        setActiveTab('MY_TASKS')
+      } else if (filters.dueDate === 'overdue') {
+        setActiveTab('OVERDUE')
+      } else if (filters.dueDate === 'today') {
+        setActiveTab('DUE_TODAY')
+      }
+
+      setAppliedViewName(defaultView.name)
+      toast.info(`Applied saved view: "${defaultView.name}"`, { autoClose: 3000 })
+    }
+  }, [defaultView, appliedViewName, isViewCleared])
+
+  // Function to clear saved view and reset filters
+  const clearSavedView = () => {
+    setFilterTaskType('')
+    setFilterPriority('')
+    setFilterStatus('')
+    setActiveTab('MY_TASKS')
+    setAppliedViewName(null)
+    setIsViewCleared(true) // Prevent default view from re-applying
+    toast.success('Cleared saved view filters')
+  }
 
   // Build filters based on active tab
   const getFilters = () => {
@@ -330,6 +422,46 @@ export default function Tasks() {
           </div>
         </div>
 
+        {/* Saved View Indicator */}
+        {defaultView && (
+          <div className={`border rounded-xl p-4 mb-6 flex items-center justify-between ${
+            appliedViewName
+              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center">
+              <SparklesIcon className={`h-5 w-5 mr-2 ${appliedViewName ? 'text-purple-600' : 'text-gray-400'}`} />
+              <span className={`text-sm font-medium ${appliedViewName ? 'text-purple-900' : 'text-gray-600'}`}>
+                {appliedViewName ? (
+                  <>Active View: <span className="font-bold">{appliedViewName}</span></>
+                ) : (
+                  <>Default view available: <span className="font-semibold">{defaultView.name}</span> (not applied)</>
+                )}
+              </span>
+            </div>
+            {appliedViewName ? (
+              <button
+                onClick={clearSavedView}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <XCircleIcon className="h-4 w-4 mr-1" />
+                Clear View
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsViewCleared(false)
+                  setAppliedViewName(null) // This will trigger the useEffect to apply the view
+                }}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <SparklesIcon className="h-4 w-4 mr-1" />
+                Apply View
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Search & Filter Bar */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
           <div className="flex items-center mb-4">
@@ -341,6 +473,7 @@ export default function Tasks() {
                   setFilterTaskType('')
                   setFilterPriority('')
                   setFilterStatus('')
+                  setAppliedViewName(null)
                 }}
                 className="ml-auto text-sm text-blue-600 hover:text-blue-700 font-medium"
               >

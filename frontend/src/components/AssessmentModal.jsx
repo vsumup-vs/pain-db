@@ -105,12 +105,12 @@ export default function AssessmentModal({ scheduledAssessment, isOpen, onClose, 
     }
   }, [isOpen, reset])
 
-  // Log when currentStep changes
-  useEffect(() => {
-    console.log('[AssessmentModal] currentStep changed to:', currentStep)
-    console.log('[AssessmentModal] template:', template)
-    console.log('[AssessmentModal] template.items:', template?.items)
-  }, [currentStep, template])
+  // Log when currentStep changes (disabled for production)
+  // useEffect(() => {
+  //   console.log('[AssessmentModal] currentStep changed to:', currentStep)
+  //   console.log('[AssessmentModal] template:', template)
+  //   console.log('[AssessmentModal] template.items:', template?.items)
+  // }, [currentStep, template])
 
   // Auto-calculate PHQ-9 total score
   useEffect(() => {
@@ -250,10 +250,11 @@ export default function AssessmentModal({ scheduledAssessment, isOpen, onClose, 
     createAssessmentMutation.isPending ||
     completeScheduledAssessmentMutation.isPending
 
-  console.log('[AssessmentModal] Rendering - isOpen:', isOpen, 'currentStep:', currentStep)
+  // Debug logs (disabled for production)
+  // console.log('[AssessmentModal] Rendering - isOpen:', isOpen, 'currentStep:', currentStep)
 
   if (!isOpen) {
-    console.log('[AssessmentModal] Not rendering - modal is closed')
+    // console.log('[AssessmentModal] Not rendering - modal is closed')
     return null
   }
 

@@ -286,8 +286,32 @@ const getAllEnrollments = async (req, res) => {
       prisma.enrollment.count({ where })
     ]);
 
+    // Add last assessment date to each enrollment
+    const enrollmentsWithAssessments = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        // Find the most recent completed assessment for this enrollment
+        const lastAssessment = await prisma.scheduledAssessment.findFirst({
+          where: {
+            enrollmentId: enrollment.id,
+            completedAt: { not: null }
+          },
+          orderBy: {
+            completedAt: 'desc'
+          },
+          select: {
+            completedAt: true
+          }
+        });
+
+        return {
+          ...enrollment,
+          lastAssessmentDate: lastAssessment?.completedAt || null
+        };
+      })
+    );
+
     res.json({
-      data: enrollments,
+      data: enrollmentsWithAssessments,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

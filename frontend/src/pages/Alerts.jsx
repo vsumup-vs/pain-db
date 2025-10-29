@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import {
@@ -9,10 +9,15 @@ import {
   BellIcon,
   ClockIcon,
   UserIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  SparklesIcon,
+  XCircleIcon,
+  PhoneIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import ResolutionModal from '../components/ResolutionModal'
+import { useDefaultView } from '../hooks/useDefaultView'
 
 export default function Alerts() {
   const [statusFilter, setStatusFilter] = useState('all')
@@ -24,18 +29,35 @@ export default function Alerts() {
   const [selectedAlertForResolution, setSelectedAlertForResolution] = useState(null)
   const queryClient = useQueryClient()
 
+  // Saved Views integration
+  const { defaultView, hasDefaultView } = useDefaultView('ALERT_LIST')
+  const [appliedViewName, setAppliedViewName] = useState(null)
+  const [isViewCleared, setIsViewCleared] = useState(false) // Track if user explicitly cleared view
+
+  console.log('[Alerts] useDefaultView result:', { defaultView, hasDefaultView, appliedViewName, isViewCleared })
+
   const { data: alertsResponse, isLoading } = useQuery({
     queryKey: ['alerts', statusFilter, severityFilter, page],
-    queryFn: () => api.getAlerts({
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      severity: severityFilter !== 'all' ? severityFilter : undefined,
-      page,
-      limit,
-    }),
+    queryFn: () => {
+      console.log('[Alerts] Fetching alerts with filters:', {
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        severity: severityFilter !== 'all' ? severityFilter : undefined,
+        page,
+        limit
+      })
+      return api.getAlerts({
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        severity: severityFilter !== 'all' ? severityFilter : undefined,
+        page,
+        limit,
+      })
+    },
   })
 
   // Extract alerts array from response - API returns {alerts: [...]}
   const alerts = alertsResponse?.alerts || []
+  console.log('[Alerts] API returned alerts count:', alerts.length)
+  console.log('[Alerts] Current filter state:', { statusFilter, severityFilter })
 
   // Filter alerts based on search term
   const filteredAlerts = alerts.filter(alert => {
@@ -48,6 +70,93 @@ export default function Alerts() {
       alert.message?.toLowerCase().includes(searchLower)
     )
   })
+
+  // Apply default view filters on page load
+  useEffect(() => {
+    console.log('[Alerts] useEffect triggered - checking conditions:', {
+      hasDefaultView: !!defaultView,
+      appliedViewName,
+      isViewCleared,
+      defaultView
+    })
+
+    // Only apply default view if:
+    // 1. A default view exists
+    // 2. No view is currently applied
+    // 3. User hasn't explicitly cleared the view
+    if (defaultView && !appliedViewName && !isViewCleared) {
+      const savedFilters = defaultView.filters || {}
+
+      console.log('[Alerts] Applying default view:', defaultView.name)
+      console.log('[Alerts] Saved filters:', savedFilters)
+      console.log('[Alerts] Saved filters.status:', savedFilters.status)
+      console.log('[Alerts] Saved filters.severity:', savedFilters.severity)
+      console.log('[Alerts] Current filters before:', { statusFilter, severityFilter })
+
+      // Apply severity filter (simple string or first array element)
+      if (savedFilters.severity) {
+        let severityValue = 'all'
+
+        if (Array.isArray(savedFilters.severity)) {
+          severityValue = savedFilters.severity[0]
+        } else if (typeof savedFilters.severity === 'object' && savedFilters.severity.value) {
+          // FilterBuilder format: { operator: 'equals', value: 'HIGH' }
+          severityValue = savedFilters.severity.value
+          console.log('[Alerts] Extracted severity value from filter object:', severityValue)
+        } else if (typeof savedFilters.severity === 'string') {
+          severityValue = savedFilters.severity
+        }
+
+        console.log('[Alerts] Setting severityFilter to:', severityValue)
+        setSeverityFilter(severityValue)
+      }
+
+      // Apply status filter (handle complex operators from FilterBuilder)
+      if (savedFilters.status) {
+        let statusValue = 'all'
+
+        if (Array.isArray(savedFilters.status)) {
+          // Complex operator structure: [{ "not": "RESOLVED" }]
+          const statusRule = savedFilters.status[0]
+          if (typeof statusRule === 'object' && statusRule.not) {
+            // For now, just show all non-resolved alerts
+            // Backend would need to support this operator
+            console.log('[Alerts] Complex status filter not fully supported:', statusRule)
+            statusValue = 'PENDING' // Fallback to pending
+          } else if (typeof statusRule === 'string') {
+            statusValue = statusRule
+          }
+        } else if (typeof savedFilters.status === 'object' && savedFilters.status.not) {
+          // Negation operator: { not: 'RESOLVED' } - show PENDING instead
+          console.log('[Alerts] NOT operator detected:', savedFilters.status.not)
+          statusValue = 'PENDING' // Show pending alerts (not resolved)
+        } else if (typeof savedFilters.status === 'object' && savedFilters.status.value) {
+          // FilterBuilder format: { operator: 'equals', value: 'PENDING' }
+          statusValue = savedFilters.status.value
+          console.log('[Alerts] Extracted status value from filter object:', statusValue)
+        } else if (typeof savedFilters.status === 'string') {
+          statusValue = savedFilters.status
+        }
+
+        console.log('[Alerts] Setting statusFilter to:', statusValue)
+        setStatusFilter(statusValue)
+      }
+
+      setAppliedViewName(defaultView.name)
+      toast.info(`Applied saved view: "${defaultView.name}"`, { autoClose: 3000 })
+    }
+  }, [defaultView, appliedViewName, isViewCleared])
+
+  // Function to clear saved view and reset filters
+  const clearSavedView = () => {
+    setSeverityFilter('all')
+    setStatusFilter('all')
+    setSearchTerm('')
+    setPage(1)
+    setAppliedViewName(null)
+    setIsViewCleared(true) // Prevent default view from re-applying
+    toast.success('Cleared saved view filters')
+  }
 
   // Acknowledge alert mutation (Critical Fix #3)
   const acknowledgeAlertMutation = useMutation({
@@ -258,6 +367,46 @@ export default function Alerts() {
           </div>
         </div>
 
+        {/* Saved View Indicator */}
+        {defaultView && (
+          <div className={`border rounded-xl p-4 mb-8 flex items-center justify-between ${
+            appliedViewName
+              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+              : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center">
+              <SparklesIcon className={`h-5 w-5 mr-2 ${appliedViewName ? 'text-purple-600' : 'text-gray-400'}`} />
+              <span className={`text-sm font-medium ${appliedViewName ? 'text-purple-900' : 'text-gray-600'}`}>
+                {appliedViewName ? (
+                  <>Active View: <span className="font-bold">{appliedViewName}</span></>
+                ) : (
+                  <>Default view available: <span className="font-semibold">{defaultView.name}</span> (not applied)</>
+                )}
+              </span>
+            </div>
+            {appliedViewName ? (
+              <button
+                onClick={clearSavedView}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <XCircleIcon className="h-4 w-4 mr-1" />
+                Clear View
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsViewCleared(false)
+                  setAppliedViewName(null) // This will trigger the useEffect to apply the view
+                }}
+                className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+              >
+                <SparklesIcon className="h-4 w-4 mr-1" />
+                Apply View
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Search and Filters */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -336,7 +485,7 @@ export default function Alerts() {
                         {alert.message || 'No description available'}
                       </p>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                         <div className="flex items-center space-x-2 text-gray-600">
                           <UserIcon className="h-4 w-4" />
                           <div>
@@ -344,7 +493,32 @@ export default function Alerts() {
                             <p className="text-sm">{alert.patient?.firstName} {alert.patient?.lastName}</p>
                           </div>
                         </div>
-                        
+
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <span className="font-medium">MRN:</span>
+                          <p className="text-sm">{alert.patient?.medicalRecordNumber || 'N/A'}</p>
+                        </div>
+
+                        {alert.patient?.phone && (
+                          <div className="flex items-center space-x-2 text-gray-600">
+                            <PhoneIcon className="h-4 w-4" />
+                            <div>
+                              <span className="font-medium">Phone:</span>
+                              <p className="text-sm">{alert.patient.phone}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {alert.patient?.email && (
+                          <div className="flex items-center space-x-2 text-gray-600">
+                            <EnvelopeIcon className="h-4 w-4" />
+                            <div>
+                              <span className="font-medium">Email:</span>
+                              <p className="text-sm truncate">{alert.patient.email}</p>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-center space-x-2 text-gray-600">
                           <ClockIcon className="h-4 w-4" />
                           <div>
@@ -352,7 +526,7 @@ export default function Alerts() {
                             <p className="text-sm">{new Date(alert.triggeredAt).toLocaleString()}</p>
                           </div>
                         </div>
-                        
+
                         {alert.facts?.painLevel && (
                           <div className="flex items-center space-x-2 text-gray-600">
                             <ChartBarIcon className="h-4 w-4" />
@@ -362,11 +536,6 @@ export default function Alerts() {
                             </div>
                           </div>
                         )}
-                        
-                        <div className="flex items-center space-x-2 text-gray-600">
-                          <span className="font-medium">MRN:</span>
-                          <p className="text-sm">{alert.patient?.medicalRecordNumber}</p>
-                        </div>
                       </div>
                     </div>
                     

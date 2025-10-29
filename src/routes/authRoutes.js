@@ -844,7 +844,7 @@ router.get('/users',
  */
 router.post('/users/:userId/assign-role',
   requireAuth,
-  requirePermission('USER_MANAGE'),
+  requirePermission('ORG_USER_MANAGE'),
   [
     body('organizationId').isString(),
     body('role').isString()

@@ -57,6 +57,8 @@ model Organization {
   website               String?
   isActive              Boolean               @default(true)
   settings              Json?
+  logoUrl               String?
+  brandingConfig        Json?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   subscriptionStatus    SubscriptionStatus?   @default(TRIAL)
@@ -236,6 +238,7 @@ model Clinician {
   updatedAt                                         DateTime              @updatedAt
   emergencyContact                                  Json?                 @map("emergency_contact")
   licenseNumber                                     String?               @map("license_number")
+  npiNumber                                         String?               @map("npi_number")
   alerts                                            Alert[]
   assessments                                       Assessment[]
   organization                                      Organization          @relation(fields: [organizationId], references: [id])
@@ -273,6 +276,7 @@ model Enrollment {
   billingProgram       BillingProgram?       @relation(fields: [billingProgramId], references: [id])
   careProgram          CareProgram           @relation(fields: [careProgramId], references: [id])
   clinician            Clinician             @relation(fields: [clinicianId], references: [id])
+  conditionPreset      ConditionPreset       @relation(fields: [conditionPresetId], references: [id])
   organization         Organization          @relation(fields: [organizationId], references: [id])
   patient              Patient               @relation(fields: [patientId], references: [id])
   observations         Observation[]
@@ -540,6 +544,7 @@ model ConditionPreset {
   alertRules           ConditionPresetAlertRule[]
   diagnoses            ConditionPresetDiagnosis[]
   templates            ConditionPresetTemplate[]
+  enrollments          Enrollment[]
   organization         Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sourcePreset         ConditionPreset?           @relation("PresetClones", fields: [sourcePresetId], references: [id])
   clonedPresets        ConditionPreset[]          @relation("PresetClones")

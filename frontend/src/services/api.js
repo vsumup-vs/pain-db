@@ -163,6 +163,14 @@ export const api = {
   updateOrganization: (id, data) => apiClient.put(`/organizations/${id}`, data),
   deleteOrganization: (id) => apiClient.delete(`/organizations/${id}`),
 
+  // Organization Branding (ORG_ADMIN and ORG_SETTINGS_MANAGE)
+  getBranding: (organizationId) => apiClient.get(`/organizations/${organizationId}/branding`),
+  uploadLogo: (organizationId, formData) => apiClient.post(`/organizations/${organizationId}/branding/logo`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updateBranding: (organizationId, config) => apiClient.put(`/organizations/${organizationId}/branding`, config),
+  deleteLogo: (organizationId) => apiClient.delete(`/organizations/${organizationId}/branding/logo`),
+
   // Admin - Users (SUPER_ADMIN and ORG_ADMIN)
   getUsers: (params) => apiClient.get('/auth/users', { params }),
   getUser: (id) => apiClient.get(`/auth/users/${id}`),
@@ -302,6 +310,19 @@ export const api = {
   // Saved Views
   getSavedViews: (params) => apiClient.get('/saved-views', { params }),
   getSavedView: (id) => apiClient.get(`/saved-views/${id}`),
+  getDefaultView: async (viewType) => {
+    const response = await apiClient.get('/saved-views', { params: { viewType } })
+    console.log(`[API] getDefaultView(${viewType}) - raw response:`, response)
+
+    // Handle different response structures - axios interceptor may have unwrapped it
+    const views = Array.isArray(response) ? response : (response.data || [])
+    console.log(`[API] getDefaultView(${viewType}) - fetched ${views.length} views:`, views)
+
+    // API returns views sorted by isDefault desc, so first one is the default (if any)
+    const defaultView = views.find(view => view.isDefault === true)
+    console.log(`[API] getDefaultView(${viewType}) - default view:`, defaultView)
+    return defaultView || null
+  },
   createSavedView: (data) => apiClient.post('/saved-views', data),
   updateSavedView: (id, data) => apiClient.put(`/saved-views/${id}`, data),
   deleteSavedView: (id) => apiClient.delete(`/saved-views/${id}`),

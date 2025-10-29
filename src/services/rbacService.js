@@ -11,7 +11,7 @@ class RBACService {
       },
       ORG_ADMIN: {
         name: 'Organization Administrator',
-        permissions: ['ORG_USER_MANAGE', 'ORG_SETTINGS_MANAGE', 'PROGRAM_READ', 'PROGRAM_WRITE'],
+        permissions: ['ORG_USER_MANAGE', 'ORG_SETTINGS_MANAGE', 'PROGRAM_READ', 'PROGRAM_WRITE', 'USER_READ', 'USER_CREATE'],
         programTypes: ['RTM', 'RPM', 'CCM', 'PCM', 'BHI', 'CUSTOM']
       },
       CLINICIAN: {

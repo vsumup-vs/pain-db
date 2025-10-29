@@ -134,10 +134,16 @@ const FilterBuilder = ({ viewType, filters, onChange, showJson = false }) => {
   );
 
   // Update rules when filters prop changes (e.g., when editing a saved view)
+  // Only update if filters actually changed from external source (not from our own onChange)
   useEffect(() => {
     if (filters && Object.keys(filters).length > 0) {
       const convertedRules = convertFiltersToRules(filters);
-      if (convertedRules.length > 0) {
+      const currentFilters = convertRulesToFilters(rules);
+
+      // Only update if the filters are actually different (prevents infinite loop)
+      const filtersChanged = JSON.stringify(currentFilters) !== JSON.stringify(filters);
+
+      if (convertedRules.length > 0 && filtersChanged) {
         setRules(convertedRules);
       }
     }

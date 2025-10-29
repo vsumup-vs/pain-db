@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import {
@@ -12,11 +12,13 @@ import {
   MagnifyingGlassIcon,
   PlusCircleIcon,
   DocumentTextIcon,
-  EyeIcon
+  EyeIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 import AssessmentModal from '../components/AssessmentModal'
 import AssessmentDetailsModal from '../components/AssessmentDetailsModal'
+import { useDefaultView } from '../hooks/useDefaultView'
 
 const Assessments = () => {
   const [filters, setFilters] = useState({
@@ -32,18 +34,30 @@ const Assessments = () => {
 
   const queryClient = useQueryClient()
 
+  // Saved Views integration
+  const { defaultView, hasDefaultView } = useDefaultView('ASSESSMENT_LIST')
+  const [appliedViewName, setAppliedViewName] = useState(null)
+  const [isViewCleared, setIsViewCleared] = useState(false) // Track if user explicitly cleared view
+
+  console.log('[Assessments] useDefaultView result:', { defaultView, hasDefaultView, appliedViewName })
+
   // Fetch scheduled assessments
   const { data: assessmentsData, isLoading } = useQuery({
     queryKey: ['scheduledAssessments', filters],
-    queryFn: () => api.getScheduledAssessments({
-      status: filters.status !== 'all' ? filters.status : undefined,
-      priority: filters.priority !== 'all' ? filters.priority : undefined,
-      frequency: filters.frequency !== 'all' ? filters.frequency : undefined
-    }),
+    queryFn: () => {
+      console.log('[Assessments] Fetching with filters:', filters)
+      return api.getScheduledAssessments({
+        status: filters.status !== 'all' ? filters.status : undefined,
+        priority: filters.priority !== 'all' ? filters.priority : undefined,
+        frequency: filters.frequency !== 'all' ? filters.frequency : undefined
+      })
+    },
     refetchInterval: 60000 // Refresh every minute
   })
 
   const assessments = assessmentsData?.data || []
+  console.log('[Assessments] API returned assessments count:', assessments.length)
+  console.log('[Assessments] Current filter state:', filters)
 
   // Filter assessments by search term
   const filteredAssessments = assessments.filter(assessment => {
@@ -55,6 +69,88 @@ const Assessments = () => {
       assessment.template?.name?.toLowerCase().includes(searchLower)
     )
   })
+
+  // Apply default view filters on page load
+  useEffect(() => {
+    console.log('[Assessments] useEffect triggered - checking conditions:', {
+      hasDefaultView: !!defaultView,
+      appliedViewName,
+      isViewCleared,
+      defaultView
+    })
+
+    // Only apply default view if:
+    // 1. A default view exists
+    // 2. No view is currently applied
+    // 3. User hasn't explicitly cleared the view
+    if (defaultView && !appliedViewName && !isViewCleared) {
+      const savedFilters = defaultView.filters || {}
+
+      console.log('[Assessments] Applying default view:', defaultView.name)
+      console.log('[Assessments] Saved filters:', savedFilters)
+      console.log('[Assessments] Current filters before:', filters)
+
+      // Helper function to extract simple values from complex filter objects
+      const extractFilterValue = (filterValue, defaultValue = 'all') => {
+        if (!filterValue) return defaultValue
+
+        // Handle arrays (take first element)
+        if (Array.isArray(filterValue)) {
+          const firstValue = filterValue[0]
+          if (typeof firstValue === 'object' && firstValue.not) {
+            // Negation operator: { not: 'COMPLETED' } - return default
+            console.log('[Assessments] NOT operator detected, using default:', defaultValue)
+            return defaultValue
+          }
+          return typeof firstValue === 'string' ? firstValue : defaultValue
+        }
+
+        // Handle negation operators: { not: 'COMPLETED' }
+        if (typeof filterValue === 'object' && filterValue.not) {
+          console.log('[Assessments] NOT operator detected, using default:', defaultValue)
+          return defaultValue
+        }
+
+        // Handle FilterBuilder format: { operator: 'equals', value: 'PENDING' }
+        if (typeof filterValue === 'object' && filterValue.value) {
+          return filterValue.value
+        }
+
+        // Handle simple strings
+        if (typeof filterValue === 'string') {
+          return filterValue
+        }
+
+        return defaultValue
+      }
+
+      // Build new filters object directly from saved filters (avoids stale closure)
+      const newFilters = {
+        status: extractFilterValue(savedFilters.completionStatus, 'all'),
+        priority: extractFilterValue(savedFilters.priority, 'all'),
+        frequency: extractFilterValue(savedFilters.frequency, 'all')
+      }
+
+      console.log('[Assessments] New filters to apply:', newFilters)
+
+      setFilters(newFilters)
+      setAppliedViewName(defaultView.name)
+      toast.info(`Applied saved view: "${defaultView.name}"`, { autoClose: 3000 })
+    }
+  }, [defaultView, appliedViewName, isViewCleared])
+
+  // Function to clear saved view and reset filters
+  const clearSavedView = () => {
+    setFilters({
+      status: 'all',
+      priority: 'all',
+      frequency: 'all'
+    })
+    setSearchTerm('')
+    setAppliedViewName(null)
+    setIsViewCleared(true) // Prevent default view from re-applying
+    toast.success('Cleared saved view filters')
+  }
 
   // Cancel assessment mutation
   const cancelAssessmentMutation = useMutation({
@@ -180,6 +276,46 @@ const Assessments = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Scheduled Assessments</h1>
         <p className="text-gray-600">Manage and track patient assessments across all programs</p>
       </div>
+
+      {/* Saved View Indicator */}
+      {defaultView && (
+        <div className={`border rounded-xl p-4 mb-6 flex items-center justify-between ${
+          appliedViewName
+            ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200'
+            : 'bg-gray-50 border-gray-200'
+        }`}>
+          <div className="flex items-center">
+            <SparklesIcon className={`h-5 w-5 mr-2 ${appliedViewName ? 'text-purple-600' : 'text-gray-400'}`} />
+            <span className={`text-sm font-medium ${appliedViewName ? 'text-purple-900' : 'text-gray-600'}`}>
+              {appliedViewName ? (
+                <>Active View: <span className="font-bold">{appliedViewName}</span></>
+              ) : (
+                <>Default view available: <span className="font-semibold">{defaultView.name}</span> (not applied)</>
+              )}
+            </span>
+          </div>
+          {appliedViewName ? (
+            <button
+              onClick={clearSavedView}
+              className="inline-flex items-center px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+            >
+              <XCircleIcon className="h-4 w-4 mr-1" />
+              Clear View
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsViewCleared(false)
+                setAppliedViewName(null) // This will trigger the useEffect to apply the view
+              }}
+              className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+            >
+              <SparklesIcon className="h-4 w-4 mr-1" />
+              Apply View
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">

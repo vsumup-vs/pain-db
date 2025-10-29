@@ -93,11 +93,6 @@ const getAllConditionPresets = async (req, res) => {
                 }
               }
             }
-          },
-          _count: {
-            select: {
-              enrollments: true
-            }
           }
         },
         skip,

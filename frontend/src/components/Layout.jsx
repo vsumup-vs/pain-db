@@ -4,6 +4,7 @@ import { Menu, Transition } from '@headlessui/react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import VitalEdgeLogo from './VitalEdgeLogo'
+import Footer from './Footer'
 import {
   HomeIcon,
   UserGroupIcon,
@@ -41,33 +42,35 @@ const platformNavigation = [
   { name: 'Alert Rules', href: '/alert-rules', icon: ShieldCheckIcon },
 ]
 
-// Clinical Operations (ORG_ADMIN, CLINICIAN, NURSE)
-const clinicalNavigation = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Triage Queue', href: '/triage-queue', icon: FireIcon },
-  { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
-  { name: 'Assessments', href: '/assessments', icon: ClipboardDocumentListIcon },
-  { name: 'Encounter Notes', href: '/encounter-notes', icon: DocumentTextIcon },
-  { name: 'Billing Readiness', href: '/billing-readiness', icon: CurrencyDollarIcon },
-  { name: 'Clinician Analytics', href: '/analytics/clinician-workflow', icon: PresentationChartLineIcon },
-  { name: 'Patient Engagement', href: '/analytics/patient-engagement', icon: PresentationChartLineIcon },
-  { name: 'Patients', href: '/patients', icon: UserGroupIcon },
-  { name: 'Clinicians', href: '/clinicians', icon: UserIcon },
-  { name: 'Enrollments', href: '/enrollments', icon: ClipboardDocumentListIcon },
-  { name: 'Care Programs', href: '/care-programs', icon: ChartBarIcon },
-  { name: 'Observations', href: '/observations', icon: EyeIcon },
-  { name: 'Observation Review', href: '/observation-review', icon: ClipboardDocumentCheckIcon },
-  { name: 'Alerts', href: '/alerts', icon: BellIcon },
-  { name: 'Assessment Templates', href: '/assessment-templates', icon: DocumentTextIcon },
-  { name: 'Metric Definitions', href: '/metric-definitions', icon: ChartBarIcon },
-  { name: 'Alert Rules', href: '/alert-rules', icon: ShieldCheckIcon },
-  { name: 'Condition Presets', href: '/condition-presets', icon: ClipboardDocumentCheckIcon },
-  { name: 'Saved Views', href: '/saved-views', icon: BookmarkIcon },
+// All available clinical menu items with role-based visibility
+// roles: Array of user roles that should see this menu item
+const allClinicalNavItems = [
+  { name: 'Dashboard', href: '/', icon: HomeIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'BILLING_ADMIN', 'RESEARCHER'] },
+  { name: 'Triage Queue', href: '/triage-queue', icon: FireIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE'] },
+  { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE'] },
+  { name: 'Assessments', href: '/assessments', icon: ClipboardDocumentListIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'RESEARCHER'] },
+  { name: 'Encounter Notes', href: '/encounter-notes', icon: DocumentTextIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'BILLING_ADMIN'] },
+  { name: 'Billing Readiness', href: '/billing-readiness', icon: CurrencyDollarIcon, roles: ['ORG_ADMIN', 'BILLING_ADMIN'] },
+  { name: 'Clinician Analytics', href: '/analytics/clinician-workflow', icon: PresentationChartLineIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'BILLING_ADMIN'] },
+  { name: 'Patient Engagement', href: '/analytics/patient-engagement', icon: PresentationChartLineIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'RESEARCHER'] },
+  { name: 'Patients', href: '/patients', icon: UserGroupIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'BILLING_ADMIN', 'RESEARCHER'] },
+  { name: 'Clinicians', href: '/clinicians', icon: UserIcon, roles: ['ORG_ADMIN'] },
+  { name: 'Enrollments', href: '/enrollments', icon: ClipboardDocumentListIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'BILLING_ADMIN', 'RESEARCHER'] },
+  { name: 'Care Programs', href: '/care-programs', icon: ChartBarIcon, roles: ['ORG_ADMIN'] },
+  { name: 'Observations', href: '/observations', icon: EyeIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'RESEARCHER'] },
+  { name: 'Observation Review', href: '/observation-review', icon: ClipboardDocumentCheckIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'RESEARCHER'] },
+  { name: 'Alerts', href: '/alerts', icon: BellIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE'] },
+  { name: 'Assessment Templates', href: '/assessment-templates', icon: DocumentTextIcon, roles: ['ORG_ADMIN', 'RESEARCHER'] },
+  { name: 'Metric Definitions', href: '/metric-definitions', icon: ChartBarIcon, roles: ['ORG_ADMIN', 'RESEARCHER'] },
+  { name: 'Alert Rules', href: '/alert-rules', icon: ShieldCheckIcon, roles: ['ORG_ADMIN'] },
+  { name: 'Condition Presets', href: '/condition-presets', icon: ClipboardDocumentCheckIcon, roles: ['ORG_ADMIN'] },
+  { name: 'Saved Views', href: '/saved-views', icon: BookmarkIcon, roles: ['ORG_ADMIN', 'CLINICIAN', 'NURSE', 'RESEARCHER'] },
 ]
 
 // ORG_ADMIN specific navigation (client admin)
 const orgAdminNavigation = [
   { name: 'Users', href: '/admin/users', icon: UsersIcon },
+  { name: 'Organization Settings', href: '/settings/organization', icon: Cog6ToothIcon },
 ]
 
 function classNames(...classes) {
@@ -99,6 +102,17 @@ export default function Layout({ children }) {
 
   const unclaimedCount = unclaimedData?.data?.pagination?.total || 0
 
+  // Fetch organization branding (logo and config)
+  const { data: brandingData } = useQuery({
+    queryKey: ['organizationBranding', currentUser?.currentOrganization],
+    queryFn: () => api.getBranding(currentUser.currentOrganization),
+    enabled: !!currentUser?.currentOrganization, // Only fetch when we have current organization
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
+  const organizationLogo = brandingData?.data?.logoUrl
+  const brandingConfig = brandingData?.data?.brandingConfig
+
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
@@ -112,31 +126,45 @@ export default function Layout({ children }) {
           ) || user.organizations[0]
           setCurrentOrganization(currentOrg)
 
-          // Check if current organization is PLATFORM type
+          // Get user's actual role from UserOrganization
+          const userRole = currentOrg?.role // CLINICIAN, NURSE, ORG_ADMIN, BILLING_ADMIN, RESEARCHER, etc.
           const isPlatformOrg = currentOrg?.type === 'PLATFORM'
-          const isOrgAdmin = currentOrg?.role === 'ORG_ADMIN'
+
+          console.log('[Layout] User role detected:', userRole, 'Organization type:', currentOrg?.type)
 
           if (isPlatformOrg) {
             // PLATFORM organization - show platform management navigation
             setUserRole('PLATFORM_ADMIN')
             setNavigation(platformNavigation)
             setAdminNav([])  // Platform admin has everything in main nav
-          } else if (isOrgAdmin) {
-            // Client organization admin - show clinical nav + user management
-            setUserRole('ORG_ADMIN')
-            setNavigation(clinicalNavigation)
-            setAdminNav(orgAdminNavigation)  // ORG_ADMIN gets user management
+            console.log('[Layout] Platform admin - showing', platformNavigation.length, 'items')
           } else {
-            // Regular user in client organization - show clinical nav only
-            setUserRole('USER')
-            setNavigation(clinicalNavigation)
-            setAdminNav([])  // Regular users get clinical nav only
+            // Client organization - filter navigation based on specific role
+            setUserRole(userRole)
+
+            // Filter clinical navigation items based on user's role
+            const filteredNav = allClinicalNavItems.filter(item =>
+              item.roles.includes(userRole)
+            )
+            setNavigation(filteredNav)
+            console.log('[Layout] Role:', userRole, '- showing', filteredNav.length, 'menu items (filtered from', allClinicalNavItems.length, 'total)')
+
+            // ORG_ADMIN gets additional user management section
+            if (userRole === 'ORG_ADMIN') {
+              setAdminNav(orgAdminNavigation)
+            } else {
+              setAdminNav([])
+            }
           }
         }
       } catch (error) {
         console.error('Error fetching user role:', error)
+        // Fallback to basic user role with minimal navigation
         setUserRole('USER')
-        setNavigation(clinicalNavigation)
+        const fallbackNav = allClinicalNavItems.filter(item =>
+          item.roles.includes('CLINICIAN') // Use CLINICIAN as fallback
+        )
+        setNavigation(fallbackNav)
         setAdminNav([])
       }
     }
@@ -186,9 +214,17 @@ export default function Layout({ children }) {
           </div>
           <div className="h-0 flex-1 overflow-y-auto pt-5 pb-4">
             <div className="flex flex-shrink-0 items-center px-4 space-x-2">
-              <VitalEdgeLogo className="w-8 h-8" animated={false} />
+              {organizationLogo ? (
+                <img
+                  src={organizationLogo}
+                  alt="Organization Logo"
+                  className="w-8 h-8 object-contain"
+                />
+              ) : (
+                <VitalEdgeLogo className="w-8 h-8" animated={false} />
+              )}
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                VitalEdge
+                {brandingData?.data?.organizationName || 'VitalEdge'}
               </h1>
             </div>
             <nav className="mt-5 space-y-1 px-2">
@@ -266,9 +302,17 @@ export default function Layout({ children }) {
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
             <div className="flex flex-shrink-0 items-center px-4 space-x-2">
-              <VitalEdgeLogo className="w-8 h-8" animated={false} />
+              {organizationLogo ? (
+                <img
+                  src={organizationLogo}
+                  alt="Organization Logo"
+                  className="w-8 h-8 object-contain"
+                />
+              ) : (
+                <VitalEdgeLogo className="w-8 h-8" animated={false} />
+              )}
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                VitalEdge
+                {brandingData?.data?.organizationName || 'VitalEdge'}
               </h1>
             </div>
             <nav className="mt-5 flex-1 space-y-1 px-2">
@@ -440,7 +484,7 @@ export default function Layout({ children }) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 flex flex-col min-h-screen">
         <div className="sticky top-0 z-10 bg-white pl-1 pt-1 sm:pl-3 sm:pt-3 lg:hidden">
           <button
             type="button"
@@ -457,6 +501,7 @@ export default function Layout({ children }) {
             </div>
           </div>
         </main>
+        <Footer />
       </div>
     </div>
   )
