@@ -209,17 +209,16 @@ const getAllPatients = async (req, res) => {
       prisma.patient.count({ where })
     ]);
 
-    // Calculate alert counts for each patient (via their enrollments)
+    // Calculate alert counts for each patient
     const patientsWithCounts = await Promise.all(
       patients.map(async (patient) => {
-        const alertCount = patient.enrollments.length > 0
-          ? await prisma.alert.count({
-              where: {
-                enrollmentId: { in: patient.enrollments.map(e => e.id) },
-                status: { in: ['PENDING', 'ACKNOWLEDGED'] } // Only active alerts
-              }
-            })
-          : 0;
+        const alertCount = await prisma.alert.count({
+          where: {
+            patientId: patient.id,
+            organizationId: req.user.currentOrganization, // Ensure org-level isolation
+            status: { in: ['PENDING', 'ACKNOWLEDGED'] } // Only active alerts
+          }
+        });
 
         return {
           ...patient,

@@ -930,9 +930,11 @@ async function reactivateSnoozedAlerts() {
         status: {
           notIn: ['RESOLVED', 'DISMISSED'] // Don't reactivate resolved/dismissed alerts
         },
-        organization: {
-          type: {
-            not: 'PLATFORM' // Exclude platform organizations - patient care only
+        patient: {
+          organization: {
+            type: {
+              not: 'PLATFORM' // Exclude platform organizations - patient care only
+            }
           }
         }
       },
@@ -941,7 +943,14 @@ async function reactivateSnoozedAlerts() {
           select: {
             id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                type: true
+              }
+            }
           }
         },
         rule: {
@@ -950,8 +959,7 @@ async function reactivateSnoozedAlerts() {
             name: true,
             severity: true
           }
-        },
-        organization: true // Include organization to check type
+        }
       }
     });
 
@@ -1035,7 +1043,14 @@ async function checkAndEscalateSLABreaches() {
           select: {
             id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                type: true
+              }
+            }
           }
         },
         clinician: {
@@ -1051,13 +1066,6 @@ async function checkAndEscalateSLABreaches() {
             id: true,
             name: true,
             severity: true
-          }
-        },
-        organization: true, // Include organization to check type
-        organization: {
-          select: {
-            id: true,
-            name: true
           }
         }
       }

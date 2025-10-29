@@ -702,6 +702,166 @@ router.put('/profile',
 );
 
 // ============================================================================
+// PASSWORD RESET ROUTES
+// ============================================================================
+
+/**
+ * POST /auth/forgot-password - Request password reset email
+ */
+router.post('/forgot-password',
+  strictAuthLimiter,
+  [
+    body('email').isEmail().normalizeEmail()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { email } = req.body;
+
+      // Find user
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      // Don't reveal if user exists (security best practice)
+      if (!user) {
+        return res.json({
+          message: 'If an account with that email exists, a password reset link has been sent.'
+        });
+      }
+
+      // Generate reset token
+      const crypto = require('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+
+      // Hash token before storing (security best practice)
+      const hashedToken = await bcrypt.hash(resetToken, 10);
+
+      // Set expiration (1 hour from now)
+      const resetExpires = new Date(Date.now() + 3600000);
+
+      // Update user with reset token
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: hashedToken,
+          passwordResetExpires: resetExpires
+        }
+      });
+
+      // Send password reset email
+      const notificationService = require('../services/notificationService');
+      await notificationService.sendPasswordResetEmail(user.email, resetToken, user.firstName);
+
+      // Audit log
+      await auditService.log({
+        action: 'PASSWORD_RESET_REQUESTED',
+        userId: user.id,
+        metadata: { email },
+        ipAddress: req.ip
+      });
+
+      res.json({
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({ error: 'Failed to process password reset request' });
+    }
+  }
+);
+
+/**
+ * POST /auth/reset-password - Reset password with token
+ */
+router.post('/reset-password',
+  strictAuthLimiter,
+  [
+    body('token').isString().isLength({ min: 64, max: 64 }),
+    body('newPassword').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { token, newPassword } = req.body;
+
+      // Find all users with non-expired reset tokens
+      const users = await prisma.user.findMany({
+        where: {
+          passwordResetToken: { not: null },
+          passwordResetExpires: { gt: new Date() }
+        }
+      });
+
+      // Find user by comparing token hashes
+      let matchedUser = null;
+      for (const user of users) {
+        const isMatch = await bcrypt.compare(token, user.passwordResetToken);
+        if (isMatch) {
+          matchedUser = user;
+          break;
+        }
+      }
+
+      if (!matchedUser) {
+        return res.status(400).json({
+          error: 'Invalid or expired reset token'
+        });
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+      // Update user password and clear reset token
+      await prisma.user.update({
+        where: { id: matchedUser.id },
+        data: {
+          passwordHash: newPasswordHash,
+          passwordResetToken: null,
+          passwordResetExpires: null
+        }
+      });
+
+      // Invalidate all refresh tokens (force re-login everywhere for security)
+      await prisma.refreshToken.deleteMany({
+        where: { userId: matchedUser.id }
+      });
+
+      // Send confirmation email
+      const notificationService = require('../services/notificationService');
+      await notificationService.sendPasswordChangedEmail(matchedUser.email, matchedUser.firstName);
+
+      // Audit log
+      await auditService.log({
+        action: 'PASSWORD_RESET_COMPLETED',
+        userId: matchedUser.id,
+        metadata: { email: matchedUser.email },
+        ipAddress: req.ip
+      });
+
+      res.json({
+        message: 'Password reset successful. Please log in with your new password.'
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ error: 'Failed to reset password' });
+    }
+  }
+);
+
+// ============================================================================
 // SOCIAL AUTHENTICATION ROUTES
 // ============================================================================
 

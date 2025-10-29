@@ -1,6 +1,6 @@
 # Product Roadmap
 
-> Last Updated: 2025-10-26
+> Last Updated: 2025-10-29
 > Version: 1.0.0
 > Status: Active Development
 
@@ -32,6 +32,15 @@ The following features have been implemented:
 - [x] **Frontend Pages Implemented** - Dashboard, Patients, Clinicians, Enrollments, Observations, Alerts, Alert Rules, Assessment Templates, Condition Presets, Metric Definitions, Medication Management, Daily Assessment, Login/Register `Completed`
 - [x] **Bulk Operations** - CSV import/export for enrollments with BulkEnrollmentUpload component `Completed`
 - [x] **Comprehensive Testing** - Jest backend tests, Vitest frontend tests, Playwright E2E tests with coverage reporting `Completed`
+- [x] **Multi-Tenant White-Labeling** - Organization branding system with custom logo upload, footer branding, and configurable copyright/attribution `Completed` (Added 2025-10-29)
+  - Database: Organization.logoUrl and Organization.brandingConfig (JSONB) fields
+  - Backend: organizationBrandingController.js with file upload (multer), logo validation, CRUD endpoints
+  - Routes: GET /branding, POST /branding/logo, PUT /branding, DELETE /branding/logo (ORG_SETTINGS_MANAGE permission)
+  - Frontend: OrganizationSettings.jsx page for ORG_ADMIN to manage logo, copyright, and "Powered by" toggle
+  - UI: Logo displays in sidebar navigation, Footer.jsx component shows custom copyright and attribution
+  - API: Four branding methods added to api.js service layer
+  - File Storage: Logos stored in public/uploads/branding/ directory with org-specific naming
+  - Validation: Client and server-side file type/size validation (JPEG, PNG, GIF, SVG, WebP, 5MB max)
 
 ## Phase 1: Clinical Workflow Optimization & Stabilization (Current - Q4 2025)
 
@@ -118,6 +127,15 @@ The following features have been implemented:
   - sseService.js backend with connection management and heartbeat
   - TriageQueue.jsx integrated with SSE for real-time updates
   - Toast notifications for severity-based alerts
+- [x] **Mailtrap Email Configuration & Password Reset** - Configured email testing with Mailtrap and implemented complete password reset functionality `M` (2-3 days) ✅ **COMPLETE** (Added 2025-10-29)
+  - Mailtrap SMTP configuration: sandbox.smtp.mailtrap.io on port 2525 for development email testing
+  - Updated notificationService.js: Removed hardcoded Gmail service, added flexible SMTP configuration via environment variables
+  - Fixed nodemailer typo: createTransporter → createTransport
+  - Password Reset Endpoints: POST /api/auth/forgot-password, POST /api/auth/reset-password (authRoutes.js lines 711-862)
+  - Email Templates: sendPasswordResetEmail() and sendPasswordChangedEmail() methods in notificationService.js
+  - Security: Token hashing with bcrypt, 1-hour expiration, session invalidation on password change, rate limiting (5 attempts/15min)
+  - Test Scripts: test-mailtrap-email.js and test-password-reset.js for verification
+  - **Success Metric**: Password reset emails delivered to Mailtrap inbox, complete reset flow tested end-to-end
 
 #### Should-Have Features
 

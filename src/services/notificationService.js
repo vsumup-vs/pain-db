@@ -6,18 +6,20 @@ const prisma = new PrismaClient();
 
 class NotificationService {
   constructor() {
-    // Configure email transporter (example with Gmail)
+    // Configure email transporter
     // Only initialize if email credentials are configured
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       try {
-        this.emailTransporter = nodemailer.createTransporter({
-          service: 'gmail',
+        this.emailTransporter = nodemailer.createTransport({
+          host: process.env.EMAIL_HOST,
+          port: parseInt(process.env.EMAIL_PORT) || 587,
+          secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
           auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
           }
         });
-        console.log('Email transporter configured successfully');
+        console.log(`✅ Email transporter configured successfully (${process.env.EMAIL_HOST}:${process.env.EMAIL_PORT})`);
       } catch (error) {
         console.warn('Email transporter initialization failed:', error.message);
         this.emailTransporter = null;
@@ -257,7 +259,7 @@ class NotificationService {
       // Placeholder for SMS implementation
       // You can implement with Twilio, AWS SNS, or other SMS service
       console.log(`SMS would be sent to ${phone}: ${message.body}`);
-      
+
       // Example with Twilio (uncomment if you set up Twilio):
       // const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
       // await client.messages.create({
@@ -267,6 +269,81 @@ class NotificationService {
       // });
     } catch (error) {
       console.error('Error sending SMS:', error);
+    }
+  }
+
+  /**
+   * Send password reset email with reset token
+   */
+  async sendPasswordResetEmail(email, token, firstName) {
+    try {
+      if (!email) {
+        console.warn('No email address provided for password reset');
+        return { sent: false, reason: 'No email address' };
+      }
+
+      const message = {
+        subject: 'Password Reset Request - ClinMetrics Pro',
+        body: `
+          <p>Hi ${firstName || 'there'},</p>
+          <p>We received a request to reset your password for your ClinMetrics Pro account.</p>
+          <p>Click the button below to reset your password. This link will expire in 1 hour.</p>
+        `,
+        actionUrl: `/auth/reset-password?token=${token}`
+      };
+
+      const result = await this.sendEmail(email, message);
+
+      if (result.success) {
+        console.log(`Password reset email sent to ${email}`);
+        return { sent: true, messageId: result.messageId };
+      } else {
+        console.error(`Failed to send password reset email to ${email}:`, result.error);
+        return { sent: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      return { sent: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send password changed confirmation email
+   */
+  async sendPasswordChangedEmail(email, firstName) {
+    try {
+      if (!email) {
+        console.warn('No email address provided for password changed notification');
+        return { sent: false, reason: 'No email address' };
+      }
+
+      const message = {
+        subject: 'Password Changed Successfully - ClinMetrics Pro',
+        body: `
+          <p>Hi ${firstName || 'there'},</p>
+          <p>This email confirms that your password for ClinMetrics Pro has been successfully changed.</p>
+          <p>If you did not make this change, please contact your administrator immediately.</p>
+          <p><strong>For your security:</strong></p>
+          <ul>
+            <li>You have been logged out of all devices and will need to log in again with your new password.</li>
+            <li>If you did not request this change, your account may be compromised.</li>
+          </ul>
+        `,
+        actionUrl: '/login'
+      };
+
+      const result = await this.sendEmail(email, message);
+
+      if (result.success) {
+        console.log(`Password changed confirmation email sent to ${email}`);
+        return { sent: true, messageId: result.messageId };
+      } else {
+        console.error(`Failed to send password changed email to ${email}:`, result.error);
+        return { sent: false, error: result.error };
+      }
+    } catch (error) {
+      console.error('Error sending password changed email:', error);
+      return { sent: false, error: error.message };
     }
   }
 }
