@@ -176,6 +176,15 @@ export default function Patients() {
   const patients = patientsResponse?.data || []
   const pagination = patientsResponse?.pagination || {}
 
+  // DEBUG: Log patient count
+  console.log('[Patients] API Response:', {
+    totalPatients: patients.length,
+    patientsResponse,
+    searchTerm,
+    filterStatus,
+    filterGender
+  })
+
   const createMutation = useMutation({
     mutationFn: api.createPatient,
     onSuccess: () => {
@@ -848,6 +857,17 @@ function PatientForm({ patient, onSubmit, isLoading }) {
     insurancePhone: patient?.insuranceInfo?.phone || '',
   })
 
+  const [diagnosisCodes, setDiagnosisCodes] = useState(
+    patient?.diagnosisCodes || []
+  )
+
+  const [newDiagnosis, setNewDiagnosis] = useState({
+    code: '',
+    codingSystem: 'ICD-10',
+    display: '',
+    isPrimary: false
+  })
+
   const handleSubmit = (e) => {
     e.preventDefault()
 
@@ -870,6 +890,7 @@ function PatientForm({ patient, onSubmit, isLoading }) {
       address: formData.address,
       emergencyContact: formData.emergencyContact || null,
       insuranceInfo: insuranceInfo,
+      diagnosisCodes: diagnosisCodes.length > 0 ? diagnosisCodes : null,
     }
 
     onSubmit(submitData)
@@ -877,6 +898,32 @@ function PatientForm({ patient, onSubmit, isLoading }) {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleAddDiagnosis = () => {
+    if (!newDiagnosis.code || !newDiagnosis.display) {
+      return
+    }
+
+    setDiagnosisCodes([...diagnosisCodes, { ...newDiagnosis }])
+    setNewDiagnosis({
+      code: '',
+      codingSystem: 'ICD-10',
+      display: '',
+      isPrimary: false
+    })
+  }
+
+  const handleRemoveDiagnosis = (index) => {
+    setDiagnosisCodes(diagnosisCodes.filter((_, i) => i !== index))
+  }
+
+  const handleDiagnosisChange = (e) => {
+    setNewDiagnosis({ ...newDiagnosis, [e.target.name]: e.target.value })
+  }
+
+  const handleDiagnosisCheckbox = (e) => {
+    setNewDiagnosis({ ...newDiagnosis, isPrimary: e.target.checked })
   }
 
   return (
@@ -1033,6 +1080,124 @@ function PatientForm({ patient, onSubmit, isLoading }) {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               placeholder="Customer service phone"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Diagnosis Codes Section */}
+      <div className="pt-4 border-t border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Diagnosis Codes</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Add ICD-10 or SNOMED diagnosis codes to enable automatic billing package suggestions.
+        </p>
+
+        {/* Existing Diagnosis Codes List */}
+        {diagnosisCodes.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {diagnosisCodes.map((dx, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-mono text-sm font-semibold text-blue-700">
+                      {dx.code}
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                      {dx.codingSystem}
+                    </span>
+                    {dx.isPrimary && (
+                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 mt-1">{dx.display}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDiagnosis(index)}
+                  className="ml-4 text-red-600 hover:text-red-800 transition-colors"
+                  title="Remove diagnosis"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add New Diagnosis Form */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Diagnosis Code *
+              </label>
+              <input
+                type="text"
+                name="code"
+                value={newDiagnosis.code}
+                onChange={handleDiagnosisChange}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                placeholder="e.g., J44.0, E11.9"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Coding System
+              </label>
+              <select
+                name="codingSystem"
+                value={newDiagnosis.codingSystem}
+                onChange={handleDiagnosisChange}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="ICD-10">ICD-10</option>
+                <option value="SNOMED">SNOMED CT</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description *
+            </label>
+            <input
+              type="text"
+              name="display"
+              value={newDiagnosis.display}
+              onChange={handleDiagnosisChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              placeholder="e.g., COPD with acute lower respiratory infection"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isPrimary"
+                name="isPrimary"
+                checked={newDiagnosis.isPrimary}
+                onChange={handleDiagnosisCheckbox}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="isPrimary" className="ml-2 text-sm text-gray-700">
+                Mark as primary diagnosis
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddDiagnosis}
+              disabled={!newDiagnosis.code || !newDiagnosis.display}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Diagnosis
+            </button>
           </div>
         </div>
       </div>

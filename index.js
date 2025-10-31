@@ -17,6 +17,9 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`  Headers:`, JSON.stringify(req.headers, null, 2));
+  const bodyStr = JSON.stringify(req.body || {}, null, 2);
+  console.log(`  Body preview:`, bodyStr.substring(0, 200));
   next();
 });
 
@@ -52,6 +55,8 @@ const analyticsRoutes = require('./src/routes/analyticsRoutes');
 const platformRoutes = require('./src/routes/platformRoutes');
 const savedViewRoutes = require('./src/routes/savedViewRoutes');
 const organizationBrandingRoutes = require('./src/routes/organizationBrandingRoutes');
+const standardsRoutes = require('./src/routes/standardsRoutes');
+const packageSuggestionRoutes = require('./src/routes/packageSuggestionRoutes');
 
 // Import authentication
 const passport = require('passport');
@@ -135,6 +140,9 @@ app.get('/api', (req, res) => {
       drugs: '/api/drugs',
       'patient-medications': '/api/patient-medications',
       billing: '/api/billing',
+      'billing-packages': '/api/billing/packages',
+      'billing-suggest': '/api/billing/suggest-package',
+      'patient-suggestions': '/api/patients/:patientId/suggestions',
       'care-programs': '/api/care-programs',
       'saved-views': '/api/saved-views'
     }
@@ -159,6 +167,7 @@ app.use('/api/drugs', requireAuth, injectOrganizationContext, auditOrganizationA
 app.use('/api/patient-medications', requireAuth, injectOrganizationContext, auditOrganizationAccess, patientMedicationRoutes);
 app.use('/api/continuity', requireAuth, injectOrganizationContext, auditOrganizationAccess, continuityRoutes);
 app.use('/api/billing', requireAuth, injectOrganizationContext, auditOrganizationAccess, billingRoutes);
+app.use('/api', requireAuth, injectOrganizationContext, auditOrganizationAccess, packageSuggestionRoutes);
 app.use('/api/time-tracking', requireAuth, injectOrganizationContext, auditOrganizationAccess, timeTrackingRoutes);
 app.use('/api/analytics', requireAuth, injectOrganizationContext, auditOrganizationAccess, analyticsRoutes);
 app.use('/api/organizations', requireAuth, organizationBrandingRoutes);
@@ -176,6 +185,7 @@ app.use('/api/assessment-templates-v2', requireAuth, assessmentTemplateEnhancedR
 app.use('/api/assessment-templates', requireAuth, assessmentTemplateRoutes);
 app.use('/api/alert-rules', requireAuth, alertRuleRoutes);
 app.use('/api/condition-presets', requireAuth, conditionPresetRoutes);
+app.use('/api/standards', requireAuth, standardsRoutes);
 
 // Admin routes (SUPER_ADMIN and ORG_ADMIN)
 // Note: Organizations don't need organization context middleware since they manage organizations themselves

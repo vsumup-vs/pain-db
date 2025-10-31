@@ -26,7 +26,6 @@ model User {
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
   isPlatformAdmin        Boolean            @default(false)
-  claimedAlerts          Alert[]            @relation("ClaimedAlerts")
   escalatedAlerts        Alert[]            @relation("EscalatedAlerts")
   resolvedAlerts         Alert[]            @relation("ResolvedAlerts")
   snoozedAlerts          Alert[]            @relation("SnoozedAlerts")
@@ -201,6 +200,7 @@ model Patient {
   emergencyContact     String?
   medicalRecordNumber  String?               @unique
   insuranceInfo        Json?
+  diagnosisCodes       Json?                 // Array of { code, codingSystem, display, isPrimary }
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   alerts               Alert[]
@@ -208,6 +208,7 @@ model Patient {
   assessments          Assessment[]
   encounterNotes       EncounterNote[]
   enrollments          Enrollment[]
+  enrollmentSuggestions EnrollmentSuggestion[]
   observations         Observation[]
   patientMedications   PatientMedication[]
   organization         Organization          @relation(fields: [organizationId], references: [id])
@@ -240,6 +241,7 @@ model Clinician {
   licenseNumber                                     String?               @map("license_number")
   npiNumber                                         String?               @map("npi_number")
   alerts                                            Alert[]
+  claimedAlerts                                     Alert[]               @relation("ClaimedAlerts")
   assessments                                       Assessment[]
   organization                                      Organization          @relation(fields: [organizationId], references: [id])
   encounterNotes                                    EncounterNote[]
@@ -685,7 +687,7 @@ model Alert {
   escalationReason                                   String?
   isEscalated                                        Boolean           @default(false)
   observation_id                                     String?
-  claimedBy                                          User?             @relation("ClaimedAlerts", fields: [claimedById], references: [id])
+  claimedBy                                          Clinician?        @relation("ClaimedAlerts", fields: [claimedById], references: [id])
   clinician                                          Clinician?        @relation(fields: [clinicianId], references: [id])
   escalatedTo                                        User?             @relation("EscalatedAlerts", fields: [escalatedToId], references: [id])
   observations_alerts_observation_idToobservations   Observation?      @relation("alerts_observation_idToobservations", fields: [observation_id], references: [id])
@@ -832,6 +834,8 @@ model EncounterNote {
   assessment        String?
   plan              String?
   additionalNotes   String?
+  diagnosisCodes    Json?
+  recommendations   Json?
   isLocked          Boolean       @default(false)
   attestedById      String?
   attestedAt        DateTime?
@@ -950,6 +954,92 @@ model BillingEligibilityRule {
   @@index([ruleType])
   @@index([priority])
   @@map("billing_eligibility_rules")
+}
+
+model BillingPackageTemplate {
+  id                  String   @id @default(cuid())
+  organizationId      String?
+  name                String
+  code                String   @unique
+  description         String?
+  category            String
+  isStandardized      Boolean  @default(false)
+  sourceTemplateId    String?
+  isActive            Boolean  @default(true)
+  diagnosisCriteria   Json
+  programCombinations Json
+  suggestedPresets    Json?
+  clinicalRationale   String?
+  evidenceSource      String?
+  displayOrder        Int      @default(0)
+  usageCount          Int      @default(0)
+  lastUsedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+
+  // Relations
+  suggestions         EnrollmentSuggestion[]
+
+  @@index([organizationId])
+  @@index([category])
+  @@index([isStandardized])
+  @@index([isActive])
+  @@index([code])
+  @@map("billing_package_templates")
+}
+
+model CodeSystemMapping {
+  id             String   @id @default(cuid())
+  sourceSystem   String
+  sourceCode     String
+  sourceDisplay  String
+  targetSystem   String
+  targetCode     String
+  targetDisplay  String
+  mappingType    String
+  confidence     Decimal  @db.Decimal(3, 2)
+  evidenceSource String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  @@unique([sourceSystem, sourceCode, targetSystem])
+  @@index([targetSystem, targetCode])
+  @@index([sourceSystem, sourceCode])
+  @@index([isActive])
+  @@map("code_system_mappings")
+}
+
+model EnrollmentSuggestion {
+  id                   String   @id @default(cuid())
+  organizationId       String
+  patientId            String
+  packageTemplateId    String
+  matchScore           Decimal  @db.Decimal(5, 2)
+  matchedDiagnoses     Json
+  suggestedPrograms    Json
+  status               String   @default("PENDING")
+  reviewedById         String?
+  reviewedAt           DateTime?
+  rejectionReason      String?
+  createdEnrollmentIds String[] @default([])
+  sourceType           String
+  sourceId             String?
+  metadata             Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
+
+  // Relations
+  packageTemplate      BillingPackageTemplate @relation(fields: [packageTemplateId], references: [id], onDelete: Cascade)
+  patient              Patient                @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([packageTemplateId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceType, sourceId])
+  @@map("enrollment_suggestions")
 }
 
 model SavedView {

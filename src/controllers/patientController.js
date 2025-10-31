@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { suggestBillingPackages } = require('../services/packageSuggestionService');
 
 // Use global prisma client in test environment, otherwise create new instance
 const prisma = global.prisma || new PrismaClient();
@@ -18,7 +19,8 @@ const createPatient = async (req, res) => {
       medicalHistory,
       allergies,
       medications,
-      insuranceInfo
+      insuranceInfo,
+      diagnosisCodes
     } = req.body;
 
     // Validate required fields
@@ -91,9 +93,24 @@ const createPatient = async (req, res) => {
         medicalHistory,
         allergies,
         medications,
-        insuranceInfo
+        insuranceInfo,
+        diagnosisCodes
       }
     });
+
+    // Automatically generate billing package suggestions if diagnosis codes provided
+    if (diagnosisCodes && Array.isArray(diagnosisCodes) && diagnosisCodes.length > 0) {
+      try {
+        await suggestBillingPackages(patient.id, organizationId, {
+          sourceType: 'PATIENT_RECORD',
+          sourceId: patient.id
+        });
+        console.log(`Generated billing package suggestions for patient ${patient.id}`);
+      } catch (suggestionError) {
+        // Log error but don't fail patient creation
+        console.error('Error generating billing suggestions:', suggestionError);
+      }
+    }
 
     res.status(201).json({
       message: 'Patient created successfully',
@@ -381,6 +398,26 @@ const updatePatient = async (req, res) => {
       where: { id },
       data: updateData
     });
+
+    // Automatically generate billing package suggestions if diagnosis codes were added/modified
+    if (updateData.diagnosisCodes && Array.isArray(updateData.diagnosisCodes) && updateData.diagnosisCodes.length > 0) {
+      // Check if diagnosis codes actually changed
+      const oldCodes = JSON.stringify(existingPatient.diagnosisCodes || []);
+      const newCodes = JSON.stringify(updateData.diagnosisCodes);
+
+      if (oldCodes !== newCodes) {
+        try {
+          await suggestBillingPackages(id, organizationId, {
+            sourceType: 'PATIENT_RECORD',
+            sourceId: id
+          });
+          console.log(`Generated billing package suggestions for updated patient ${id}`);
+        } catch (suggestionError) {
+          // Log error but don't fail patient update
+          console.error('Error generating billing suggestions:', suggestionError);
+        }
+      }
+    }
 
     res.json({
       message: 'Patient updated successfully',
