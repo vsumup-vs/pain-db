@@ -11,15 +11,18 @@
 
 This document outlines the **recommended architecture for international expansion** using **separate, isolated deployments** for India and Middle East markets rather than a unified multi-region system.
 
-### Key Decision: 3 Independent Deployments
+### Key Decision: Independent Regional Deployments
 
 ```
-Core Platform (US/UK/AU/CA) ──────┐
-                                   │
-India Deployment ─────────────────┼─── Shared Components (@clinmetrics/core-*)
-                                   │
-Middle East Deployment ───────────┘
+US Platform (Current) ────────────┐
+UK Deployment (Future) ───────────┤
+Australia Deployment (Future) ────┤
+Canada Deployment (Future) ───────┼─── Shared Components (@clinmetrics/core-*)
+India Deployment (Planned) ───────┤
+Middle East Deployment (Planned) ─┘
 ```
+
+**Note**: Based on completeness assessment (see CORE-PLATFORM-COMPLETENESS-ASSESSMENT.md), only US CMS billing is currently implemented. UK, Australia, and Canada billing programs require 8-12 weeks additional development.
 
 ### Why Separate Deployments?
 
@@ -37,31 +40,45 @@ Middle East Deployment ───────────┘
 
 ## Architecture Overview
 
-### Deployment 1: Core Platform (Current)
+### Deployment 1: US Platform (Current)
 
-**Status**: ✅ Already Implemented
+**Status**: ✅ Implemented and Production Ready
 
-**Regions Served**: United States, United Kingdom, Australia, Canada
+**Region Served**: United States only
 
 **Domain**: `app.clinmetrics.com`
 
 **Infrastructure**:
-- Database: AWS RDS PostgreSQL (US East/West regions)
+- Database: Digital Ocean Managed PostgreSQL (US regions)
 - Application: Digital Ocean App Platform (US)
 - CDN: CloudFront
 - Storage: S3 (US regions)
 
-**Billing Programs**:
-- CMS RPM/RTM/CCM (United States)
-- NHS Long-term Conditions Management (United Kingdom)
-- Medicare MBS Items (Australia)
-- Provincial Fee Schedules (Canada)
+**Billing Programs** (3 programs implemented):
+- ✅ CMS RPM (Remote Patient Monitoring) - CPT codes 99453, 99454, 99457, 99458
+- ✅ CMS RTM (Remote Therapeutic Monitoring) - CPT codes 98975, 98976, 98977, 98980, 98981
+- ✅ CMS CCM (Chronic Care Management) - CPT codes 99490, 99439, 99491
 
-**Languages**: English (en-US, en-GB, en-AU, en-CA)
+**Coding Systems**: ICD-10-CM, CPT/HCPCS
 
-**Currency**: USD, GBP, AUD, CAD
+**Language**: English (en-US)
 
-**Compliance**: HIPAA (US), GDPR (UK), Privacy Act 1988 (AU), PIPEDA (CA)
+**Currency**: USD
+
+**Compliance**: HIPAA
+
+---
+
+### Future Deployments: UK, Australia, Canada
+
+**Status**: ⏳ Not Yet Implemented (8-12 weeks effort)
+
+**Gap Analysis** (see CORE-PLATFORM-COMPLETENESS-ASSESSMENT.md):
+- ❌ UK: NHS billing programs, OPCS-4 codes, GBP currency (2-3 weeks)
+- ❌ Australia: Medicare MBS items, ICD-10-AM, AUD currency (2-3 weeks)
+- ❌ Canada: Provincial fee schedules, ICD-10-CA, CAD currency (4-6 weeks)
+
+**Recommendation**: Treat UK, Australia, and Canada as separate deployments (like India and Middle East) rather than bundled with US platform.
 
 ---
 
@@ -573,10 +590,11 @@ export function gregorianToHijri(gregorianDate) {
 
 | Deployment | Duration | Cost Estimate | Team Size |
 |-----------|----------|---------------|-----------|
-| **Core Platform** | ✅ Complete | - | - |
+| **US Platform** | ✅ Complete | - | - |
+| **UK/AU/CA** | 8-12 weeks | $80,000 - $120,000 | 2-3 developers |
 | **India Deployment** | 8 weeks | $60,000 - $80,000 | 3-4 developers |
 | **Middle East Deployment** | 8 weeks | $70,000 - $90,000 | 3-4 developers |
-| **Total** | 16 weeks (sequential) | $130,000 - $170,000 | 3-4 developers |
+| **Total** | 24-28 weeks (sequential) | $210,000 - $290,000 | 2-4 developers |
 
 **Note**: If deployments are done in parallel with 2 teams, total duration is 8 weeks but cost doubles.
 
@@ -587,7 +605,7 @@ export function gregorianToHijri(gregorianDate) {
 ### Week 1-2: Infrastructure & Codebase Setup
 
 **Tasks**:
-- [ ] Clone core platform codebase to `clinmetrics-india` repository
+- [ ] Clone US platform codebase to `clinmetrics-india` repository
 - [ ] Setup AWS infrastructure in Mumbai region (ap-south-1)
   - RDS PostgreSQL (db.t3.medium)
   - Elastic Beanstalk or Digital Ocean App Platform
@@ -738,7 +756,7 @@ assert(dataLocation.country === 'IN', 'Data must be in India');
 ### Week 1-2: Infrastructure & Codebase Setup
 
 **Tasks**:
-- [ ] Clone core platform codebase to `clinmetrics-mena` repository
+- [ ] Clone US platform codebase to `clinmetrics-mena` repository
 - [ ] Setup AWS infrastructure in Bahrain region (me-south-1) OR Azure UAE North
 - [ ] Configure multi-domain support:
   - `app.clinmetrics.ae` (UAE primary)
@@ -1076,7 +1094,7 @@ Both deployments complete in 8 weeks
 
 ### Quarterly Sync
 
-All 3 deployments (Core, India, Middle East) sync quarterly to:
+All deployments (US, UK/AU/CA, India, Middle East) sync quarterly to:
 - Share learnings and best practices
 - Decide on shared component updates
 - Align on major platform changes
