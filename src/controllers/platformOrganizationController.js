@@ -53,7 +53,8 @@ async function getAllOrganizations(req, res) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
-        { domain: { contains: search, mode: 'insensitive' } }
+        { address: { contains: search, mode: 'insensitive' } },
+        { website: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -78,18 +79,20 @@ async function getAllOrganizations(req, res) {
           type: true,
           email: true,
           phone: true,
-          domain: true,
+          address: true,
+          website: true,
           isActive: true,
           subscriptionTier: true,
           subscriptionStatus: true,
           subscriptionStartDate: true,
           subscriptionEndDate: true,
+          trialEndsAt: true,
           maxUsers: true,
           maxPatients: true,
           maxClinicians: true,
-          billingContact: true,
-          lastBillingDate: true,
-          nextBillingDate: true,
+          billingContactName: true,
+          billingContactEmail: true,
+          billingContactPhone: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -286,7 +289,7 @@ async function getOrganizationById(req, res) {
             patients: true,
             clinicians: true,
             carePrograms: true,
-            alerts: true
+            supportTickets: true
           }
         }
       }
@@ -307,27 +310,10 @@ async function getOrganizationById(req, res) {
       });
     }
 
-    // Get subscription history
-    const subscriptionHistory = await prisma.subscriptionHistory.findMany({
-      where: { organizationId: id },
-      orderBy: { changedAt: 'desc' },
-      take: 10,
-      include: {
-        changedByUser: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        }
-      }
-    });
-
     // Get recent invoices
     const invoices = await prisma.invoice.findMany({
       where: { organizationId: id },
-      orderBy: { invoiceDate: 'desc' },
+      orderBy: { issueDate: 'desc' },
       take: 5
     });
 
@@ -363,7 +349,7 @@ async function getOrganizationById(req, res) {
           : null
       },
       carePrograms: organization._count.carePrograms,
-      alerts: organization._count.alerts
+      supportTickets: organization._count.supportTickets
     };
 
     res.json({
@@ -371,7 +357,6 @@ async function getOrganizationById(req, res) {
       data: {
         ...organization,
         usage,
-        subscriptionHistory,
         recentInvoices: invoices,
         activeSupportTickets
       }
@@ -625,7 +610,7 @@ async function getOrganizationUsage(req, res) {
             patients: true,
             clinicians: true,
             carePrograms: true,
-            alerts: true
+            supportTickets: true
           }
         }
       }
